@@ -1,0 +1,7 @@
+{
+  "name": "Brainrot.Runtime",
+  "references": [
+    "UnityEngine.UI",
+    "Unity.InputSystem"
+  ]
+}
