@@ -41,6 +41,13 @@ namespace Brainrot {
    return Input.GetKeyDown(KeyCode.Space);
 #endif
   }}
+  public static bool CameraToggle {get {
+#if ENABLE_INPUT_SYSTEM
+   return Keyboard.current!=null&&Keyboard.current.vKey.wasPressedThisFrame;
+#else
+   return Input.GetKeyDown(KeyCode.V);
+#endif
+  }}
   public static bool Pause {get {
 #if ENABLE_INPUT_SYSTEM
    return Keyboard.current!=null&&Keyboard.current.escapeKey.wasPressedThisFrame;

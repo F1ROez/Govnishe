@@ -29,10 +29,20 @@ namespace Brainrot
             var rng = new System.Random(731);
             Island(root);
             var water = Shader.Find("Brainrot/TropicalWater");
-            var waterMat = water != null ? new Material(water) : Material(new Color(.02f,.53f,.70f), "Ocean");
+            var ocean=GameBalance.Current.Ocean;
+            var waterMat = water != null ? new Material(water) : Material(ocean.DeepColor, "Ocean");
+            waterMat.name="Soft tropical ocean";
+            if(water!=null)
+            {
+                waterMat.SetColor("_BaseColor",ocean.DeepColor);
+                waterMat.SetColor("_ShallowColor",ocean.ShallowColor);
+                waterMat.SetFloat("_WaveSpeed",ocean.WaveSpeed);
+                waterMat.SetFloat("_WaveScale",ocean.WaveScale);
+                waterMat.SetFloat("_WaveStrength",ocean.WaveStrength);
+            }
             Primitive("Endless ocean", PrimitiveType.Plane, root, new Vector3(0,-.43f,0), new Vector3(400,1,400), waterMat);
             Ring(root, "Shore foam", 22.4f, .26f, -.28f, foam, 160);
-            Ring(root, "Turquoise shallows", 25f, 2.2f, -.40f, Material(new Color(.14f,.77f,.78f)), 160);
+            // Shore colour is blended smoothly by the ocean shader instead of a hard turquoise ring.
             for (int i = 0; i < 13; i++)
             {
                 float a = (float)rng.NextDouble() * Mathf.PI * 2;

@@ -11,7 +11,14 @@ namespace Brainrot.Editor {
   static GameBuilder(){EditorApplication.delayCall+=ConfigureFirstImport;}
   static void ConfigureFirstImport(){if(EditorApplication.isPlayingOrWillChangePlaymode||SessionState.GetBool("BrainrotConfigured",false))return;SessionState.SetBool("BrainrotConfigured",true);Configure();}
   static void Folder(string path){if(!Directory.Exists(path))Directory.CreateDirectory(path);}
-  public static void Configure(){Folder(Root);AssetDatabase.Refresh();
+  public static GameBalance EnsureBalance(){
+   Folder(Root+"/Resources");AssetDatabase.Refresh();
+   const string path=Root+"/Resources/GameBalance.asset";
+   var balance=AssetDatabase.LoadAssetAtPath<GameBalance>(path);
+   if(balance==null){balance=ScriptableObject.CreateInstance<GameBalance>();AssetDatabase.CreateAsset(balance,path);AssetDatabase.SaveAssets();}
+   return balance;
+  }
+  public static void Configure(){Folder(Root);AssetDatabase.Refresh();EnsureBalance();
    string rendererPath=Root+"/ArenaRenderer.asset";var renderer=AssetDatabase.LoadAssetAtPath<UniversalRendererData>(rendererPath);
    if(renderer==null){renderer=ScriptableObject.CreateInstance<UniversalRendererData>();AssetDatabase.CreateAsset(renderer,rendererPath);}
    string pipelinePath=Root+"/ArenaURP.asset";var pipeline=AssetDatabase.LoadAssetAtPath<UniversalRenderPipelineAsset>(pipelinePath);
@@ -29,7 +36,7 @@ namespace Brainrot.Editor {
    if(!Application.isBatchMode&&!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())return;
    Configure();Folder("Assets/Scenes");Folder(Root+"/Prefabs");Folder("Assets/Resources/Upgrades");AssetDatabase.Refresh();
    var scene=EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
-   var root=new GameObject("Brainrot Ireland");root.AddComponent<GameManager>();EditorSceneManager.SaveScene(scene,ScenePath);
+   var root=new GameObject("Brainrot Ireland");root.AddComponent<GameManager>().Balance=EnsureBalance();EditorSceneManager.SaveScene(scene,ScenePath);
    var template=new GameObject("Pooled Shark");template.AddComponent<EnemyController>();PrefabUtility.SaveAsPrefabAsset(template,Root+"/Prefabs/Shark.prefab");UnityEngine.Object.DestroyImmediate(template);
    var sandPath=Root+"/Sand.mat";if(AssetDatabase.LoadAssetAtPath<Material>(sandPath)==null){var material=new Material(Shader.Find("Universal Render Pipeline/Lit"));material.color=new Color(1,.8f,.42f);AssetDatabase.CreateAsset(material,sandPath);}
    // Persist fallback definitions as editable ScriptableObjects without entering Play mode.

@@ -13,6 +13,9 @@ namespace Brainrot
         public float Volume = .7f;
         public float Sensitivity = 1f;
         public int Quality = 1;
+        public bool CameraLocked = true;
+        public bool HasCameraPreference;
+        public bool ShowAttackRange = true;
     }
 
     public static class SaveSystem
@@ -35,6 +38,9 @@ namespace Brainrot
                 if (string.IsNullOrWhiteSpace(json) || !json.TrimStart().StartsWith("{")) return false;
                 var restored = JsonUtility.FromJson<SaveData>(json);
                 if (restored == null) return false;
+                // Old saves predate camera/range settings. Keep records and migrate defaults.
+                if (!json.Contains("\"CameraLocked\"")) restored.CameraLocked = true;
+                if (!json.Contains("\"ShowAttackRange\"")) restored.ShowAttackRange = true;
                 Data = restored;
                 return true;
             }

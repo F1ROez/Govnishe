@@ -9,6 +9,13 @@ namespace Brainrot
         Transform leftLeg,rightLeg,body,leftArm,rightArm;
         Vector3 bodyPosition; bool isShark;
         float phase,attackBlend;
+        Renderer[] feedbackRenderers;
+        Color[] feedbackBaseColors;
+        MaterialPropertyBlock feedbackBlock;
+        float flashRemaining, flashDuration, flashStrength;
+        bool feedbackApplied;
+        static readonly int BaseColorId=Shader.PropertyToID("_BaseColor");
+        static readonly int ColorId=Shader.PropertyToID("_Color");
         static Material white,black,wood,shoe,mouth;
         static readonly Dictionary<Color,Material> skins=new Dictionary<Color,Material>();
         static void Materials()
@@ -25,7 +32,7 @@ namespace Brainrot
             { skin=WorldBuilder.Material(color,shark?"Shark skin":"Sahur wood"); skins[color]=skin; }
             c.body=new GameObject("Animated body").transform;c.body.SetParent(go.transform,false);
             if(shark)c.BuildShark(skin);else c.BuildSahur(skin);
-            c.bodyPosition=c.body.localPosition;return c;
+            c.bodyPosition=c.body.localPosition;c.CacheFeedbackRenderers();return c;
         }
         GameObject Part(string name,PrimitiveType type,Transform parent,Vector3 p,Vector3 s,Material mat)
         {return WorldBuilder.Primitive(name,type,parent,p,s,mat);}
@@ -96,6 +103,53 @@ namespace Brainrot
             var go=new GameObject(name,typeof(MeshFilter),typeof(MeshRenderer));go.transform.SetParent(parent,false);
             go.GetComponent<MeshFilter>().sharedMesh=mesh;go.GetComponent<MeshRenderer>().sharedMaterial=mat;
         }
+        void CacheFeedbackRenderers()
+        {
+            feedbackRenderers=GetComponentsInChildren<Renderer>(true);
+            feedbackBaseColors=new Color[feedbackRenderers.Length];
+            feedbackBlock=new MaterialPropertyBlock();
+            for(int i=0;i<feedbackRenderers.Length;i++)
+            {
+                var material=feedbackRenderers[i].sharedMaterial;
+                feedbackBaseColors[i]=material!=null?material.color:Color.white;
+            }
+        }
+        /// <summary>Short red tint without cloning or changing shared skin materials.</summary>
+        public void FlashHit(float duration,float strength)
+        {
+            if(feedbackRenderers==null)CacheFeedbackRenderers();
+            flashDuration=Mathf.Max(.01f,duration);
+            flashRemaining=flashDuration;
+            flashStrength=Mathf.Clamp01(strength);
+            ApplyFeedback(flashStrength);
+        }
+        void ApplyFeedback(float strength)
+        {
+            if(feedbackRenderers==null)return;
+            for(int i=0;i<feedbackRenderers.Length;i++)
+            {
+                var renderer=feedbackRenderers[i];if(renderer==null)continue;
+                Color color=Color.Lerp(feedbackBaseColors[i],new Color(1,.16f,.14f,feedbackBaseColors[i].a),strength);
+                feedbackBlock.Clear();feedbackBlock.SetColor(BaseColorId,color);feedbackBlock.SetColor(ColorId,color);
+                renderer.SetPropertyBlock(feedbackBlock);
+            }
+            feedbackApplied=true;
+        }
+        void Update()
+        {
+            if(flashRemaining<=0)return;
+            flashRemaining=Mathf.Max(0,flashRemaining-Time.deltaTime);
+            if(flashRemaining<=0)ResetFeedback();
+            else ApplyFeedback(flashStrength*flashRemaining/flashDuration);
+        }
+        public void ResetFeedback()
+        {
+            flashRemaining=0;
+            if(!feedbackApplied||feedbackRenderers==null)return;
+            foreach(var renderer in feedbackRenderers)if(renderer!=null)renderer.SetPropertyBlock(null);
+            feedbackApplied=false;
+        }
+        void OnDisable(){ResetFeedback();}
         public void Animate(float speed,bool attacking)
         {
             float intensity=Mathf.Clamp01(speed/3);

@@ -14,7 +14,9 @@ namespace Brainrot
         Sprite solid;
         Canvas canvas;
         GameObject hud, overlay, mobile, boss;
-        Text stats, healthText, xpText, notification, bossText;
+        Text stats, healthText, xpText, notification, bossText, aimHint, hitMarker, hitLabel;
+        float hitUntil;
+        bool lastHitCritical;
         Image healthFill, xpFill, bossFill;
         GameState shownState = (GameState)(-1);
         int shownLevel = -1;
@@ -51,7 +53,11 @@ namespace Brainrot
             stats=Label(hud.transform,"",24,TextAnchor.UpperCenter,new Vector2(.35f,.84f),new Vector2(.8f,.96f));
             Button(hud.transform,"II",new Vector2(.91f,.88f),new Vector2(.975f,.97f),()=>GameManager.Instance.Pause());
             notification=Label(hud.transform,"",30,TextAnchor.MiddleCenter,new Vector2(.15f,.68f),new Vector2(.85f,.81f)); notification.color=gold;
-            Label(hud.transform,"WASD  move   •   Mouse  look   •   LMB  swing   •   Shift  sprint   •   Space  dash",17,TextAnchor.LowerCenter,new Vector2(.1f,.02f),new Vector2(.9f,.07f));
+            Label(hud.transform,"WASD move  •  Mouse look  •  LMB swing  •  Shift sprint  •  Space dash  •  V camera lock",16,TextAnchor.LowerCenter,new Vector2(.08f,.02f),new Vector2(.92f,.07f));
+            aimHint=Label(hud.transform,"",16,TextAnchor.LowerCenter,new Vector2(.32f,.07f),new Vector2(.68f,.11f));
+            Label(hud.transform,"+",18,TextAnchor.MiddleCenter,new Vector2(.49f,.49f),new Vector2(.51f,.53f)).color=new Color(1,1,1,.5f);
+            hitMarker=Label(hud.transform,"",36,TextAnchor.MiddleCenter,new Vector2(.47f,.46f),new Vector2(.53f,.56f));
+            hitLabel=Label(hud.transform,"",17,TextAnchor.MiddleCenter,new Vector2(.4f,.41f),new Vector2(.6f,.46f));
             boss=Box("Boss",hud.transform,new Vector2(.28f,.73f),new Vector2(.72f,.82f),new Color(.03f,.08f,.13f,.88f));
             bossText=Label(boss.transform,"KING TRALALA",20,TextAnchor.MiddleCenter,new Vector2(0,.35f),Vector2.one);
             bossFill=Bar(boss.transform,new Vector2(.04f,.12f),new Vector2(.96f,.32f),new Color(.85f,.25f,.9f));
@@ -76,6 +82,13 @@ namespace Brainrot
             }
             stats.text=$"{TimeLabel(gm.Elapsed)}   |   {gm.Kills} KILLS\n<size=18>WAVE {gm.Wave}</size>";
             notification.text=gm.Notification ?? "";
+            aimHint.text=gm.Player!=null && gm.Player.CameraLocked ? "CAMERA LOCK ON  ·  V" : "FREE FACING  ·  V";
+            if(Time.unscaledTime>=hitUntil) {hitMarker.text="";hitLabel.text="";}
+            else {
+                float alpha=Mathf.Clamp01((hitUntil-Time.unscaledTime)/.12f);
+                Color feedback=lastHitCritical?gold:Color.white;feedback.a=alpha;
+                hitMarker.color=feedback;hitLabel.color=feedback;
+            }
             EnemyController king=null;
             if(gm.Spawner != null) foreach(var enemy in gm.Spawner.Active) if(enemy != null && enemy.Alive && enemy.IsBoss) {king=enemy;break;}
             boss.SetActive(king!=null);
@@ -123,8 +136,9 @@ namespace Brainrot
                     var card=Box("Upgrade",overlay.transform,new Vector2(left,.23f),new Vector2(left+.28f,.61f),new Color(.08f,.2f,.27f,.98f));
                     Label(card.transform,def.Rarity.ToString().ToUpperInvariant(),17,TextAnchor.MiddleCenter,new Vector2(.06f,.83f),new Vector2(.94f,.96f)).color=gold;
                     Label(card.transform,def.Title,28,TextAnchor.MiddleCenter,new Vector2(.06f,.57f),new Vector2(.94f,.84f));
-                    Label(card.transform,def.Description,19,TextAnchor.MiddleCenter,new Vector2(.08f,.23f),new Vector2(.92f,.59f));
-                    Button(card.transform,$"TAKE  ·  {gm.Upgrades.Rank(def)+1}/{def.MaxRank}",new Vector2(.08f,.06f),new Vector2(.92f,.22f),()=>{gm.Upgrades.Choose(index);if(gm.State==GameState.Upgrade)BuildScreen();});
+                    Label(card.transform,gm.Upgrades.Describe(def),19,TextAnchor.MiddleCenter,new Vector2(.08f,.23f),new Vector2(.92f,.59f));
+                    string take=gm.Upgrades.Rank(def)>=def.MaxRank?"RESTORE HEALTH":$"TAKE  ·  {gm.Upgrades.Rank(def)+1}/{def.MaxRank}";
+                    Button(card.transform,take,new Vector2(.08f,.06f),new Vector2(.92f,.22f),()=>{gm.Upgrades.Choose(index);if(gm.State==GameState.Upgrade)BuildScreen();});
                 }
             }
         }
@@ -138,13 +152,39 @@ namespace Brainrot
         void ShowSettings()
         {
             page="settings";ClearScreen();Title("SETTINGS");
-            SettingSlider("VOLUME",.62f,0,1,SaveSystem.Data.Volume,v=>{SaveSystem.Data.Volume=v;AudioListener.volume=v;SaveSystem.Save();});
-            SettingSlider("MOUSE SENSITIVITY",.47f,.2f,3,SaveSystem.Data.Sensitivity,v=>{SaveSystem.Data.Sensitivity=v;SaveSystem.Save();});
-            Button(overlay.transform,"QUALITY: LOW",new Vector2(.2f,.29f),new Vector2(.39f,.37f),()=>Quality(0));
-            Button(overlay.transform,"MEDIUM",new Vector2(.405f,.29f),new Vector2(.595f,.37f),()=>Quality(1));
-            Button(overlay.transform,"HIGH",new Vector2(.61f,.29f),new Vector2(.8f,.37f),()=>Quality(2));
-            MenuButton("BACK",.13f,BuildScreen);
+            SettingSlider("VOLUME",.63f,0,1,SaveSystem.Data.Volume,v=>{SaveSystem.Data.Volume=v;AudioListener.volume=v;SaveSystem.Save();});
+            SettingSlider("MOUSE SENSITIVITY",.49f,.2f,3,SaveSystem.Data.Sensitivity,v=>{SaveSystem.Data.Sensitivity=v;SaveSystem.Save();});
+            bool locked=GameManager.Instance.Player!=null?GameManager.Instance.Player.CameraLocked:SaveSystem.Data.CameraLocked;
+            Button(overlay.transform,"CAMERA LOCK: "+(locked?"ON":"OFF"),new Vector2(.25f,.385f),new Vector2(.75f,.445f),()=>{
+                var player=GameManager.Instance.Player;
+                if(player!=null)player.SetCameraLock(!player.CameraLocked);
+                else {SaveSystem.Data.CameraLocked=!SaveSystem.Data.CameraLocked;SaveSystem.Save();}
+                ShowSettings();
+            });
+            Button(overlay.transform,"ATTACK OUTLINE: "+(SaveSystem.Data.ShowAttackRange?"ON":"OFF"),new Vector2(.25f,.30f),new Vector2(.75f,.36f),()=>{
+                SaveSystem.Data.ShowAttackRange=!SaveSystem.Data.ShowAttackRange;SaveSystem.Save();ShowSettings();
+            });
+            Button(overlay.transform,"QUALITY: LOW",new Vector2(.2f,.205f),new Vector2(.39f,.265f),()=>Quality(0));
+            Button(overlay.transform,"MEDIUM",new Vector2(.405f,.205f),new Vector2(.595f,.265f),()=>Quality(1));
+            Button(overlay.transform,"HIGH",new Vector2(.61f,.205f),new Vector2(.8f,.265f),()=>Quality(2));
+            MenuButton("BACK",.075f,BuildScreen);
         }
+
+        public void ShowHit(bool critical,int count=1)
+        {
+            if(hitMarker==null)return;
+            hitUntil=Time.unscaledTime+.3f;lastHitCritical=critical;
+            hitMarker.text="×";hitLabel.text=(critical?"CRITICAL":"HIT")+(count>1?" ×"+count:"");
+        }
+
+        public void ShowMiss()
+        {
+            // A miss must not erase a confirmed hit from an immediately preceding echo.
+            if(hitMarker==null || Time.unscaledTime<hitUntil)return;
+            hitUntil=Time.unscaledTime+.13f;lastHitCritical=false;
+            hitMarker.text="";hitLabel.text="MISS";
+        }
+
         void Quality(int quality) {SaveSystem.Data.Quality=quality;QualitySettings.SetQualityLevel(Mathf.Min(quality,QualitySettings.names.Length-1),true);SaveSystem.Save();}
         void SettingSlider(string title,float y,float min,float max,float value,UnityEngine.Events.UnityAction<float> action)
         {

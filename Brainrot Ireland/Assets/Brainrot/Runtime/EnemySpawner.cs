@@ -7,11 +7,19 @@ namespace Brainrot
 
     public sealed class EnemySpawner : MonoBehaviour
     {
-        public readonly List<EnemyController> Active = new List<EnemyController>(192);
+        public readonly List<EnemyController> Active = new List<EnemyController>(128);
         readonly Dictionary<EnemyKind, ObjectPool<EnemyController>> pools = new Dictionary<EnemyKind, ObjectPool<EnemyController>>();
         float spawnClock;
-        public static int MaxEnemies => Application.isMobilePlatform ? 60 : 140;
-
+        public static int MaxEnemies => Mathf.Clamp(Application.isMobilePlatform ? GameBalance.Current.Spawning.MaxMobile : GameBalance.Current.Spawning.MaxDesktop, 1, 250);
+        public int CurrentAliveLimit
+        {
+            get
+            {
+                var curve = GameBalance.Current.Spawning.AliveLimit;
+                float elapsed = GameManager.Instance != null ? GameManager.Instance.Elapsed : 0;
+                return Mathf.Clamp(Mathf.FloorToInt(curve != null ? curve.Evaluate(elapsed) : 6), 1, MaxEnemies);
+            }
+        }
         ObjectPool<EnemyController> Pool(EnemyKind kind)
         {
             if (!pools.TryGetValue(kind, out var pool))
@@ -28,7 +36,6 @@ namespace Brainrot
         }
         public EnemyController Spawn(EnemyKind kind, Vector3 position, float difficulty = 1)
         {
-            // Reserve the last few slots for scripted bosses and their escorts.
             if (Active.Count >= MaxEnemies && kind != EnemyKind.King && kind != EnemyKind.MiniBoss) return null;
             if (Active.Count >= MaxEnemies + 4) return null;
             var enemy = Pool(kind).Get();
@@ -39,23 +46,25 @@ namespace Brainrot
         public void Tick(float dt)
         {
             var game = GameManager.Instance;
-            if (game == null || !game.IsPlaying) return;
+            if (game == null || !game.IsPlaying || dt <= 0) return;
             spawnClock -= dt;
             if (spawnClock <= 0)
             {
-                float minutes = game.Elapsed / 60f;
-                spawnClock = Mathf.Max(.16f, 1.6f / (1 + minutes * .65f));
-                int group = 1 + Mathf.Min(3, Mathf.FloorToInt(minutes / 2));
-                for (int i = 0; i < group; i++)
+                var settings = GameBalance.Current.Spawning;
+                // One spawn per beat; no delayed catch-up bursts after a slow frame.
+                spawnClock = Mathf.Max(.35f, settings.Interval != null ? settings.Interval.Evaluate(game.Elapsed) : 5);
+                int ordinary = 0;
+                foreach (var active in Active) if (active.Alive && !active.IsBoss) ordinary++;
+                if (ordinary < CurrentAliveLimit)
                 {
+                    float fast = game.Elapsed >= settings.FastUnlock ? Mathf.Clamp01(settings.FastChance) : 0;
+                    float tank = game.Elapsed >= settings.TankUnlock ? Mathf.Clamp01(settings.TankChance) : 0;
                     float roll = Random.value;
-                    EnemyKind kind = game.Elapsed > 35 && roll < .22f ? EnemyKind.Fast :
-                        game.Elapsed > 65 && roll > .77f ? EnemyKind.Tank : EnemyKind.Normal;
+                    EnemyKind kind = roll < fast ? EnemyKind.Fast : roll < fast + tank ? EnemyKind.Tank : EnemyKind.Normal;
                     float angle = Random.Range(0f, Mathf.PI * 2);
-                    Spawn(kind, new Vector3(Mathf.Cos(angle), 0, Mathf.Sin(angle)) * 28f, 1 + minutes * .28f);
+                    Spawn(kind, new Vector3(Mathf.Cos(angle), 0, Mathf.Sin(angle)) * Mathf.Max(23, settings.SpawnRadius), 1 + game.Elapsed / 60 * Mathf.Max(0, settings.DifficultyPerMinute));
                 }
             }
-            // Enemies can return themselves to the pool during this loop.
             for (int i = Active.Count - 1; i >= 0 && game.IsPlaying; i--)
                 if (i < Active.Count) Active[i].Tick(dt);
         }
@@ -68,7 +77,7 @@ namespace Brainrot
         {
             for (int i = Active.Count - 1; i >= 0; i--) Pool(Active[i].Kind).Release(Active[i]);
             Active.Clear();
-            spawnClock = 1;
+            spawnClock = Mathf.Max(0, GameBalance.Current.Spawning.InitialDelay);
         }
     }
 }

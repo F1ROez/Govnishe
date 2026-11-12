@@ -2,6 +2,9 @@ using UnityEngine;
 
 namespace Brainrot
 {
+    public enum EnemyAction { Chasing, MeleeWindup, ChargeWindup, Charging, Recovery, Staggered, BossWindup, BossWave }
+
+    /// <summary>Low-cost, committed attacks: a tell, one impact, then an escape window.</summary>
     public sealed class EnemyController : MonoBehaviour
     {
         public bool Alive { get; private set; }
@@ -9,201 +12,326 @@ namespace Brainrot
         public float MaxHealth { get; private set; }
         public bool IsBoss => Kind == EnemyKind.King || Kind == EnemyKind.MiniBoss;
         public EnemyKind Kind { get; private set; }
+        public EnemyAction Action { get; private set; }
+        public bool IsPreparingAttack => Action == EnemyAction.MeleeWindup || Action == EnemyAction.ChargeWindup || Action == EnemyAction.BossWindup;
+
         EnemySpawner owner;
         CharacterVisual visual;
-        float speed, damage, attackClock, abilityClock, phaseClock, size, difficulty;
-        int abilityIndex, phase;
-        bool shockHit;
-        Vector3 knockVelocity, dashDirection, targetArea;
-        GameObject warning;
+        EnemyTelegraph telegraph;
+        EnemyTuning tuning;
+        float speed, damage, stateClock, attackClock, chargeClock, abilityClock, size, difficulty, waveRadius;
+        int abilityIndex;
+        bool attackHit;
+        Vector3 knockVelocity, committedDirection, targetArea;
         Color tint;
-        float Radius => Kind == EnemyKind.King ? 2.1f : Kind == EnemyKind.MiniBoss ? 1.4f : .7f;
+        float Radius => Kind == EnemyKind.King ? 2.1f : Kind == EnemyKind.MiniBoss ? 1.4f : Kind == EnemyKind.Fast ? .6f : .7f;
+        float AttackRange => Mathf.Max(Radius + .5f, tuning.AttackRange);
 
         public void Initialize(EnemySpawner owner, EnemyKind kind, float difficulty, Vector3 position)
         {
             this.owner = owner;
             Kind = kind;
-            this.difficulty = difficulty;
+            this.difficulty = Mathf.Max(1, difficulty);
+            tuning = GameBalance.Current.Enemy(kind);
             size = kind == EnemyKind.King ? 3f : kind == EnemyKind.MiniBoss ? 1.9f : kind == EnemyKind.Tank ? 1.45f : kind == EnemyKind.Fast ? .8f : 1f;
             tint = kind == EnemyKind.King ? new Color(.52f,.24f,.84f) : kind == EnemyKind.MiniBoss ? new Color(.94f,.34f,.3f) : kind == EnemyKind.Tank ? new Color(.22f,.42f,.6f) : kind == EnemyKind.Fast ? new Color(.15f,.88f,.77f) : new Color(.23f,.65f,.95f);
-            float baseHealth = kind == EnemyKind.King ? 1800 : kind == EnemyKind.MiniBoss ? 420 : kind == EnemyKind.Tank ? 140 : kind == EnemyKind.Fast ? 25 : 48;
-            MaxHealth = Health = baseHealth * difficulty;
-            speed = (kind == EnemyKind.Fast ? 5.7f : kind == EnemyKind.Tank ? 2.1f : IsBoss ? 2.8f : 3.25f) * Mathf.Min(1.5f, 1 + (difficulty - 1) * .07f);
-            damage = (kind == EnemyKind.King ? 28 : kind == EnemyKind.MiniBoss ? 19 : kind == EnemyKind.Tank ? 14 : 8) * Mathf.Sqrt(difficulty);
+            MaxHealth = Health = Mathf.Max(1, tuning.Health) * this.difficulty;
+            speed = Mathf.Max(.1f, tuning.Speed) * Mathf.Min(1.5f, 1 + (this.difficulty - 1) * .07f);
+            damage = Mathf.Max(0, tuning.Damage) * Mathf.Sqrt(this.difficulty);
             if (visual == null) visual = CharacterVisual.Create(transform, true, tint, size);
+            if (telegraph == null) telegraph = new EnemyTelegraph(transform);
             transform.position = position;
             transform.rotation = Quaternion.identity;
-            knockVelocity = Vector3.zero;
-            attackClock = .7f;
-            abilityClock = IsBoss ? 3 : 9999;
-            phase = abilityIndex = 0;
+            committedDirection = Vector3.forward;
+            targetArea = knockVelocity = Vector3.zero;
+            stateClock = waveRadius = 0;
+            attackClock = .6f;
+            chargeClock = .8f;
+            abilityClock = IsBoss ? 3 : float.PositiveInfinity;
+            abilityIndex = 0;
+            attackHit = false;
+            Action = EnemyAction.Chasing;
             Alive = true;
-            if (warning != null) warning.SetActive(false);
+            telegraph.Hide();
+            visual.ResetFeedback();
         }
+
         public void Tick(float dt)
         {
             var game = GameManager.Instance;
-            if (!Alive || game == null || !game.IsPlaying || game.Player == null || game.Player.Health <= 0) return;
-            Vector3 toPlayer = game.Player.transform.position - transform.position;
-            toPlayer.y = 0;
-            float distance = toPlayer.magnitude;
-            Vector3 direction = distance > .001f ? toPlayer / distance : transform.forward;
+            if (!Alive || game == null || !game.IsPlaying || game.Player == null || game.Player.Health <= 0 || dt <= 0) return;
             attackClock -= dt;
+            chargeClock -= dt;
             abilityClock -= dt;
-            if (phase != 0)
+            // Knockback is a short, damped displacement; it never creates per-enemy rigidbodies.
+            transform.position += knockVelocity * dt;
+            knockVelocity *= Mathf.Exp(-10 * dt);
+            if (knockVelocity.sqrMagnitude < .001f) knockVelocity = Vector3.zero;
+
+            Vector3 delta = Flat(game.Player.transform.position - transform.position);
+            float distance = delta.magnitude;
+            Vector3 direction = distance > .001f ? delta / distance : transform.forward;
+            switch (Action)
             {
-                TickAbility(dt, direction);
-                visual.Animate(phase == 2 ? 1 : 0, phase == 2);
-                return;
-            }
-            if (IsBoss && abilityClock <= 0)
-            {
-                phase = 1;
-                phaseClock = 1.25f;
-                dashDirection = direction;
-                ShowWarning(abilityIndex % 4 == 0 ? 3 : abilityIndex % 4 == 1 ? 1 : 6.5f);
-                if (abilityIndex % 4 == 3)
-                {
-                    targetArea = game.Player.transform.position;
-                    targetArea.y = .035f;
-                    warning.transform.position = targetArea;
-                }
-                return;
-            }
-            float stop = Radius + .5f;
-            Vector3 move = distance > stop ? direction * speed : Vector3.zero;
-            // A tiny deterministic lateral drift breaks perfectly overlapping crowds.
-            if (distance > 3) move += Vector3.Cross(direction, Vector3.up) * Mathf.Sin(GetInstanceID() * .71f + game.Elapsed) * .35f;
-            transform.position += (move + knockVelocity) * dt;
-            knockVelocity = Vector3.Lerp(knockVelocity, Vector3.zero, dt * 8);
-            if (direction.sqrMagnitude > .1f) transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), dt * 10);
-            bool attack = distance < stop + .55f && attackClock <= 0;
-            if (attack)
-            {
-                attackClock = IsBoss ? 1.2f : 1;
-                game.Player.TakeDamage(damage, transform.position);
-            }
-            visual.Animate(move.magnitude, attackClock > .82f);
-        }
-        void TickAbility(float dt, Vector3 direction)
-        {
-            phaseClock -= dt;
-            int ability = abilityIndex % 4;
-            if (phase == 1)
-            {
-                if (phaseClock > 0) return;
-                if (warning != null) warning.SetActive(false);
-                if (ability == 0)
-                {
-                    phase = 2;
-                    phaseClock = .65f;
-                    transform.rotation = Quaternion.LookRotation(dashDirection);
-                    attackClock = 0;
-                    return;
-                }
-                if (ability == 1)
-                {
-                    phase = 3;
-                    phaseClock = 1.4f;
-                    shockHit = false;
-                    if (warning != null) warning.SetActive(true);
-                    return;
-                }
-                if (ability == 3)
-                {
-                    HitEffects.Burst(targetArea + Vector3.up, new Color(1,.42f,.12f), 24);
-                    if (Vector3.Distance(targetArea, GameManager.Instance.Player.transform.position) < 6.5f)
-                        GameManager.Instance.Player.TakeDamage(damage * 1.4f, targetArea);
-                }
-                else
-                {
-                    int count = Kind == EnemyKind.King ? 6 : 3;
-                    for (int i = 0; i < count; i++)
+                case EnemyAction.MeleeWindup:
+                    stateClock -= dt;
+                    visual.Animate(0, true);
+                    if (stateClock <= 0)
                     {
-                        float a = i * Mathf.PI * 2 / count;
-                        owner.Spawn(EnemyKind.Normal, transform.position + new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * 3, difficulty);
+                        // Range and facing are checked at impact: stepping aside or backwards avoids it.
+                        if (distance <= AttackRange && Vector3.Dot(committedDirection, direction) > .3f)
+                            game.Player.TakeDamage(damage, transform.position);
+                        EnterRecovery(tuning.Recovery);
                     }
-                    HitEffects.Burst(transform.position + Vector3.up * 2, tint, 18);
-                }
-                FinishAbility();
+                    return;
+                case EnemyAction.ChargeWindup:
+                    stateClock -= dt;
+                    visual.Animate(0, true);
+                    if (stateClock <= 0) BeginCharge();
+                    return;
+                case EnemyAction.Charging:
+                    TickCharge(dt, game.Player.transform.position);
+                    return;
+                case EnemyAction.BossWindup:
+                    stateClock -= dt;
+                    visual.Animate(0, true);
+                    if (stateClock <= 0) ResolveBossAbility();
+                    return;
+                case EnemyAction.BossWave:
+                    TickBossWave(dt, distance);
+                    return;
+                case EnemyAction.Recovery:
+                case EnemyAction.Staggered:
+                    stateClock -= dt;
+                    visual.Animate(0, false);
+                    if (stateClock <= 0) Action = EnemyAction.Chasing;
+                    return;
             }
-            else if (phase == 3)
+            if (IsBoss && abilityClock <= 0) { PrepareBossAbility(direction); return; }
+            if (!IsBoss && tuning.CanCharge && chargeClock <= 0 && distance >= Mathf.Max(1, tuning.ChargeMinDistance) && distance <= Mathf.Max(tuning.ChargeMinDistance, tuning.ChargeMaxDistance))
             {
-                float radius = Mathf.Lerp(1, 10, 1 - phaseClock / 1.4f);
-                if (warning != null) warning.transform.localScale = new Vector3(radius * 2, .014f, radius * 2);
-                float distance = Vector3.Distance(transform.position, GameManager.Instance.Player.transform.position);
-                if (!shockHit && Mathf.Abs(distance - radius) < 1.2f)
+                committedDirection = direction;
+                transform.rotation = Quaternion.LookRotation(direction);
+                Action = EnemyAction.ChargeWindup;
+                stateClock = Mathf.Max(.15f, tuning.ChargeWindup);
+                telegraph.Charge(transform.position, direction, Mathf.Max(1, tuning.ChargeSpeed * tuning.ChargeDuration), Radius + .5f);
+                visual.Animate(0, true);
+                return;
+            }
+            if (distance <= AttackRange && attackClock <= 0)
+            {
+                committedDirection = direction;
+                transform.rotation = Quaternion.LookRotation(direction);
+                Action = EnemyAction.MeleeWindup;
+                stateClock = Mathf.Max(.1f, tuning.MeleeWindup);
+                telegraph.Cone(transform.position, direction, AttackRange);
+                visual.Animate(0, true);
+                return;
+            }
+            float stop = Mathf.Max(Radius + .4f, AttackRange * .8f);
+            Vector3 move = distance > stop ? direction * speed : Vector3.zero;
+            if (distance > 3) move += Vector3.Cross(direction, Vector3.up) * Mathf.Sin(GetInstanceID() * .71f + game.Elapsed) * .22f;
+            transform.position += move * dt;
+            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), dt * 10);
+            visual.Animate(move.magnitude, false);
+        }
+
+        void BeginCharge()
+        {
+            Action = EnemyAction.Charging;
+            stateClock = Mathf.Max(.1f, tuning.ChargeDuration);
+            chargeClock = Mathf.Max(.5f, tuning.ChargeCooldown);
+            attackHit = false;
+            telegraph.Hide();
+        }
+        void TickCharge(float dt, Vector3 playerPosition)
+        {
+            float step = Mathf.Min(dt, Mathf.Max(0, stateClock));
+            Vector3 start = transform.position;
+            Vector3 next = start + committedDirection * (Mathf.Max(1, tuning.ChargeSpeed) * step);
+            Vector2 flat = Vector2.ClampMagnitude(new Vector2(next.x, next.z), 30);
+            next.x = flat.x; next.z = flat.y;
+            transform.position = next;
+            // Segment test prevents a fast dash skipping over the player at a low frame rate.
+            if (!attackHit && SweptHitXZ(start, next, playerPosition, Radius + .5f))
+            {
+                attackHit = true;
+                GameManager.Instance.Player.TakeDamage(damage * (IsBoss ? 1.7f : 1.25f), transform.position);
+            }
+            stateClock -= dt;
+            visual.Animate(6, true);
+            if (stateClock <= 0)
+            {
+                if (IsBoss) FinishBossAbility();
+                else EnterRecovery(tuning.Recovery);
+            }
+        }
+        public static bool SweptHitXZ(Vector3 start, Vector3 end, Vector3 target, float radius)
+        {
+            Vector3 segment = Flat(end - start);
+            Vector3 offset = Flat(target - start);
+            float t = segment.sqrMagnitude > .000001f ? Mathf.Clamp01(Vector3.Dot(offset, segment) / segment.sqrMagnitude) : 0;
+            return (offset - segment * t).sqrMagnitude <= Mathf.Max(0, radius) * Mathf.Max(0, radius);
+        }
+        static Vector3 Flat(Vector3 value) { value.y = 0; return value; }
+        void EnterRecovery(float duration)
+        {
+            telegraph.Hide();
+            Action = EnemyAction.Recovery;
+            stateClock = Mathf.Max(.1f, duration);
+        }
+
+        void PrepareBossAbility(Vector3 direction)
+        {
+            committedDirection = direction;
+            transform.rotation = Quaternion.LookRotation(direction);
+            targetArea = GameManager.Instance.Player.transform.position;
+            Action = EnemyAction.BossWindup;
+            stateClock = Mathf.Max(.5f, tuning.ChargeWindup);
+            int ability = abilityIndex % 4;
+            if (ability == 0) telegraph.Charge(transform.position, direction, Mathf.Max(1, tuning.ChargeSpeed * tuning.ChargeDuration), Radius + .5f);
+            else if (ability == 3) telegraph.Circle(targetArea, 6.5f);
+            else telegraph.Circle(transform.position, ability == 1 ? 10 : 3);
+        }
+        void ResolveBossAbility()
+        {
+            int ability = abilityIndex % 4;
+            telegraph.Hide();
+            if (ability == 0) { BeginCharge(); return; }
+            if (ability == 1)
+            {
+                Action = EnemyAction.BossWave;
+                stateClock = 1.4f;
+                waveRadius = 1;
+                attackHit = false;
+                telegraph.Circle(transform.position, waveRadius);
+                return;
+            }
+            if (ability == 2)
+            {
+                int count = Kind == EnemyKind.King ? 6 : 3;
+                for (int i = 0; i < count; i++)
                 {
-                    shockHit = true;
-                    GameManager.Instance.Player.TakeDamage(damage, transform.position);
+                    float a = i * Mathf.PI * 2 / count;
+                    owner.Spawn(EnemyKind.Normal, transform.position + new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * 3, difficulty);
                 }
-                if (phaseClock <= 0)
-                {
-                    if (warning != null) warning.SetActive(false);
-                    FinishAbility();
-                }
+                HitEffects.Burst(transform.position + Vector3.up * 2, tint, 18);
             }
             else
             {
-                Vector3 next = transform.position + dashDirection * (18 * dt);
-                Vector2 planar = new Vector2(next.x, next.z);
-                if (planar.magnitude > 23) { planar = planar.normalized * 23; next.x = planar.x; next.z = planar.y; }
-                transform.position = next;
-                attackClock -= dt;
-                if (attackClock <= 0 && Vector3.Distance(transform.position, GameManager.Instance.Player.transform.position) < Radius + 1)
-                {
-                    GameManager.Instance.Player.TakeDamage(damage * 1.7f, transform.position);
-                    attackClock = 1;
-                }
-                if (phaseClock <= 0) FinishAbility();
+                HitEffects.Burst(targetArea + Vector3.up, new Color(1,.42f,.12f), 24);
+                if (Flat(targetArea - GameManager.Instance.Player.transform.position).sqrMagnitude <= 6.5f * 6.5f)
+                    GameManager.Instance.Player.TakeDamage(damage * 1.4f, targetArea);
             }
+            FinishBossAbility();
         }
-        void FinishAbility()
+        void TickBossWave(float dt, float distance)
         {
-            phase = 0;
+            stateClock -= dt;
+            float previousRadius = waveRadius;
+            waveRadius = Mathf.Lerp(1, 10, Mathf.Clamp01(1 - stateClock / 1.4f));
+            telegraph.Circle(transform.position, waveRadius);
+            if (!attackHit && distance >= previousRadius - .6f && distance <= waveRadius + .6f)
+            {
+                attackHit = true;
+                GameManager.Instance.Player.TakeDamage(damage, transform.position);
+            }
+            visual.Animate(0, true);
+            if (stateClock <= 0) FinishBossAbility();
+        }
+        void FinishBossAbility()
+        {
             abilityIndex++;
             abilityClock = Kind == EnemyKind.King ? 4 : 6;
+            EnterRecovery(Mathf.Max(.5f, tuning.Recovery));
         }
-        void ShowWarning(float radius)
-        {
-            if (warning == null)
-            {
-                warning = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-                warning.name = "Boss attack warning";
-                warning.transform.SetParent(transform, false);
-                Destroy(warning.GetComponent<Collider>());
-                var shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Color");
-                var mat = new Material(shader);
-                mat.color = new Color(1,.18f,.12f);
-                warning.GetComponent<Renderer>().sharedMaterial = mat;
-            }
-            warning.transform.localPosition = new Vector3(0, .035f, 0);
-            warning.transform.localScale = new Vector3(radius * 2, .014f, radius * 2);
-            warning.SetActive(true);
-        }
+
         public void TakeDamage(float amount, Vector3 knockback)
         {
             if (!Alive || amount <= 0) return;
             Health = Mathf.Max(0, Health - amount);
             knockback.y = 0;
-            knockVelocity += knockback / (IsBoss ? 4 : Kind == EnemyKind.Tank ? 2 : 1);
-            HitEffects.Burst(transform.position + Vector3.up * size, tint, 4);
+            knockVelocity = Vector3.ClampMagnitude(knockVelocity + knockback / Mathf.Max(.2f, tuning.KnockbackResistance), 7);
+            var feedback = GameBalance.Current.Combat;
+            visual.FlashHit(Mathf.Max(0, feedback.HitFlashDuration), Mathf.Clamp01(feedback.HitFlashStrength));
+            if (!IsBoss && Action != EnemyAction.Charging)
+            {
+                // A hit cancels a pending normal attack but bosses retain their commitments.
+                telegraph.Hide();
+                Action = EnemyAction.Staggered;
+                stateClock = Mathf.Max(.02f, tuning.HitStagger);
+                attackClock = .2f;
+            }
             if (Health > 0) return;
             Alive = false;
-            if (warning != null) warning.SetActive(false);
-            HitEffects.Burst(transform.position + Vector3.up, tint, IsBoss ? 30 : 10);
-            int xp = Kind == EnemyKind.King ? 250 : Kind == EnemyKind.MiniBoss ? 75 : Kind == EnemyKind.Tank ? 14 : Kind == EnemyKind.Fast ? 7 : 9;
+            telegraph.Hide();
+            HitEffects.Burst(transform.position + Vector3.up, tint, IsBoss ? 24 : 8);
+            int xp = Mathf.Max(0, tuning.Experience);
             GameManager.Instance.Reward(xp, 1);
-            if (IsBoss) GameManager.Instance.Notify(Kind == EnemyKind.King ? "KING TRALALA DEFEATED! +250 XP" : "MINI-BOSS DEFEATED! +75 XP", 4);
+            if (IsBoss) GameManager.Instance.Notify((Kind == EnemyKind.King ? "KING TRALALA DEFEATED! +" : "MINI-BOSS DEFEATED! +") + xp + " XP", 4);
             owner.Despawn(this);
         }
-        void OnDestroy()
+        void OnDisable() { if (telegraph != null) telegraph.Hide(); if (visual != null) visual.ResetFeedback(); }
+    }
+
+    /// <summary>Reused outline tells; no filled discs obscure the fight.</summary>
+    sealed class EnemyTelegraph
+    {
+        static Material material;
+        readonly LineRenderer line;
+        readonly Vector3[] points = new Vector3[35];
+        public EnemyTelegraph(Transform owner)
         {
-            if (warning != null)
+            var go = new GameObject("Attack telegraph");
+            go.transform.SetParent(owner, false);
+            line = go.AddComponent<LineRenderer>();
+            if (material == null)
             {
-                var renderer = warning.GetComponent<Renderer>();
-                if (renderer != null && renderer.sharedMaterial != null) Destroy(renderer.sharedMaterial);
+                var shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Color");
+                material = new Material(shader) { name = "Enemy attack outline", color = new Color(1,.36f,.08f) };
             }
+            line.sharedMaterial = material;
+            line.useWorldSpace = true;
+            line.widthMultiplier = .07f;
+            line.numCapVertices = 2;
+            line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            line.receiveShadows = false;
+            Hide();
+        }
+        public void Hide() { line.enabled = false; }
+        void Show(int count)
+        {
+            line.enabled = true;
+            line.positionCount = count;
+            for (int i = 0; i < count; i++) line.SetPosition(i, points[i]);
+        }
+        static Vector3 Ground(Vector3 point) { point.y = .075f; return point; }
+        public void Circle(Vector3 origin, float radius)
+        {
+            origin = Ground(origin);
+            for (int i = 0; i < 33; i++)
+            {
+                float a = i * Mathf.PI * 2 / 32;
+                points[i] = origin + new Vector3(Mathf.Sin(a), 0, Mathf.Cos(a)) * radius;
+            }
+            Show(33);
+        }
+        public void Cone(Vector3 origin, Vector3 direction, float radius)
+        {
+            origin = Ground(origin);
+            points[0] = origin;
+            for (int i = 0; i <= 24; i++) points[i + 1] = origin + Quaternion.Euler(0, Mathf.Lerp(-72, 72, i / 24f), 0) * direction * radius;
+            points[26] = origin;
+            Show(27);
+        }
+        public void Charge(Vector3 origin, Vector3 direction, float length, float width)
+        {
+            origin = Ground(origin);
+            Vector3 side = Vector3.Cross(Vector3.up, direction) * width;
+            Vector3 end = origin + direction * length;
+            points[0] = origin - side; points[1] = end - side; points[2] = end + direction * .5f;
+            points[3] = end + side; points[4] = origin + side; points[5] = origin - side;
+            Show(6);
         }
     }
 }

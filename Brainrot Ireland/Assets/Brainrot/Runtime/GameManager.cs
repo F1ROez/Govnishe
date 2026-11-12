@@ -5,10 +5,11 @@ namespace Brainrot {
   public static GameManager Instance { get; private set; }
   public GameState State {get;private set;}=GameState.Menu;
   public bool IsPlaying => State==GameState.Playing;
+  [SerializeField] public GameBalance Balance;
   public PlayerController Player; public EnemySpawner Spawner; public UpgradeSystem Upgrades;
   public float Elapsed {get;private set;} public int Kills {get;private set;} public int Wave=>1+Mathf.FloorToInt(Elapsed/30);
   public string Notification {get;private set;}=""; float noticeUntil; UIManager ui; BossSystem bosses;
-  void Awake(){ if(Instance!=null&&Instance!=this){Destroy(gameObject);return;} Instance=this; Time.timeScale=1; SaveSystem.Load();AudioListener.volume=SaveSystem.Data.Volume; Application.targetFrameRate=60;
+  void Awake(){ if(Instance!=null&&Instance!=this){Destroy(gameObject);return;} Instance=this; Balance=Balance!=null?Balance:GameBalance.Current; Time.timeScale=1; SaveSystem.Load();AudioListener.volume=SaveSystem.Data.Volume; Application.targetFrameRate=60;
    QualitySettings.SetQualityLevel(Mathf.Clamp(SaveSystem.Data.Quality,0,QualitySettings.names.Length-1));
    WorldBuilder.Build(); var go=new GameObject("Tung Tung Sahur"); Player=go.AddComponent<PlayerController>();
    Spawner=gameObject.AddComponent<EnemySpawner>(); Upgrades=gameObject.AddComponent<UpgradeSystem>(); bosses=gameObject.AddComponent<BossSystem>();
@@ -26,6 +27,8 @@ namespace Brainrot {
   public void Reward(int xp,int kills){if(!IsPlaying)return;Kills+=kills;Upgrades.AddExperience(xp);}
   public void Die(){if(!IsPlaying)return;SaveSystem.Record(Elapsed,Kills,Upgrades.Level);SetState(GameState.Dead);}
   public void Notify(string message,float seconds=3){Notification=message;noticeUntil=Time.unscaledTime+seconds;}
+  public void ReportHit(bool critical,int count=1){ui.ShowHit(critical,count);}
+  public void ReportMiss(){ui.ShowMiss();}
   public void Quit(){SaveSystem.Save();Application.Quit();}
   void OnApplicationPause(bool paused){if(paused&&IsPlaying)Pause();} void OnDestroy(){Time.timeScale=1;if(Instance==this)Instance=null;}
  }
