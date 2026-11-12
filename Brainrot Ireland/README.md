@@ -2,6 +2,10 @@
 
 Исходный Unity6 URP проект для Windows и Android, интегрированный в F1ROez/Govnishe. Существующие сцены, настройки URP и пользовательские ресурсы сохранены. Игра поддерживает существующий Input System и Legacy Input Manager; настройки ввода сохранены.
 
+## Если Unity вылетает при Play
+
+Запускайте проект по короткому пути **C:\UnityProjects\BrainrotIreland** через **START_UNITY_DX11.bat**. Он включает DirectX11 для редактора. [Пошаговое восстановление](TROUBLESHOOTING.md).
+
 ## Быстрый запуск
 
 1. Распакуйте проект и в Unity Hub выберите Add → папку с Assets, Packages и ProjectSettings.

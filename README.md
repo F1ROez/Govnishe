@@ -17,3 +17,7 @@ Unity6 URP survival arena: Tung Tung Sahur против акул Tralala.
 **Статическая проверка кода выполнена. Unity Editor в среде разработки отсутствует: компиляция, PlayMode tests и EXE/APK ещё не подтверждены.**
 
 Существующие сцены и ресурсы сохранены. Игра поддерживает существующий Input System и Legacy Input Manager без изменения настроек ввода.
+
+## Если Unity вылетает
+
+Разместите вложенную папку проекта в `C:\UnityProjects\BrainrotIreland` и запустите **START_UNITY_DX11.bat** из неё. [Инструкция по сбою DirectX12 и длинным путям](<Brainrot Ireland/TROUBLESHOOTING.md>).
