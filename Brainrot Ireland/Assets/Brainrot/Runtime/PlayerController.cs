@@ -8,6 +8,7 @@ namespace Brainrot {
   [SerializeField] public PlayerCharacterDefinition Character;
   readonly System.Collections.Generic.List<IPlayerAbilityRuntime> abilities=new System.Collections.Generic.List<IPlayerAbilityRuntime>();
   public PlayerStats Stats=new PlayerStats(); public float Health{get;private set;}
+  public CombatSystem Combat=>combat;
   public PlayerTuning ActiveTuning=>Character!=null&&Character.UseCustomStats&&Character.StartingStats!=null?Character.StartingStats:GameBalance.Current.Player;
   public bool CameraLocked => SaveSystem.Data.HasCameraPreference ? SaveSystem.Data.CameraLocked : ActiveTuning.CameraLocked;
   public Vector3 AimForward => Quaternion.Euler(0,yaw,0)*Vector3.forward;
@@ -59,7 +60,7 @@ namespace Brainrot {
    // Locked mode keeps aim relative to camera even when moving backwards or sideways.
    if(CameraLocked)transform.rotation=Quaternion.LookRotation(AimForward);
    else if(move.sqrMagnitude>.01f)transform.rotation=Quaternion.Slerp(transform.rotation,Quaternion.LookRotation(move),Time.deltaTime*Mathf.Max(1,settings.TurnSpeed));
-   if(GameInput.Attack||MobileInput.Attack)combat.TryAttack();
+   combat.UpdateAttackInput(GameInput.Attack||MobileInput.Attack);
    visual.Animate(move.magnitude*3*(sprint?1.35f:1),combat.IsAttacking);Heal(Stats.Regen*Time.deltaTime);foreach(var ability in abilities)ability.Tick(Time.deltaTime);
   }
   void LateUpdate(){if(cam==null)return;Quaternion rot=Quaternion.Euler(pitch,yaw,0);Vector3 target=transform.position+Vector3.up*1.6f;cam.transform.position=target-rot*Vector3.forward*Mathf.Max(2,ActiveTuning.CameraDistance)+Random.insideUnitSphere*trauma;cam.transform.LookAt(target);trauma=Mathf.MoveTowards(trauma,0,Time.unscaledDeltaTime);}

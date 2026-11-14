@@ -15,7 +15,7 @@ namespace Brainrot
         Canvas canvas;
         GameObject hud, overlay, mobile, fullMap;
         bool mapExpanded;
-        Text stats, healthText, xpText, notification, aimHint, hitMarker, hitLabel;
+        Text stats, healthText, xpText, notification, aimHint, hitMarker, hitLabel,chargeLabel;
         float hitUntil;
         bool lastHitCritical;
         Image healthFill, xpFill;
@@ -58,10 +58,11 @@ namespace Brainrot
             stats=Label(hud.transform,"",24,TextAnchor.UpperCenter,new Vector2(.35f,.84f),new Vector2(.8f,.96f));
             Button(hud.transform,"II",new Vector2(.92f,.935f),new Vector2(.975f,.99f),()=>GameManager.Instance.Pause());
             notification=Label(hud.transform,"",30,TextAnchor.MiddleCenter,new Vector2(.15f,.68f),new Vector2(.85f,.81f)); notification.color=gold;
-            Label(hud.transform,"WASD — движение  •  Мышь — камера  •  ЛКМ — удар  •  Shift — бег  •  Пробел — рывок  •  V — фиксация",16,TextAnchor.LowerCenter,new Vector2(.08f,.02f),new Vector2(.92f,.07f));
+            Label(hud.transform,"WASD — движение  •  Мышь — камера  •  ЛКМ — удар; удержать и отпустить — сильный  •  Shift — бег  •  Пробел — рывок  •  V — фиксация",16,TextAnchor.LowerCenter,new Vector2(.08f,.02f),new Vector2(.92f,.07f));
             aimHint=Label(hud.transform,"",16,TextAnchor.LowerCenter,new Vector2(.32f,.07f),new Vector2(.68f,.11f));
             Label(hud.transform,"+",18,TextAnchor.MiddleCenter,new Vector2(.49f,.49f),new Vector2(.51f,.53f)).color=new Color(1,1,1,.5f);
             hitMarker=Label(hud.transform,"",36,TextAnchor.MiddleCenter,new Vector2(.47f,.46f),new Vector2(.53f,.56f));
+            chargeLabel=Label(hud.transform,"",19,TextAnchor.MiddleCenter,new Vector2(.2f,.32f),new Vector2(.8f,.39f));chargeLabel.color=gold;
             hitLabel=Label(hud.transform,"",17,TextAnchor.MiddleCenter,new Vector2(.4f,.41f),new Vector2(.6f,.46f));
 
             overlay=Box("Screens",root.transform,Vector2.zero,Vector2.one,new Color(.015f,.055f,.1f,.91f));
@@ -85,8 +86,10 @@ namespace Brainrot
                 xpFill.fillAmount=Mathf.Clamp01((float)gm.Upgrades.Experience/Mathf.Max(1,gm.Upgrades.RequiredExperience));
             }
             xpText.transform.parent.gameObject.SetActive(true);xpText.gameObject.SetActive(false);xpFill.transform.parent.gameObject.SetActive(false);
-            stats.text=$"{TimeLabel(gm.Elapsed)}   |   Побеждено: {gm.Kills}\n<size=17>{IslandMap.Name(gm.CurrentZone)}</size>\n<size=14>Обычные акулы выходят из воды</size>";
+            stats.text=$"ВОЛНА {gm.Wave} · {gm.Spawner.Waves.Stage} · {Mathf.CeilToInt(gm.Spawner.Waves.Remaining)} с\n{TimeLabel(gm.Elapsed)}  |  Побеждено: {gm.Kills}";
             notification.text=gm.Notification ?? "";
+            var combat=gm.Player!=null?gm.Player.Combat:null;
+            chargeLabel.text=combat!=null&&combat.IsCharging?(combat.ChargeProgress>=1?"СИЛЬНЫЙ УДАР ГОТОВ — ОТПУСТИ ЛКМ":"ЗАРЯД СИЛЬНОГО УДАРА: "+Mathf.RoundToInt(combat.ChargeProgress*100)+"%"):"";
             aimHint.text=gm.Player!=null && gm.Player.CameraLocked ? "ВЗГЛЯД ПО КАМЕРЕ  ·  V" : "СВОБОДНЫЙ ПОВОРОТ  ·  V";
             if(Time.unscaledTime>=hitUntil) {hitMarker.text="";hitLabel.text="";}
             else {
@@ -127,7 +130,7 @@ namespace Brainrot
             else if(gm.State==GameState.Dead)
             {
                 Title("ЗАБЕГ ОКОНЧЕН");
-                Label(overlay.transform,$"Выживание: {TimeLabel(gm.Elapsed)}     •     Побеждено: {gm.Kills}     •     Уровень: {gm.Upgrades.Level}\n\nЛИЧНЫЙ РЕКОРД   {TimeLabel(SaveSystem.Data.BestTime)}   /   {SaveSystem.Data.BestKills} ПОБЕД",25,TextAnchor.MiddleCenter,new Vector2(.12f,.42f),new Vector2(.88f,.65f));
+                Label(overlay.transform,$"Выживание: {TimeLabel(gm.Elapsed)}     •     Побеждено: {gm.Kills}\n\nЛИЧНЫЙ РЕКОРД   {TimeLabel(SaveSystem.Data.BestTime)}   /   {SaveSystem.Data.BestKills} ПОБЕД",25,TextAnchor.MiddleCenter,new Vector2(.12f,.42f),new Vector2(.88f,.65f));
                 MenuButton("ЕЩЁ ОДИН ЗАБЕГ",.25f,()=>gm.StartRun());MenuButton("ГЛАВНОЕ МЕНЮ",.13f,()=>gm.MainMenu());
             }
             else if(gm.State==GameState.Upgrade)
@@ -151,7 +154,7 @@ namespace Brainrot
         void ShowRecords()
         {
             page="records";ClearScreen();Title("ЛЕГЕНДЫ ОСТРОВА");var d=SaveSystem.Data;
-            Label(overlay.transform,$"ВРЕМЯ ВЫЖИВАНИЯ    {TimeLabel(d.BestTime)}\n\nПОБЕЖДЕНО ВРАГОВ    {d.BestKills}\n\nМАКСИМАЛЬНЫЙ УРОВЕНЬ    {d.BestLevel}",29,TextAnchor.MiddleCenter,new Vector2(.1f,.33f),new Vector2(.9f,.7f));MenuButton("НАЗАД",.16f,BuildScreen);
+            Label(overlay.transform,$"ВРЕМЯ ВЫЖИВАНИЯ    {TimeLabel(d.BestTime)}\n\nПОБЕЖДЕНО ВРАГОВ    {d.BestKills}",29,TextAnchor.MiddleCenter,new Vector2(.1f,.33f),new Vector2(.9f,.7f));MenuButton("НАЗАД",.16f,BuildScreen);
         }
         void ShowSettings()
         {

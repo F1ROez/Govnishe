@@ -22,6 +22,7 @@ namespace Brainrot
         public bool IsAlerted { get; private set; }
         public bool IsPreparingAttack => Action == EnemyAction.MeleeWindup || Action == EnemyAction.ChargeWindup;
 
+        public EnemyPhysicsBody PhysicsBody {get;private set;}
         EnemySpawner owner;
         CharacterVisual visual;
         EnemyTelegraph telegraph;
@@ -35,6 +36,7 @@ namespace Brainrot
         public void Initialize(EnemySpawner owner, EnemyKind kind, float difficulty, Vector3 position)
         {
             this.owner = owner; Kind = kind;
+            if(PhysicsBody==null)PhysicsBody=gameObject.AddComponent<EnemyPhysicsBody>();PhysicsBody.ResetBody();
             tuning = GameBalance.Current.Enemy(kind);
             HomeZone = IslandMap.GetZone(position);
             HomePosition = position;
@@ -75,6 +77,7 @@ namespace Brainrot
         {
             var game = GameManager.Instance;
             if (!Alive || game == null || !game.IsPlaying || game.Player == null || game.Player.Health <= 0 || dt <= 0) return;
+            if(PhysicsBody!=null&&PhysicsBody.IsPhysical)return;
             attackClock -= dt; chargeClock -= dt;
             // Integrate damped knockback analytically so the distance is stable at low frame rates.
             float decay = Mathf.Exp(-6 * dt);
@@ -93,11 +96,13 @@ namespace Brainrot
             switch (Action)
             {
                 case EnemyAction.MeleeWindup:
-                    stateClock -= dt; visual.Animate(0, true);
-                    if (stateClock <= 0)
-                    {
-                        if (distance <= AttackRange && Vector3.Dot(committedDirection, direction) > .3f)
-                            game.Player.TakeDamage(damage, transform.position);
+                    stateClock-=dt;
+                    if(distance>Radius+.6f)MoveWithinZone(direction*speed*dt);
+                    Face(direction,dt);committedDirection=direction;
+                    telegraph.Cone(transform.position,direction,AttackRange);visual.Animate(speed,true);
+                    if(stateClock<=0){
+                        Vector3 impact=Flat(game.Player.transform.position-transform.position);
+                        if(impact.magnitude<=AttackRange&&Vector3.Dot(transform.forward,impact.normalized)>.3f)game.Player.TakeDamage(damage,transform.position);
                         EnterRecovery(tuning.Recovery);
                     }
                     return;
@@ -109,6 +114,8 @@ namespace Brainrot
                     TickCharge(dt, playerPosition);
                     return;
                 case EnemyAction.Recovery:
+                    if(distance>Radius+.6f)MoveWithinZone(direction*speed*dt);Face(direction,dt);visual.Animate(speed,false);
+                    stateClock-=dt;if(stateClock<=0)Action=EnemyAction.Chasing;return;
                 case EnemyAction.Staggered:
                     stateClock -= dt; visual.Animate(0, false);
                     if (stateClock <= 0) Action = EnemyAction.Chasing;
@@ -228,7 +235,6 @@ namespace Brainrot
         {
             if (!Alive || amount <= 0) return;
             Health = Mathf.Max(0, Health - amount);knockback.y = 0;
-            knockVelocity = Vector3.ClampMagnitude(knockVelocity + knockback / Mathf.Max(.2f, tuning.KnockbackResistance), 18);
             var feedback = GameBalance.Current.Combat;
             visual.FlashHit(Mathf.Max(0, feedback.HitFlashDuration), Mathf.Clamp01(feedback.HitFlashStrength));
             var game = GameManager.Instance;
@@ -244,12 +250,15 @@ namespace Brainrot
                 telegraph.Hide();Action = EnemyAction.Staggered;
                 stateClock = Mathf.Max(.02f, tuning.HitStagger);attackClock = .2f;
             }
-            if (Health > 0) return;
+            if (Health > 0){if(knockback.sqrMagnitude>.01f)Tumble(knockback);return;}
             Alive = false;IsAlerted = false;telegraph.Hide();
             HitEffects.Burst(transform.position + Vector3.up, Skin(Kind), 8);
             GameManager.Instance.Reward(Mathf.Max(0, tuning.Experience), 1);
-            owner.Despawn(this);
+            Vector3 launch=knockback.sqrMagnitude>.01f?knockback:(transform.position-GameManager.Instance.Player.transform.position).normalized*3;
+            PhysicsBody.Launch(launch,true);owner.Killed(this);
         }
+        public void Tumble(Vector3 velocity){if(!Alive)return;telegraph.Hide();Action=EnemyAction.Staggered;PhysicsBody.Launch(velocity,false);}
+        public void OnRecovered(){if(!Alive)return;Action=EnemyAction.Chasing;attackClock=.5f;visual.ResetFeedback();}
         void OnDisable() { IsAlerted = false;if (telegraph != null) telegraph.Hide();if (visual != null) visual.ResetFeedback(); }
     }
 

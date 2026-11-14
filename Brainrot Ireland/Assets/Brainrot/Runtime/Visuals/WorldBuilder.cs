@@ -28,6 +28,8 @@ namespace Brainrot
             foam = Material(new Color(.80f,.98f,.96f), "Foam");
             var rng = new System.Random(731);
             Island(root);
+            // Physics support below the ocean: tumbling bodies cannot fall forever outside the sand.
+            var support=new GameObject("Дно для физических тел",typeof(BoxCollider));support.transform.SetParent(root,false);support.transform.position=new Vector3(0,-.8f,0);support.GetComponent<BoxCollider>().size=new Vector3(160,.3f,160);
             var water = Shader.Find("Brainrot/TropicalWater");
             var ocean=GameBalance.Current.Ocean;
             var waterMat = water != null ? new Material(water) : Material(ocean.DeepColor, "Ocean");
@@ -136,7 +138,7 @@ namespace Brainrot
             var go=GameObject.CreatePrimitive(type);go.name=name;go.transform.SetParent(parent,false);
             go.transform.localPosition=position;go.transform.localScale=scale;
             go.GetComponent<Renderer>().sharedMaterial=material;
-            var collider=go.GetComponent<Collider>();if(collider!=null)Object.Destroy(collider);
+            var collider=go.GetComponent<Collider>();if(collider!=null&&name!="Beach rock"&&name!="Trunk segment")Object.Destroy(collider);
             return go;
         }
     }

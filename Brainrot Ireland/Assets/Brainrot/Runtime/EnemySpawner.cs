@@ -1,140 +1,49 @@
 using System.Collections.Generic;
 using UnityEngine;
-
-namespace Brainrot
-{
-    // Keep legacy numeric values for existing serialized assets. Legacy bosses are disabled.
-    public enum EnemyKind
-    {
-        Normal = 0, Fast = 1, Tank = 2, MiniBoss = 3, King = 4,
-        LiriliLarila = 5, BrrBrrPatapim = 6, CappuccinoAssassino = 7, BombardiroCrocodilo = 8
+namespace Brainrot {
+ public enum EnemyKind {Normal=0,Fast=1,Tank=2,MiniBoss=3,King=4,LiriliLarila=5,BrrBrrPatapim=6,CappuccinoAssassino=7,BombardiroCrocodilo=8}
+ public sealed class EnemySpawner:MonoBehaviour {
+  public readonly List<EnemyController> Active=new List<EnemyController>(64);
+  public readonly List<EnemyController> Corpses=new List<EnemyController>(24);
+  readonly Dictionary<EnemyKind,ObjectPool<EnemyController>> pools=new Dictionary<EnemyKind,ObjectPool<EnemyController>>();
+  public WaveDirector Waves {get;}=new WaveDirector();
+  float spawnClock;int announcedWave;
+  public static int MaxEnemies=>Mathf.Clamp(Application.isMobilePlatform?GameBalance.Current.Waves.MaxMobile:GameBalance.Current.Waves.MaxDesktop,1,100);
+  public IslandZone CurrentZone=>IslandZone.Beach;
+  public int CurrentAliveLimit {get{var t=GameBalance.Current.Waves;return Mathf.Clamp(Mathf.RoundToInt(Mathf.Lerp(t.EdgeAliveLimit,t.PeakAliveLimit,Waves.Intensity))+(Waves.Number-1)*Mathf.Max(0,t.ExtraAlivePerWave),1,MaxEnemies);}}
+  ObjectPool<EnemyController> Pool(EnemyKind kind){
+   if(!pools.TryGetValue(kind,out var pool)){pool=new ObjectPool<EnemyController>(()=>{var go=new GameObject("Тралалеро Тралала");go.transform.SetParent(transform,false);return go.AddComponent<EnemyController>();},MaxEnemies);pools.Add(kind,pool);}return pool;
+  }
+  public EnemyController Spawn(EnemyKind kind,Vector3 position,float difficulty=1){
+   if(kind!=EnemyKind.Normal||Active.Count>=CurrentAliveLimit)return null;
+   var enemy=Pool(kind).Get();position.y=0;enemy.Initialize(this,kind,1,position);Active.Add(enemy);return enemy;
+  }
+  public void Tick(float dt){
+   var game=GameManager.Instance;if(game==null||!game.IsPlaying||dt<=0)return;
+   Waves.Advance(dt);
+   if(announcedWave!=Waves.Number){announcedWave=Waves.Number;spawnClock=Mathf.Max(0,GameBalance.Current.Waves.InitialDelay);game.Notify("ВОЛНА "+announcedWave,3);}
+   if(!Waves.Resting){
+    spawnClock-=dt;
+    if(spawnClock<=0){
+     var t=GameBalance.Current.Waves;spawnClock=Interval(t,Waves.Intensity);
+     if(Active.Count<CurrentAliveLimit){float a=Random.Range(0,Mathf.PI*2);Spawn(EnemyKind.Normal,new Vector3(Mathf.Cos(a),0,Mathf.Sin(a))*28);}
     }
-
-    /// <summary>Random local population, independent of survival time or waves.</summary>
-    public sealed class EnemySpawner : MonoBehaviour
-    {
-        public readonly List<EnemyController> Active = new List<EnemyController>(64);
-        readonly Dictionary<EnemyKind, ObjectPool<EnemyController>> pools = new Dictionary<EnemyKind, ObjectPool<EnemyController>>();
-        float spawnClock;
-        bool zoneInitialized;
-        IslandZone lastZone;
-        public static int MaxEnemies => Mathf.Clamp(Application.isMobilePlatform ? GameBalance.Current.Exploration.MaxMobile : GameBalance.Current.Exploration.MaxDesktop, 1, 150);
-        public IslandZone CurrentZone => GameManager.Instance != null && GameManager.Instance.Player != null ? IslandMap.GetZone(GameManager.Instance.Player.transform.position) : IslandZone.Beach;
-        public int CurrentAliveLimit => Mathf.Clamp(GameBalance.Current.Exploration.ActiveZoneLimit, 1, MaxEnemies);
-
-        ObjectPool<EnemyController> Pool(EnemyKind kind)
-        {
-            if (!pools.TryGetValue(kind, out var pool))
-            {
-                pool = new ObjectPool<EnemyController>(() =>
-                {
-                    var go = new GameObject("Враг_" + kind);
-                    go.transform.SetParent(transform, false);
-                    return go.AddComponent<EnemyController>();
-                }, MaxEnemies);
-                pools.Add(kind, pool);
-            }
-            return pool;
-        }
-
-        /// <summary>Also enforces zone/species rules for editor tools and scripted spawning.</summary>
-        public EnemyController Spawn(EnemyKind kind, Vector3 position, float difficulty = 1)
-        {
-            if (kind == EnemyKind.MiniBoss || kind == EnemyKind.King || Active.Count >= MaxEnemies) return null;
-            IslandZone zone = CurrentZone;
-            if (IslandMap.GetZone(position) != zone || kind != IslandMap.EnemyForZone(zone)) return null;
-            if (CountInZone(zone) >= CurrentAliveLimit) return null;
-            position.y = 0;
-            var enemy = Pool(kind).Get();
-            enemy.Initialize(this, kind, Mathf.Max(1, difficulty), position);
-            Active.Add(enemy);
-            return enemy;
-        }
-
-        public void Tick(float dt)
-        {
-            var game = GameManager.Instance;
-            if (game == null || !game.IsPlaying || game.Player == null || dt <= 0) return;
-            IslandZone zone = CurrentZone;
-            var settings = GameBalance.Current.Exploration;
-            if (!zoneInitialized || zone != lastZone)
-            {
-                zoneInitialized = true;
-                lastZone = zone;
-                TrimInactiveZones(zone);
-                int missing = Mathf.Min(CurrentAliveLimit, Mathf.Max(0, 0)) - CountInZone(zone);
-                for (int i = 0; i < missing; i++) TrySpawnLocal(zone);
-                spawnClock = NextInterval();
-            }
-            else
-            {
-                spawnClock -= dt;
-                if (spawnClock <= 0)
-                {
-                    // One randomized arrival; no accumulated burst after a slow frame.
-                    spawnClock = NextInterval();
-                    if (CountInZone(zone) < CurrentAliveLimit) TrySpawnLocal(zone);
-                }
-            }
-            // All retained enemies receive a cheap idle/wander tick, never remote pursuit.
-            for (int i = Active.Count - 1; i >= 0 && game.IsPlaying; i--)
-                if (i < Active.Count) Active[i].Tick(dt);
-        }
-
-        bool TrySpawnLocal(IslandZone zone)
-        {
-            var game = GameManager.Instance;
-            var settings = GameBalance.Current.Exploration;
-            float min = Mathf.Max(3, settings.SpawnMinDistance);
-            float max = Mathf.Max(min, settings.SpawnMaxDistance);
-            float angle=Random.Range(0,Mathf.PI*2);
-            Vector3 point=new Vector3(Mathf.Cos(angle),0,Mathf.Sin(angle))*28;
-            return Spawn(EnemyKind.Normal,point,1)!=null;
-        }
-
-        float NextInterval()
-        {
-            var settings = GameBalance.Current.Exploration;
-            float min = Mathf.Max(.5f, settings.SpawnIntervalMin);
-            float max = Mathf.Max(min, settings.SpawnIntervalMax);
-            return Random.Range(min, max);
-        }
-        public int CountInZone(IslandZone zone)
-        {
-            int count = 0;
-            foreach (var enemy in Active) if (enemy.Alive && enemy.HomeZone == zone) count++;
-            return count;
-        }
-        void TrimInactiveZones(IslandZone current)
-        {
-            int retained = Mathf.Max(0, GameBalance.Current.Exploration.RetainedZoneLimit);
-            for (int zoneIndex = 0; zoneIndex < 5; zoneIndex++)
-            {
-                var zone = (IslandZone)zoneIndex;
-                if (zone == current) continue;
-                int remaining = CountInZone(zone);
-                for (int i = Active.Count - 1; i >= 0 && remaining > retained; i--)
-                {
-                    if (Active[i].HomeZone != zone) continue;
-                    Despawn(Active[i]);remaining--;
-                }
-            }
-            // A low mobile/custom hard cap must not prevent the newly entered zone populating.
-            int targetRoom = Mathf.Min(CurrentAliveLimit, Mathf.Max(0, GameBalance.Current.Exploration.ZoneEntryPopulation));
-            for (int i = Active.Count - 1; i >= 0 && Active.Count > MaxEnemies - targetRoom; i--)
-                if (Active[i].HomeZone != current) Despawn(Active[i]);
-        }
-        internal void Despawn(EnemyController enemy)
-        {
-            if (enemy == null || !Active.Remove(enemy)) return;
-            Pool(enemy.Kind).Release(enemy);
-        }
-        public void ResetRun()
-        {
-            for (int i = Active.Count - 1; i >= 0; i--) Pool(Active[i].Kind).Release(Active[i]);
-            Active.Clear();
-            zoneInitialized = false;
-            spawnClock = 0;
-        }
-    }
+   }
+   for(int i=Active.Count-1;i>=0&&game.IsPlaying;i--)if(i<Active.Count)Active[i].Tick(dt);
+  }
+  public static float Interval(WaveTuning tuning,float intensity)=>Mathf.Lerp(Mathf.Max(.15f,tuning.SlowInterval),Mathf.Max(.15f,tuning.PeakInterval),Mathf.Clamp01(intensity));
+  public int CountInZone(IslandZone zone)=>zone==IslandZone.Beach?Active.Count:0;
+  internal void Killed(EnemyController enemy){
+   if(!Active.Remove(enemy))return;Corpses.Add(enemy);var t=GameBalance.Current.Bodies;
+   int limit=Mathf.Clamp(Application.isMobilePlatform?t.MaxCorpsesMobile:t.MaxCorpsesPC,1,40);
+   while(Corpses.Count>limit)ReleaseCorpse(Corpses[0]);
+  }
+  public void ReleaseCorpse(EnemyController enemy){if(enemy==null||!Corpses.Remove(enemy))return;Pool(enemy.Kind).Release(enemy);}
+  internal void Despawn(EnemyController enemy){if(enemy==null)return;if(Active.Remove(enemy))Pool(enemy.Kind).Release(enemy);else ReleaseCorpse(enemy);}
+  public void ResetRun(){
+   for(int i=Active.Count-1;i>=0;i--)Pool(Active[i].Kind).Release(Active[i]);Active.Clear();
+   for(int i=Corpses.Count-1;i>=0;i--)Pool(Corpses[i].Kind).Release(Corpses[i]);Corpses.Clear();
+   Waves.Reset();announcedWave=0;spawnClock=0;
+  }
+ }
 }

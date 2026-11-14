@@ -8,7 +8,7 @@ namespace Brainrot {
   [SerializeField] public GameBalance Balance;
   [SerializeField] public PlayerCharacterDefinition PlayerCharacter;
   public PlayerController Player; public EnemySpawner Spawner; public UpgradeSystem Upgrades;
-  public float Elapsed {get;private set;} public int Kills {get;private set;} public IslandZone CurrentZone=>Player!=null?IslandMap.GetZone(Player.transform.position):IslandZone.Beach;
+  public float Elapsed {get;private set;} public int Kills {get;private set;} public int Wave=>Spawner!=null?Spawner.Waves.Number:1; public IslandZone CurrentZone=>Player!=null?IslandMap.GetZone(Player.transform.position):IslandZone.Beach;
   public string Notification {get;private set;}=""; float noticeUntil; UIManager ui;
   void Awake(){ if(Instance!=null&&Instance!=this){Destroy(gameObject);return;} Instance=this; Balance=Balance!=null?Balance:GameBalance.Current;Balance.EnsureExploration(); Time.timeScale=1; SaveSystem.Load();AudioListener.volume=SaveSystem.Data.Volume; Application.targetFrameRate=60;
    QualitySettings.SetQualityLevel(Mathf.Clamp(SaveSystem.Data.Quality,0,QualitySettings.names.Length-1));

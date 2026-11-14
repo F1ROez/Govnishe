@@ -11,13 +11,18 @@ namespace Brainrot.Editor
     public class GameBalanceInspector : UnityEditor.Editor
     {
         static readonly HashSet<string> Hidden = new HashSet<string> {
-            "m_Script", "Spawning", "Bosses", "Fast", "Tank", "MiniBoss", "King"
+            "m_Script", "Spawning", "Bosses", "Fast", "Tank", "MiniBoss", "King", "Exploration", "Progression", "Lirili", "Patapim", "Cappuccino", "Crocodilo"
         };
         static readonly Dictionary<string, string> Labels = new Dictionary<string, string> {
             {"Id","Идентификатор"},{"DisplayName","Название"},{"VisualStyle","Внешний вид"},{"BodyColor","Цвет модели"},{"VisualScale","Масштаб модели"},
             {"UseCustomStats","Собственные характеристики"},{"StartingStats","Характеристики персонажа"},{"Weapon","Оружие"},{"Abilities","Особые способности"},
             {"UseCustomTiming","Собственные настройки взмаха"},{"DamageMultiplier","Множитель урона"},{"RangeMultiplier","Множитель дальности"},{"AttackIntervalMultiplier","Множитель интервала атак"},
             {"Kind","Вид улучшения"},{"Title","Название"},{"Description","Описание"},{"Rarity","Редкость"},{"MaxRank","Максимальный ранг"},{"Amount","Базовая величина"},
+            {"Waves","Волны врагов"},{"Bodies","Физика и тела"},
+            {"HeavyChargeSeconds","Заряд сильной атаки, с"},{"HeavyDamageMultiplier","Множитель урона сильной атаки"},{"HeavyCooldownMultiplier","Перезарядка сильной атаки"},
+            {"Duration","Длительность волны, с"},{"Rest","Передышка между волнами, с"},{"SlowInterval","Интервал появления по краям волны, с"},{"PeakInterval","Интервал на пике волны, с"},{"InitialDelay","Задержка первого появления, с"},
+            {"EdgeAliveLimit","Лимит живых врагов по краям"},{"PeakAliveLimit","Лимит на пике"},{"ExtraAlivePerWave","Прибавка лимита каждой волны"},
+            {"TumbleSeconds","Время кувырка живого врага, с"},{"CorpseSeconds","Время сохранения тела, с"},{"LaunchSpeed","Скорость отбрасывания"},{"UpSpeed","Подброс вверх"},{"Spin","Сила вращения"},{"ChainPush","Передача толчка другим врагам"},{"MaxCorpsesPC","Максимум тел на ПК"},{"MaxCorpsesMobile","Максимум тел на телефоне"},
             {"Player","Игрок: начальные характеристики и управление"},
             {"Combat","Боевая система и обратная связь"},
             {"Exploration","Исследование острова и появление врагов"},

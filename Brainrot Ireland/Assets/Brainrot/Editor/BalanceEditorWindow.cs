@@ -18,7 +18,7 @@ namespace Brainrot.Editor
         {
             if (profile == null) profile = GameBuilder.EnsureBalance();
             EditorGUILayout.LabelField("Брейнрот Ирландия — настройки острова", EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox("Все зоны открыты сразу. Враги появляются случайно в текущей локации; далёкие враги отдыхают или гуляют. Изменения профиля сохраняются, в том числе в режиме игры. Характеристики лучше проверять в новом забеге.", MessageType.Info);
+            EditorGUILayout.HelpBox("Маленький остров и обычные акулы. Волны имеют тихое начало и конец, пик в середине. Короткое нажатие ЛКМ — обычный удар, удержание и отпускание — сильный. Прокачка отключена.", MessageType.Info);
             using (new EditorGUILayout.HorizontalScope())
             {
                 if (GUILayout.Button("Показать профиль")) { Selection.activeObject = profile; EditorGUIUtility.PingObject(profile); }
@@ -34,9 +34,9 @@ namespace Brainrot.Editor
                 }
             }
             EditorGUILayout.Space();
-            EditorGUILayout.LabelField("Опыт: " + profile.RequiredXp(1) + " → " + profile.RequiredXp(2) + " → " + profile.RequiredXp(3) + " → " + profile.RequiredXp(4));
-            DrawExplorationSummary();
-            EditorGUILayout.HelpBox("Раскройте нужный раздел ниже: игрок, бой, исследование, опыт, океан или конкретный вид врага. Настройки прежнего режима скрыты. Правки отменяются сочетанием Ctrl+Z.", MessageType.None);
+            EditorGUILayout.LabelField("Волна: "+profile.Waves.Duration+" с, передышка: "+profile.Waves.Rest+" с");
+            EditorGUILayout.LabelField("Спавн: "+profile.Waves.SlowInterval+" с по краям → "+profile.Waves.PeakInterval+" с на пике");
+            EditorGUILayout.HelpBox("Разделы: игрок, бой, волны, физика тел, акула и океан. Правки сохраняются в профиле, Ctrl+Z отменяет изменения.",MessageType.None);
             scroll = EditorGUILayout.BeginScrollView(scroll);
             UnityEditor.Editor.CreateCachedEditor(profile, null, ref inspector);
             EditorGUI.BeginChangeCheck();
@@ -45,20 +45,5 @@ namespace Brainrot.Editor
             EditorGUILayout.EndScrollView();
         }
 
-        void DrawExplorationSummary()
-        {
-            var data = new SerializedObject(profile);
-            var exploration = data.FindProperty("Exploration");
-            if (exploration == null) return;
-            var limit = exploration.FindPropertyRelative("ActiveZoneLimit");
-            var min = exploration.FindPropertyRelative("SpawnIntervalMin");
-            var max = exploration.FindPropertyRelative("SpawnIntervalMax");
-            var detect = exploration.FindPropertyRelative("DetectionRadius");
-            var wander = exploration.FindPropertyRelative("WanderRadius");
-            if (limit != null && min != null && max != null)
-                EditorGUILayout.LabelField("В текущей зоне: до " + limit.intValue + " врагов; появление каждые " + min.floatValue.ToString("0.#") + "–" + max.floatValue.ToString("0.#") + " с");
-            if (detect != null && wander != null)
-                EditorGUILayout.LabelField("Обнаружение: " + detect.floatValue.ToString("0.#") + " м; прогулка около места появления: " + wander.floatValue.ToString("0.#") + " м");
-        }
     }
 }

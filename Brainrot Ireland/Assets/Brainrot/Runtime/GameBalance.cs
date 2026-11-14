@@ -20,6 +20,8 @@ namespace Brainrot
         [Tooltip("Параметры нового забега. Спавн теперь зависит от текущей зоны острова.")]
         public PlayerTuning Player = new PlayerTuning();
         public CombatTuning Combat = new CombatTuning();
+        public WaveTuning Waves = new WaveTuning();
+        public BodyTuning Bodies = new BodyTuning();
         public SpawnTuning Spawning = new SpawnTuning();
         public ExplorationTuning Exploration = new ExplorationTuning();
         public ProgressionTuning Progression = new ProgressionTuning();
@@ -37,7 +39,7 @@ namespace Brainrot
         public EnemyTuning Crocodilo = new EnemyTuning {Health=210,Speed=2.6f,Damage=28,CanCharge=true,ChargeWindup=1.3f,ChargeSpeed=12,ChargeDuration=.65f,ChargeCooldown=7,AttackRange=2.5f,KnockbackResistance=2,Experience=40};
 
         void OnEnable(){EnsureExploration();}
-        public void EnsureExploration(){if(Exploration==null)Exploration=new ExplorationTuning();}
+        public void EnsureExploration(){if(Exploration==null)Exploration=new ExplorationTuning();if(Waves==null)Waves=new WaveTuning();if(Bodies==null)Bodies=new BodyTuning();}
         public EnemyTuning Enemy(EnemyKind kind) {
             switch (kind) { case EnemyKind.LiriliLarila:return Lirili;case EnemyKind.BrrBrrPatapim:return Patapim;case EnemyKind.CappuccinoAssassino:return Cappuccino;case EnemyKind.BombardiroCrocodilo:return Crocodilo;case EnemyKind.Fast:return Fast;case EnemyKind.Tank:return Tank;case EnemyKind.MiniBoss:return MiniBoss;case EnemyKind.King:return King;default:return Normal; }
         }
@@ -74,9 +76,30 @@ namespace Brainrot
         [Range(0,5)]public float KnockbackMultiplier=2;
         [Range(.15f,.6f)]public float SwingDuration=.32f;
         [Range(0,.2f)]public float ImpactDelay=.09f;
+        [Min(.2f)]public float HeavyChargeSeconds=.6f;
+        [Range(1,3)]public float HeavyDamageMultiplier=1.35f;
+        [Min(1)]public float HeavyCooldownMultiplier=1.4f;
         [Range(.03f,.5f)]public float HitFlashDuration=.16f;
         [Range(0,.65f)]public float HitFlashStrength=.25f;
         public bool ShowAttackRange=true;
+    }
+    [Serializable] public sealed class WaveTuning {
+        [Min(10)]public float Duration=60;
+        [Min(1)]public int MaxDesktop=64,MaxMobile=32;
+        [Min(0)]public float Rest=8;
+        [Min(.5f)]public float SlowInterval=4.5f;
+        [Min(.15f)]public float PeakInterval=.65f;
+        [Min(0)]public float InitialDelay=2;
+        [Min(1)]public int EdgeAliveLimit=10,PeakAliveLimit=24;
+        [Min(0)]public int ExtraAlivePerWave=2;
+    }
+    [Serializable] public sealed class BodyTuning {
+        [Min(.3f)]public float TumbleSeconds=1.8f;
+        [Min(1)]public float CorpseSeconds=7;
+        [Min(1)]public float LaunchSpeed=11;
+        [Min(0)]public float UpSpeed=3,Spin=12;
+        [Range(0,1)]public float ChainPush=.55f;
+        [Min(1)]public int MaxCorpsesPC=18,MaxCorpsesMobile=8;
     }
     [Serializable] public sealed class SpawnTuning {
         [Min(0)]public float InitialDelay=7;
