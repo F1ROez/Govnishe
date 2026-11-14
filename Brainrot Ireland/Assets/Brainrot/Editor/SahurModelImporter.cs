@@ -29,7 +29,8 @@ namespace Brainrot.Editor
             Texture2D normal=Texture(Source+"Material_NRM.png",true,false);
             var material=AssetDatabase.LoadAssetAtPath<Material>(Output+"Sahur.mat");
             if(material==null){material=new Material(Shader.Find("Universal Render Pipeline/Lit")){name="Сахур — материал владельца"};material.SetColor("_BaseColor",Color.white);material.SetFloat("_Smoothness",.42f);AssetDatabase.CreateAsset(material,Output+"Sahur.mat");}
-            if(albedo!=null)material.SetTexture("_BaseMap",albedo);
+            ClearNon2DMaps(material);
+            if(albedo!=null){material.SetTexture("_BaseMap",albedo);material.SetTexture("_MainTex",albedo);}
             if(normal!=null){material.SetTexture("_BumpMap",normal);material.SetFloat("_BumpScale",.55f);material.EnableKeyword("_NORMALMAP");}
             var packed=Smoothness();if(packed!=null){material.SetTexture("_MetallicGlossMap",packed);material.SetFloat("_Metallic",0);material.SetFloat("_Smoothness",1);material.EnableKeyword("_METALLICSPECGLOSSMAP");}
             EditorUtility.SetDirty(material);
@@ -63,12 +64,29 @@ namespace Brainrot.Editor
             }
             finally{UnityEngine.Object.DestroyImmediate(root);}
         }
+        // Texture type (Default/NormalMap) and texture shape (2D/Cube) are independent settings.
+        internal static bool ConfigureTexture2D(TextureImporter importer,bool normal,bool color,int size)
+        {
+            var kind=normal?TextureImporterType.NormalMap:TextureImporterType.Default;
+            bool changed=importer.textureType!=kind||importer.textureShape!=TextureImporterShape.Texture2D||importer.sRGBTexture!=color||importer.maxTextureSize!=size;
+            if(changed){importer.textureType=kind;importer.textureShape=TextureImporterShape.Texture2D;importer.sRGBTexture=color;importer.maxTextureSize=size;}
+            return changed;
+        }
         static Texture2D Texture(string path,bool normal,bool color)
         {
-            var t=AssetImporter.GetAtPath(path) as TextureImporter;if(t==null)return null;
-            var kind=normal?TextureImporterType.NormalMap:TextureImporterType.Default;
-            if(t.textureType!=kind||t.sRGBTexture!=color||t.maxTextureSize!=2048){t.textureType=kind;t.sRGBTexture=color;t.maxTextureSize=2048;t.SaveAndReimport();}
-            return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+            var importer=AssetImporter.GetAtPath(path) as TextureImporter;if(importer==null)return null;
+            if(ConfigureTexture2D(importer,normal,color,2048))importer.SaveAndReimport();
+            var texture=AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+            if(texture==null)Debug.LogWarning("Не удалось загрузить 2D-текстуру Сахура: "+path);
+            return texture;
+        }
+        static void ClearNon2DMaps(Material material)
+        {
+            foreach(string property in new[]{"_MainTex","_BaseMap","_BumpMap","_MetallicGlossMap"}){
+                if(!material.HasProperty(property))continue;
+                var texture=material.GetTexture(property);
+                if(texture!=null&&texture.dimension!=UnityEngine.Rendering.TextureDimension.Tex2D)material.SetTexture(property,null);
+            }
         }
         static Texture2D Smoothness()
         {
@@ -103,14 +121,13 @@ namespace Brainrot.Editor
             AssetDatabase.ImportAsset(path,ImportAssetOptions.ForceSynchronousImport|ImportAssetOptions.ForceUpdate);
             var output=AssetImporter.GetAtPath(path) as TextureImporter;
             if(output==null){Debug.LogWarning("Карта гладкости ещё недоступна в AssetDatabase. Модель создаётся с обычной гладкостью материала.");return null;}
-            if(output.textureType!=TextureImporterType.Default||output.sRGBTexture||output.maxTextureSize!=1024){
-                output.textureType=TextureImporterType.Default;output.sRGBTexture=false;output.maxTextureSize=1024;output.SaveAndReimport();
-            }
+            if(ConfigureTexture2D(output,false,false,1024))output.SaveAndReimport();
             return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
         }
         static Material TrailMaterial()
         {
-            string path=Output+"BatTrail.mat";var material=AssetDatabase.LoadAssetAtPath<Material>(path);if(material!=null)return material;
+            string path=Output+"BatTrail.mat";var material=AssetDatabase.LoadAssetAtPath<Material>(path);
+            if(material!=null){ClearNon2DMaps(material);EditorUtility.SetDirty(material);return material;}
             material=new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit")){name="Белый шлейф",color=Color.white,renderQueue=3000};
             material.SetFloat("_Surface",1);material.SetInt("_SrcBlend",(int)UnityEngine.Rendering.BlendMode.SrcAlpha);material.SetInt("_DstBlend",(int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);material.SetInt("_ZWrite",0);material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");material.SetOverrideTag("RenderType","Transparent");AssetDatabase.CreateAsset(material,path);return material;
         }
@@ -169,4 +186,17 @@ namespace Brainrot.Editor
             clip.EnsureQuaternionContinuity();var settings=AnimationUtility.GetAnimationClipSettings(clip);settings.loopTime=true;AnimationUtility.SetAnimationClipSettings(clip,settings);AssetDatabase.CreateAsset(clip,path);return clip;
         }
     }
+    sealed class SahurTexturePostprocessor : AssetPostprocessor
+    {
+        void OnPreprocessTexture()
+        {
+            bool albedo=assetPath=="Assets/Brainrot/Art/Sahur/Material_ALB.png";
+            bool normal=assetPath=="Assets/Brainrot/Art/Sahur/Material_NRM.png";
+            bool roughness=assetPath=="Assets/Brainrot/Art/Sahur/Material_RGH.png";
+            bool packed=assetPath=="Assets/Brainrot/Generated/Sahur/MetallicSmoothness.png";
+            if(!albedo&&!normal&&!roughness&&!packed)return;
+            SahurModelImporter.ConfigureTexture2D((TextureImporter)assetImporter,normal,albedo,packed?1024:2048);
+        }
+    }
+
 }
