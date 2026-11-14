@@ -19,6 +19,7 @@ namespace Brainrot
         float hitUntil;
         bool lastHitCritical;
         Image healthFill, xpFill;
+        Image heavyShade,dashShade;Text heavyTime,dashTime;
         GameState shownState = (GameState)(-1);
         int shownLevel = -1;
         string page = "";
@@ -65,6 +66,7 @@ namespace Brainrot
             chargeLabel=Label(hud.transform,"",19,TextAnchor.MiddleCenter,new Vector2(.2f,.32f),new Vector2(.8f,.39f));chargeLabel.color=gold;
             hitLabel=Label(hud.transform,"",17,TextAnchor.MiddleCenter,new Vector2(.4f,.41f),new Vector2(.6f,.46f));
 
+            BuildAbilityIcons();
             overlay=Box("Screens",root.transform,Vector2.zero,Vector2.one,new Color(.015f,.055f,.1f,.91f));
             BuildMobile(root.transform);
             BuildFullMap(root.transform);
@@ -88,8 +90,9 @@ namespace Brainrot
             xpText.transform.parent.gameObject.SetActive(true);xpText.gameObject.SetActive(false);xpFill.transform.parent.gameObject.SetActive(false);
             stats.text=$"ВОЛНА {gm.Wave} · {gm.Spawner.Waves.Stage} · {Mathf.CeilToInt(gm.Spawner.Waves.Remaining)} с\n{TimeLabel(gm.Elapsed)}  |  Побеждено: {gm.Kills}";
             notification.text=gm.Notification ?? "";
+            if(gm.Player!=null){UpdateAbility(heavyShade,heavyTime,gm.Player.Combat.HeavyCooldownRemaining,gm.Player.Combat.HeavyCooldownDuration);UpdateAbility(dashShade,dashTime,gm.Player.DashCooldownRemaining,gm.Player.DashCooldownDuration);}
             var combat=gm.Player!=null?gm.Player.Combat:null;
-            chargeLabel.text=combat!=null&&combat.IsCharging?(combat.ChargeProgress>=1?"СИЛЬНЫЙ УДАР ГОТОВ — ОТПУСТИ ЛКМ":"ЗАРЯД СИЛЬНОГО УДАРА: "+Mathf.RoundToInt(combat.ChargeProgress*100)+"%"):"";
+            chargeLabel.text=combat!=null&&combat.IsCharging&&!combat.HeavyReady?"СИЛЬНЫЙ УДАР ВОССТАНАВЛИВАЕТСЯ — ОБЫЧНАЯ АТАКА":combat!=null&&combat.IsCharging?(combat.ChargeProgress>=1?"СИЛЬНЫЙ УДАР ГОТОВ — ОТПУСТИ ЛКМ":"ЗАРЯД СИЛЬНОГО УДАРА: "+Mathf.RoundToInt(combat.ChargeProgress*100)+"%"):"";
             aimHint.text=gm.Player!=null && gm.Player.CameraLocked ? "ВЗГЛЯД ПО КАМЕРЕ  ·  V" : "СВОБОДНЫЙ ПОВОРОТ  ·  V";
             if(Time.unscaledTime>=hitUntil) {hitMarker.text="";hitLabel.text="";}
             else {
@@ -108,6 +111,24 @@ namespace Brainrot
                 if(gm.State!=GameState.Playing) BuildScreen();
             }
         }
+
+        void BuildAbilityIcons(){
+            var strong=Box("Сильный удар",hud.transform,new Vector2(.025f,.60f),new Vector2(.13f,.76f),new Color(.03f,.10f,.16f,.9f));
+            // Procedural bat silhouette, no external icon assets.
+            var bat=Box("Бита",strong.transform,new Vector2(.41f,.32f),new Vector2(.59f,.84f),gold);bat.transform.localRotation=Quaternion.Euler(0,0,-32);
+            var handle=Box("Рукоять",strong.transform,new Vector2(.45f,.22f),new Vector2(.53f,.47f),Color.white);handle.transform.localRotation=Quaternion.Euler(0,0,-32);
+            heavyShade=CooldownShade(strong.transform);heavyTime=Label(strong.transform,"ГОТОВ",19,TextAnchor.MiddleCenter,new Vector2(0,.22f),new Vector2(1,.9f));
+            Label(strong.transform,"СИЛЬНЫЙ",13,TextAnchor.MiddleCenter,Vector2.zero,new Vector2(1,.23f));
+            var dash=Box("Рывок",hud.transform,new Vector2(.025f,.41f),new Vector2(.13f,.57f),new Color(.03f,.10f,.16f,.9f));
+            for(int j=0;j<2;j++){
+                var a=Box("Стрелка",dash.transform,new Vector2(.25f+j*.22f,.50f),new Vector2(.48f+j*.22f,.57f),cyan);a.transform.localRotation=Quaternion.Euler(0,0,35);
+                var b=Box("Стрелка",dash.transform,new Vector2(.25f+j*.22f,.38f),new Vector2(.48f+j*.22f,.45f),cyan);b.transform.localRotation=Quaternion.Euler(0,0,-35);
+            }
+            dashShade=CooldownShade(dash.transform);dashTime=Label(dash.transform,"ГОТОВ",19,TextAnchor.MiddleCenter,new Vector2(0,.22f),new Vector2(1,.9f));
+            Label(dash.transform,"РЫВОК",13,TextAnchor.MiddleCenter,Vector2.zero,new Vector2(1,.23f));
+        }
+        Image CooldownShade(Transform parent){var image=Box("Перезарядка",parent,Vector2.zero,Vector2.one,new Color(0,0,0,.72f)).GetComponent<Image>();image.type=Image.Type.Filled;image.fillMethod=Image.FillMethod.Radial360;image.fillOrigin=2;image.fillClockwise=true;image.raycastTarget=false;return image;}
+        static void UpdateAbility(Image shade,Text label,float remaining,float duration){shade.fillAmount=Mathf.Clamp01(remaining/Mathf.Max(.1f,duration));label.text=remaining>0?Mathf.CeilToInt(remaining).ToString():"ГОТОВ";label.color=remaining>0?Color.white:new Color(.55f,1,.65f);}
 
         void ClearScreen()
         {

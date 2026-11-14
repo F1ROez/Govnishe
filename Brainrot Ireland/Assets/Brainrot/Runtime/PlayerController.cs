@@ -13,6 +13,8 @@ namespace Brainrot {
   public bool CameraLocked => SaveSystem.Data.HasCameraPreference ? SaveSystem.Data.CameraLocked : ActiveTuning.CameraLocked;
   public Vector3 AimForward => Quaternion.Euler(0,yaw,0)*Vector3.forward;
   public Vector3 DashDirection {get;private set;}
+  public float DashCooldownRemaining=>Mathf.Max(0,nextDash-Time.time);
+  public float DashCooldownDuration=>Mathf.Max(.1f,Stats.DashCooldown);
   public bool IsDashing => Time.time<dashUntil;
   CharacterController motor; CharacterVisual visual; CombatSystem combat; Camera cam;
   float yaw,pitch,dashUntil,nextDash,invulnerableUntil,trauma;
@@ -32,7 +34,7 @@ namespace Brainrot {
    foreach(var ability in abilities)ability.Dispose();abilities.Clear();
    if(Character!=null&&Character.Abilities!=null)foreach(var definition in Character.Abilities)if(definition!=null){var runtime=definition.CreateRuntime(this);if(runtime!=null)abilities.Add(runtime);}
    motor.enabled=false;transform.position=IslandMap.StartPosition;transform.rotation=Quaternion.identity;motor.enabled=true;
-   yaw=0;pitch=Mathf.Clamp(settings.CameraPitch,15,70);dashUntil=nextDash=invulnerableUntil=0;DashDirection=Vector3.zero;trauma=0;
+   yaw=0;pitch=CameraLocked?Mathf.Repeat(settings.CameraPitch+180,360)-180:Mathf.Clamp(settings.CameraPitch,15,70);dashUntil=nextDash=invulnerableUntil=0;DashDirection=Vector3.zero;trauma=0;
    combat?.ResetRun();visual?.ResetFeedback();
   }
   public void ToggleCameraLock(){SetCameraLock(!CameraLocked);}
@@ -48,7 +50,7 @@ namespace Brainrot {
    var gm=GameManager.Instance;if(gm==null||!gm.IsPlaying)return;
    if(GameInput.CameraToggle)ToggleCameraLock();
    Vector2 look=Application.isMobilePlatform?MobileInput.Look:GameInput.Look;MobileInput.Look=Vector2.zero;
-   yaw+=look.x*2.3f*SaveSystem.Data.Sensitivity;pitch=Mathf.Clamp(pitch-look.y*1.8f*SaveSystem.Data.Sensitivity,15,70);
+   yaw+=look.x*2.3f*SaveSystem.Data.Sensitivity;pitch=CameraLocked?Mathf.Repeat(pitch-look.y*1.8f*SaveSystem.Data.Sensitivity+180,360)-180:Mathf.Clamp(pitch-look.y*1.8f*SaveSystem.Data.Sensitivity,15,70);
    Vector2 input=Application.isMobilePlatform?MobileInput.Move:GameInput.Move;input=Vector2.ClampMagnitude(input,1);
    Vector3 move=Quaternion.Euler(0,yaw,0)*new Vector3(input.x,0,input.y);bool sprint=GameInput.Sprint||MobileInput.Sprint;
    var settings=ActiveTuning;
@@ -63,7 +65,7 @@ namespace Brainrot {
    combat.UpdateAttackInput(GameInput.Attack||MobileInput.Attack);
    visual.Animate(move.magnitude*3*(sprint?1.35f:1),combat.IsAttacking);Heal(Stats.Regen*Time.deltaTime);foreach(var ability in abilities)ability.Tick(Time.deltaTime);
   }
-  void LateUpdate(){if(cam==null)return;Quaternion rot=Quaternion.Euler(pitch,yaw,0);Vector3 target=transform.position+Vector3.up*1.6f;cam.transform.position=target-rot*Vector3.forward*Mathf.Max(2,ActiveTuning.CameraDistance)+Random.insideUnitSphere*trauma;cam.transform.LookAt(target);trauma=Mathf.MoveTowards(trauma,0,Time.unscaledDeltaTime);}
+  void LateUpdate(){if(cam==null)return;Quaternion rot=Quaternion.Euler(pitch,yaw,0);Vector3 target=transform.position+Vector3.up*1.6f;cam.transform.position=target-rot*Vector3.forward*Mathf.Max(2,ActiveTuning.CameraDistance)+Random.insideUnitSphere*trauma;cam.transform.rotation=rot;trauma=Mathf.MoveTowards(trauma,0,Time.unscaledDeltaTime);}
   public void Heal(float amount){Health=Mathf.Min(Stats.MaxHealth,Health+Mathf.Max(0,amount));}
   public void TakeDamage(float amount,Vector3 source){if(!GameManager.Instance.IsPlaying||Time.time<invulnerableUntil||amount<=0)return;Health=Mathf.Max(0,Health-amount);foreach(var ability in abilities)ability.OnDamageTaken(amount);invulnerableUntil=Time.time+.5f;trauma=.18f;HitEffects.Burst(transform.position+Vector3.up,new Color(1,.2f,.1f));GameAudio.Play(130,.1f,.15f);if(Health<=0)GameManager.Instance.Die();}
   public void CancelAttacks(){combat?.CancelPendingSwings();}

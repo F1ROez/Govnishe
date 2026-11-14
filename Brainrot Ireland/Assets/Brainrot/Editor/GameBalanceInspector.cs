@@ -11,7 +11,7 @@ namespace Brainrot.Editor
     public class GameBalanceInspector : UnityEditor.Editor
     {
         static readonly HashSet<string> Hidden = new HashSet<string> {
-            "m_Script", "Spawning", "Bosses", "Fast", "Tank", "MiniBoss", "King", "Exploration", "Progression", "Lirili", "Patapim", "Cappuccino", "Crocodilo"
+            "m_Script", "Spawning", "Bosses", "Fast", "Tank", "MiniBoss", "King", "Exploration", "Progression", "HeavyDamageMultiplier", "HeavyCooldownMultiplier", "Lirili", "Patapim", "Cappuccino", "Crocodilo"
         };
         static readonly Dictionary<string, string> Labels = new Dictionary<string, string> {
             {"Id","Идентификатор"},{"DisplayName","Название"},{"VisualStyle","Внешний вид"},{"BodyColor","Цвет модели"},{"VisualScale","Масштаб модели"},
@@ -19,6 +19,7 @@ namespace Brainrot.Editor
             {"UseCustomTiming","Собственные настройки взмаха"},{"DamageMultiplier","Множитель урона"},{"RangeMultiplier","Множитель дальности"},{"AttackIntervalMultiplier","Множитель интервала атак"},
             {"Kind","Вид улучшения"},{"Title","Название"},{"Description","Описание"},{"Rarity","Редкость"},{"MaxRank","Максимальный ранг"},{"Amount","Базовая величина"},
             {"Waves","Волны врагов"},{"Bodies","Физика и тела"},
+            {"StrongDamageMultiplier","Множитель урона сильного удара"},{"StrongCooldownSeconds","Перезарядка сильного удара, с"},
             {"HeavyChargeSeconds","Заряд сильной атаки, с"},{"HeavyDamageMultiplier","Множитель урона сильной атаки"},{"HeavyCooldownMultiplier","Перезарядка сильной атаки"},
             {"Duration","Длительность волны, с"},{"Rest","Передышка между волнами, с"},{"SlowInterval","Интервал появления по краям волны, с"},{"PeakInterval","Интервал на пике волны, с"},{"InitialDelay","Задержка первого появления, с"},
             {"EdgeAliveLimit","Лимит живых врагов по краям"},{"PeakAliveLimit","Лимит на пике"},{"ExtraAlivePerWave","Прибавка лимита каждой волны"},

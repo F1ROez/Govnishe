@@ -308,6 +308,12 @@ namespace Brainrot
         {
             if(Weapon!=null&&GameManager.Instance!=null&&!GameManager.Instance.IsPlaying)ResetAttack();
             else TickAttack(Time.deltaTime);
+            if(isShark&&biteRemaining>0&&GameManager.Instance!=null&&GameManager.Instance.IsPlaying){
+                biteRemaining=Mathf.Max(0,biteRemaining-Time.deltaTime);float t=1-biteRemaining/biteDuration;
+                float lunge=t<.38f?Mathf.SmoothStep(0,1,t/.38f):1-Mathf.SmoothStep(0,1,(t-.38f)/.62f);
+                body.localPosition=bodyPosition+Vector3.forward*(lunge*.65f);body.localRotation=Quaternion.Euler(lunge*12,0,0);
+                if(biteRemaining<=0){body.localPosition=bodyPosition;body.localRotation=Quaternion.identity;}
+            }
             if(flashRemaining<=0)return;
             flashRemaining=Mathf.Max(0,flashRemaining-Time.deltaTime);
             if(flashRemaining<=0)ResetFeedback();
@@ -326,7 +332,11 @@ namespace Brainrot
             if(Weapon!=null){Weapon.localPosition=weaponRestPosition;Weapon.localRotation=weaponRestRotation;Weapon.localScale=Vector3.one;}
             if(batTrail!=null){batTrail.emitting=false;batTrail.Clear();}
         }
-        void OnDisable(){ResetFeedback();ResetAttack();}
+        void OnDisable(){ResetFeedback();ResetAttack();ResetBite();}
+        float biteRemaining,biteDuration;
+        public void PlayBite(float duration=.32f){if(!isShark)return;biteDuration=Mathf.Max(.15f,duration);biteRemaining=biteDuration;}
+        public float BiteProgress=>biteRemaining>0?1-biteRemaining/biteDuration:1;
+        public void ResetBite(){biteRemaining=0;if(body!=null){body.localPosition=bodyPosition;body.localRotation=Quaternion.identity;}}
         public void Animate(float speed,bool attacking)
         {
             float intensity=Mathf.Clamp01(speed/3);
@@ -334,13 +344,13 @@ namespace Brainrot
             float swing=Mathf.Sin(phase)*32*intensity;
             if(leftLeg!=null)leftLeg.localRotation=Quaternion.Euler(swing,0,0);
             if(rightLeg!=null)rightLeg.localRotation=Quaternion.Euler(-swing,0,0);
-            body.localPosition=bodyPosition+Vector3.up*(Mathf.Abs(Mathf.Sin(phase))*.075f*intensity);
-            body.localRotation=Quaternion.Euler(0,0,Mathf.Sin(phase)*3*intensity);
+            if(biteRemaining<=0)body.localPosition=bodyPosition+Vector3.up*(Mathf.Abs(Mathf.Sin(phase))*.075f*intensity);
+            if(biteRemaining<=0)body.localRotation=Quaternion.Euler(0,0,Mathf.Sin(phase)*3*intensity);
             attackBlend=Mathf.MoveTowards(attackBlend,attacking?1:0,Time.deltaTime*14);
             if(leftArm!=null)leftArm.localRotation=Quaternion.Euler(-swing*.6f,0,-10);
             if(rightArm!=null&&!AttackActive)rightArm.localRotation=Quaternion.Euler(Mathf.Lerp(swing*.6f,-60,Weapon==null?attackBlend:0),0,-10);
             if(Weapon!=null&&!AttackActive){Weapon.localPosition=weaponRestPosition;Weapon.localRotation=weaponRestRotation;Weapon.localScale=Vector3.one;}
-            if(isShark && attacking)body.localPosition+=Vector3.forward*.10f;
+
         }
     }
 }

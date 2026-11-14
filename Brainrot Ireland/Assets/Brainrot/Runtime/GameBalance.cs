@@ -62,7 +62,7 @@ namespace Brainrot
         [Header("Передвижение и камера")]
         public bool CameraLocked=true;
         [Min(.1f)]public float CameraDistance=9.5f;
-        [Range(15,70)]public float CameraPitch=38;
+        [Range(-179,179)]public float CameraPitch=38;
         [Min(.1f)]public float TurnSpeed=16;
         [Min(1)]public float SprintMultiplier=1.35f;
         [Min(.1f)]public float DashSpeed=20;
@@ -77,6 +77,8 @@ namespace Brainrot
         [Range(.15f,.6f)]public float SwingDuration=.32f;
         [Range(0,.2f)]public float ImpactDelay=.09f;
         [Min(.2f)]public float HeavyChargeSeconds=.6f;
+        [Min(1)]public float StrongDamageMultiplier=2.5f;
+        [Min(.1f)]public float StrongCooldownSeconds=10;
         [Range(1,3)]public float HeavyDamageMultiplier=1.35f;
         [Min(1)]public float HeavyCooldownMultiplier=1.4f;
         [Range(.03f,.5f)]public float HitFlashDuration=.16f;

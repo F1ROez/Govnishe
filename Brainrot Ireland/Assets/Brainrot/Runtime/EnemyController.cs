@@ -5,7 +5,7 @@ namespace Brainrot
     public enum EnemyAction
     {
         Chasing = 0, MeleeWindup = 1, ChargeWindup = 2, Charging = 3, Recovery = 4, Staggered = 5,
-        BossWindup = 6, BossWave = 7, Idle = 8, Wandering = 9
+        BossWindup = 6, BossWave = 7, Idle = 8, Wandering = 9, Biting = 10
     }
 
     /// <summary>Local wildlife: idle, wander, notice a nearby player, attack, then lose interest.</summary>
@@ -55,7 +55,7 @@ namespace Brainrot
             attackHit = IsAlerted = false;
             Alive = true;
             EnterIdle();
-            visual.ResetFeedback();
+            visual.ResetFeedback();visual.ResetBite();
         }
         static Color Skin(EnemyKind kind)
         {
@@ -101,10 +101,17 @@ namespace Brainrot
                     Face(direction,dt);committedDirection=direction;
                     telegraph.Cone(transform.position,direction,AttackRange);visual.Animate(speed,true);
                     if(stateClock<=0){
+                        visual.PlayBite(.32f);Action=EnemyAction.Biting;stateClock=.32f;attackHit=false;
+                    }
+                    return;
+                case EnemyAction.Biting:
+                    stateClock-=dt;visual.Animate(speed,true);
+                    if(distance>Radius+.6f)MoveWithinZone(direction*speed*dt);
+                    if(!attackHit&&stateClock<=.2f){attackHit=true;
                         Vector3 impact=Flat(game.Player.transform.position-transform.position);
                         if(impact.magnitude<=AttackRange&&Vector3.Dot(transform.forward,impact.normalized)>.3f)game.Player.TakeDamage(damage,transform.position);
-                        EnterRecovery(tuning.Recovery);
                     }
+                    if(stateClock<=0)EnterRecovery(tuning.Recovery);
                     return;
                 case EnemyAction.ChargeWindup:
                     stateClock -= dt; visual.Animate(0, true);
@@ -247,7 +254,7 @@ namespace Brainrot
             }
             if (Action != EnemyAction.Charging)
             {
-                telegraph.Hide();Action = EnemyAction.Staggered;
+                telegraph.Hide();visual.ResetBite();Action = EnemyAction.Staggered;
                 stateClock = Mathf.Max(.02f, tuning.HitStagger);attackClock = .2f;
             }
             if (Health > 0){if(knockback.sqrMagnitude>.01f)Tumble(knockback);return;}
@@ -257,7 +264,7 @@ namespace Brainrot
             Vector3 launch=knockback.sqrMagnitude>.01f?knockback:(transform.position-GameManager.Instance.Player.transform.position).normalized*3;
             PhysicsBody.Launch(launch,true);owner.Killed(this);
         }
-        public void Tumble(Vector3 velocity){if(!Alive)return;telegraph.Hide();Action=EnemyAction.Staggered;PhysicsBody.Launch(velocity,false);}
+        public void Tumble(Vector3 velocity){if(!Alive)return;visual.ResetBite();telegraph.Hide();Action=EnemyAction.Staggered;PhysicsBody.Launch(velocity,false);}
         public void OnRecovered(){if(!Alive)return;Action=EnemyAction.Chasing;attackClock=.5f;visual.ResetFeedback();}
         void OnDisable() { IsAlerted = false;if (telegraph != null) telegraph.Hide();if (visual != null) visual.ResetFeedback(); }
     }

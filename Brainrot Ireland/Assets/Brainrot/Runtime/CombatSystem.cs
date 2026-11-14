@@ -5,24 +5,29 @@ namespace Brainrot {
   struct PendingContact {public float Time,Power;public bool Heavy;}
   readonly List<PendingContact> contacts=new List<PendingContact>(16);
   PlayerController player;CharacterVisual visual;AttackRangeVisual rangeVisual;
-  float nextAttack,chargeStarted;bool charging,inputSuppressed;
+  float nextAttack,nextHeavyAttack,chargeStarted;bool charging,inputSuppressed;
   public bool IsCharging=>charging;
+  public float HeavyCooldownRemaining=>Mathf.Max(0,nextHeavyAttack-Time.time);
+  public float HeavyCooldownDuration=>Mathf.Max(.1f,GameBalance.Current.Combat.StrongCooldownSeconds);
+  public bool HeavyReady=>HeavyCooldownRemaining<=0;
   public float ChargeProgress=>charging?Mathf.Clamp01((Time.time-chargeStarted)/Mathf.Max(.2f,GameBalance.Current.Combat.HeavyChargeSeconds)):0;
   public bool IsAttacking=>visual!=null&&visual.AttackActive;
   public void Initialize(PlayerController p,CharacterVisual v){player=p;visual=v;}
   public void SetRangeVisual(AttackRangeVisual value){rangeVisual=value;}
   public void CancelPendingSwings(){contacts.Clear();charging=false;inputSuppressed=true;visual?.ResetAttack();}
-  public void ResetRun(){nextAttack=0;CancelPendingSwings();}
+  public void ResetRun(){nextAttack=nextHeavyAttack=0;CancelPendingSwings();}
   public void UpdateAttackInput(bool held){
    if(inputSuppressed){if(!held)inputSuppressed=false;return;}
    if(held&&!charging&&Time.time>=nextAttack){charging=true;chargeStarted=Time.time;}
-   if(!held&&charging){bool heavy=ChargeProgress>=1;charging=false;ExecuteAttack(heavy);}
+   if(!held&&charging){bool heavy=ChargeProgress>=1;charging=false;ExecuteAttack(heavy&&HeavyReady);}
   }
   public void TryAttack(){ExecuteAttack(false);}
   public bool ExecuteAttack(bool heavy){
    var game=GameManager.Instance;if(game==null||!game.IsPlaying||Time.time<nextAttack)return false;
-   float cooldown=Mathf.Max(.12f,player.Stats.AttackInterval)*(heavy?Mathf.Max(1,GameBalance.Current.Combat.HeavyCooldownMultiplier):1);
-   nextAttack=Time.time+cooldown;BeginSwing(heavy?Mathf.Max(1,GameBalance.Current.Combat.HeavyDamageMultiplier):1,heavy);return true;
+   if(heavy&&!HeavyReady)return false;
+   nextAttack=Time.time+Mathf.Max(.12f,player.Stats.AttackInterval);
+   if(heavy)nextHeavyAttack=Time.time+HeavyCooldownDuration;
+   BeginSwing(heavy?Mathf.Max(1,GameBalance.Current.Combat.StrongDamageMultiplier):1,heavy);return true;
   }
   void BeginSwing(float power,bool heavy=false){
    var tuning=GameBalance.Current.Combat;var weapon=player.Character!=null?player.Character.Weapon:null;

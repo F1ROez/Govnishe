@@ -23,7 +23,7 @@ namespace Brainrot.Tests {
   }
   [UnityTest]public IEnumerator HeavyAttackAddsDamageAndPhysicalSpin(){
    var enemy=Spawn();float hp=enemy.Health;Assert.IsTrue(game.Player.Combat.ExecuteAttack(true));yield return new WaitForSeconds(.15f);
-   Assert.That(enemy.Health,Is.EqualTo(hp-game.Player.Stats.Damage*profile.Combat.HeavyDamageMultiplier).Within(.01f));Assert.IsTrue(enemy.PhysicsBody.IsPhysical);Assert.IsFalse(enemy.PhysicsBody.Rigidbody.isKinematic);
+   Assert.That(enemy.Health,Is.EqualTo(hp-game.Player.Stats.Damage*profile.Combat.StrongDamageMultiplier).Within(.01f));Assert.IsTrue(enemy.PhysicsBody.IsPhysical);Assert.IsFalse(enemy.PhysicsBody.Rigidbody.isKinematic);
   }
   [UnityTest]public IEnumerator HoldInputChargesAndFiresOnlyOnRelease(){
    var enemy=Spawn();var combat=game.Player.Combat;combat.UpdateAttackInput(false);combat.UpdateAttackInput(true);Assert.IsTrue(combat.IsCharging);float hp=enemy.Health;
@@ -41,7 +41,7 @@ namespace Brainrot.Tests {
   }
   [UnityTest]public IEnumerator MovingSharkCompletesAttackAfterPlayerLeavesRange(){
    profile.Normal.Damage=8;var enemy=Spawn(1.7f);enemy.Tick(.61f);Assert.AreEqual(EnemyAction.MeleeWindup,enemy.Action);
-   var before=enemy.transform.position;Teleport(Vector3.right*12);float hp=game.Player.Health;enemy.Tick(.66f);
+   var before=enemy.transform.position;Teleport(Vector3.right*12);float hp=game.Player.Health;enemy.Tick(.66f);enemy.Tick(.33f);
    Assert.Greater((enemy.transform.position-before).magnitude,.1f);Assert.AreEqual(EnemyAction.Recovery,enemy.Action);Assert.AreEqual(hp,game.Player.Health);yield return null;
   }
   [UnityTest]public IEnumerator BodiesCollideAndTransferPush(){
@@ -54,6 +54,20 @@ namespace Brainrot.Tests {
   [UnityTest]public IEnumerator RestartResetsWavesAndCorpsesAndKeepsXpDisabled(){
    var enemy=Spawn();enemy.TakeDamage(9999,Vector3.zero);Assert.AreEqual(0,game.Upgrades.Experience);Assert.AreEqual(1,game.Upgrades.Level);
    game.Spawner.Waves.Advance(140);Assert.Greater(game.Wave,1);game.StartRun();Assert.AreEqual(1,game.Wave);Assert.AreEqual(0,game.Spawner.Corpses.Count);Assert.AreEqual(0,game.Spawner.Active.Count);yield return null;
+  }
+  [UnityTest]public IEnumerator HeavyCooldownIsIndependentAndResetsOnNewRun(){
+   Assert.That(profile.Combat.StrongDamageMultiplier,Is.EqualTo(2.5f));Assert.That(profile.Combat.StrongCooldownSeconds,Is.EqualTo(10));
+   Assert.IsTrue(game.Player.Combat.ExecuteAttack(true));Assert.That(game.Player.Combat.HeavyCooldownRemaining,Is.EqualTo(10).Within(.05f));
+   yield return new WaitForSeconds(.75f);Assert.IsFalse(game.Player.Combat.ExecuteAttack(true));Assert.IsTrue(game.Player.Combat.ExecuteAttack(false));
+   game.StartRun();Assert.AreEqual(0,game.Player.Combat.HeavyCooldownRemaining);Assert.AreEqual(0,game.Player.DashCooldownRemaining);
+  }
+  [UnityTest]public IEnumerator CooldownDoesNotTickWhilePaused(){
+   game.Player.Combat.ExecuteAttack(true);float before=game.Player.Combat.HeavyCooldownRemaining;game.Pause();yield return new WaitForSecondsRealtime(.1f);Assert.AreEqual(before,game.Player.Combat.HeavyCooldownRemaining);game.Resume();
+  }
+  [UnityTest]public IEnumerator SharkBiteLungesAndReturns(){
+   var enemy=Spawn(4);var visual=enemy.GetComponentInChildren<CharacterVisual>();var body=visual.transform.GetChild(0);var rest=body.localPosition;
+   visual.PlayBite(.32f);yield return new WaitForSeconds(.12f);Assert.Greater(body.localPosition.z,rest.z+.2f);
+   yield return new WaitForSeconds(.28f);Assert.That(body.localPosition.z,Is.EqualTo(rest.z).Within(.05f));
   }
   [Test]public void WaveHasQuietEdgesAndMiddlePeak(){Assert.That(WaveDirector.Envelope(0),Is.EqualTo(0).Within(.00001));Assert.That(WaveDirector.Envelope(1),Is.EqualTo(0).Within(.00001));Assert.That(WaveDirector.Envelope(.5f),Is.EqualTo(1).Within(.00001));Assert.Greater(EnemySpawner.Interval(profile.Waves,0),EnemySpawner.Interval(profile.Waves,1));}
   [Test]public void RestAndNextWaveAreDeterministic(){var wave=new WaveDirector();wave.Reset();wave.Advance(60);Assert.IsTrue(wave.Resting);Assert.AreEqual(1,wave.Number);wave.Advance(8);Assert.IsFalse(wave.Resting);Assert.AreEqual(2,wave.Number);}
