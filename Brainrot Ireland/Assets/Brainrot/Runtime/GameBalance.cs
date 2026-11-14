@@ -17,10 +17,11 @@ namespace Brainrot
                 return fallback;
             }
         }
-        [Tooltip("Changes are applied to new runs. Spawn curves are evaluated in seconds.")]
+        [Tooltip("Параметры нового забега. Спавн теперь зависит от текущей зоны острова.")]
         public PlayerTuning Player = new PlayerTuning();
         public CombatTuning Combat = new CombatTuning();
         public SpawnTuning Spawning = new SpawnTuning();
+        public ExplorationTuning Exploration = new ExplorationTuning();
         public ProgressionTuning Progression = new ProgressionTuning();
         public BossTuning Bosses = new BossTuning();
         public OceanTuning Ocean = new OceanTuning();
@@ -30,8 +31,15 @@ namespace Brainrot
         public EnemyTuning MiniBoss = new EnemyTuning { Health=500,Speed=2.8f,Damage=22,AttackRange=2.5f,MeleeWindup=.9f,Recovery=1.4f,KnockbackResistance=4,HitStagger=0,Experience=100 };
         public EnemyTuning King = new EnemyTuning { Health=2000,Speed=2.6f,Damage=30,AttackRange=3.2f,MeleeWindup=1.1f,Recovery=1.6f,KnockbackResistance=6,HitStagger=0,Experience=300 };
 
+        public EnemyTuning Lirili = new EnemyTuning {Health=100,Speed=2.4f,Damage=16,CanCharge=true,ChargeWindup=1.2f,ChargeSpeed=11,ChargeDuration=.7f,ChargeCooldown=7,KnockbackResistance=1.6f,Experience=18};
+        public EnemyTuning Patapim = new EnemyTuning {Health=150,Speed=1.9f,Damage=23,AttackRange=3,MeleeWindup=1.1f,Recovery=1.6f,KnockbackResistance=1.8f,Experience=25};
+        public EnemyTuning Cappuccino = new EnemyTuning {Health=85,Speed=3.7f,Damage=19,CanCharge=true,ChargeWindup=.7f,ChargeSpeed=14,ChargeDuration=.3f,ChargeCooldown=4,Recovery=.8f,Experience=30};
+        public EnemyTuning Crocodilo = new EnemyTuning {Health=210,Speed=2.6f,Damage=28,CanCharge=true,ChargeWindup=1.3f,ChargeSpeed=12,ChargeDuration=.65f,ChargeCooldown=7,AttackRange=2.5f,KnockbackResistance=2,Experience=40};
+
+        void OnEnable(){EnsureExploration();}
+        public void EnsureExploration(){if(Exploration==null)Exploration=new ExplorationTuning();}
         public EnemyTuning Enemy(EnemyKind kind) {
-            switch (kind) { case EnemyKind.Fast:return Fast;case EnemyKind.Tank:return Tank;case EnemyKind.MiniBoss:return MiniBoss;case EnemyKind.King:return King;default:return Normal; }
+            switch (kind) { case EnemyKind.LiriliLarila:return Lirili;case EnemyKind.BrrBrrPatapim:return Patapim;case EnemyKind.CappuccinoAssassino:return Cappuccino;case EnemyKind.BombardiroCrocodilo:return Crocodilo;case EnemyKind.Fast:return Fast;case EnemyKind.Tank:return Tank;case EnemyKind.MiniBoss:return MiniBoss;case EnemyKind.King:return King;default:return Normal; }
         }
         public int RequiredXp(int level) {
             double n=Math.Max(0,(double)level-1);
@@ -42,14 +50,14 @@ namespace Brainrot
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)] static void ResetCached(){fallback=null;}
     }
     [Serializable] public sealed class PlayerTuning {
-        [Header("Starting stats")]
+        [Header("Начальные характеристики")]
         [Min(1)]public float Damage=24;
         [Min(.12f)]public float AttackInterval=.65f;
         [Min(1)]public float MaxHealth=100;
         [Min(.1f)]public float MoveSpeed=6;
         [Min(.5f)]public float Range=3.2f;
         [Range(0,1)]public float CritChance=.05f;
-        [Header("Movement and camera")]
+        [Header("Передвижение и камера")]
         public bool CameraLocked=true;
         [Min(.1f)]public float CameraDistance=9.5f;
         [Range(15,70)]public float CameraPitch=38;
@@ -63,6 +71,9 @@ namespace Brainrot
         [Range(20,180)]public float ArcDegrees=130;
         [Min(0)]public float InnerOmniRadius=.8f;
         [Min(0)]public float Knockback=4.5f;
+        [Range(0,5)]public float KnockbackMultiplier=2;
+        [Range(.15f,.6f)]public float SwingDuration=.32f;
+        [Range(0,.2f)]public float ImpactDelay=.09f;
         [Range(.03f,.5f)]public float HitFlashDuration=.16f;
         [Range(0,.65f)]public float HitFlashStrength=.25f;
         public bool ShowAttackRange=true;
@@ -80,6 +91,20 @@ namespace Brainrot
         [Min(0)]public float DifficultyPerMinute=.18f;
         [Min(23)]public float SpawnRadius=28;
     }
+    [Serializable] public sealed class ExplorationTuning {
+        [Min(1)]public float DetectionRadius=12;
+        [Min(2)]public float LoseInterestRadius=20;
+        [Min(3)]public float LeashDistance=25;
+        [Min(0)]public float WanderRadius=6;
+        [Min(0)]public float WanderSpeed=.8f;
+        [Min(.1f)]public float IdleMin=1.5f,IdleMax=4;
+        [Min(3)]public float SpawnMinDistance=14,SpawnMaxDistance=27;
+        [Min(.5f)]public float SpawnIntervalMin=3,SpawnIntervalMax=6;
+        [Min(1)]public int ActiveZoneLimit=10,RetainedZoneLimit=8;
+        [Min(1)]public int MaxDesktop=80,MaxMobile=40;
+        [Min(0)]public int ZoneEntryPopulation=4;
+        [Min(0)]public float DifficultyPerZone=.35f;
+    }
     [Serializable] public sealed class EnemyTuning {
         [Min(1)]public float Health=48;
         [Min(.1f)]public float Speed=3.1f;
@@ -87,14 +112,14 @@ namespace Brainrot
         [Min(.5f)]public float AttackRange=1.8f;
         [Min(.15f)]public float MeleeWindup=.65f;
         [Min(.1f)]public float Recovery=1.1f;
-        [Header("Charge attack")]
+        [Header("Атака рывком")]
         public bool CanCharge;
         [Min(1)]public float ChargeMinDistance=4,ChargeMaxDistance=10;
         [Min(.25f)]public float ChargeWindup=1.05f;
         [Min(1)]public float ChargeSpeed=14;
         [Min(.1f)]public float ChargeDuration=.5f;
         [Min(.5f)]public float ChargeCooldown=7;
-        [Header("Hit reaction and reward")]
+        [Header("Получение урона и награда")]
         [Min(.1f)]public float KnockbackResistance=1;
         [Range(0,.5f)]public float HitStagger=.16f;
         [Min(0)]public int Experience=9;

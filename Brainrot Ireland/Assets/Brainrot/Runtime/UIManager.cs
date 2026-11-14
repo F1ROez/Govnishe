@@ -13,11 +13,12 @@ namespace Brainrot
         Font font;
         Sprite solid;
         Canvas canvas;
-        GameObject hud, overlay, mobile, boss;
-        Text stats, healthText, xpText, notification, bossText, aimHint, hitMarker, hitLabel;
+        GameObject hud, overlay, mobile, fullMap;
+        bool mapExpanded;
+        Text stats, healthText, xpText, notification, aimHint, hitMarker, hitLabel;
         float hitUntil;
         bool lastHitCritical;
-        Image healthFill, xpFill, bossFill;
+        Image healthFill, xpFill;
         GameState shownState = (GameState)(-1);
         int shownLevel = -1;
         string page = "";
@@ -29,6 +30,10 @@ namespace Brainrot
         {
             if (canvas != null) return;
             font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            if(!font.HasCharacter('Я')||!font.HasCharacter('ё')) {
+                var russian=Font.CreateDynamicFontFromOSFont(new[]{"Arial","Segoe UI","DejaVu Sans"},18);
+                if(russian!=null)font=russian;
+            }
             var pixel = new Texture2D(1,1); pixel.SetPixel(0,0,Color.white); pixel.Apply();
             solid = Sprite.Create(pixel,new Rect(0,0,1,1),new Vector2(.5f,.5f));
             var root = new GameObject("Brainrot UI", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
@@ -46,23 +51,22 @@ namespace Brainrot
             }
             hud = Box("HUD", root.transform, Vector2.zero, Vector2.one, Color.clear);
             var plate = Box("Vitals", hud.transform, new Vector2(.025f,.79f),new Vector2(.34f,.965f),new Color(.03f,.1f,.16f,.85f));
-            healthText = Label(plate.transform,"HP",23,TextAnchor.MiddleLeft,new Vector2(.06f,.62f),new Vector2(.94f,.97f));
+            healthText = Label(plate.transform,"ЗДОРОВЬЕ",23,TextAnchor.MiddleLeft,new Vector2(.06f,.62f),new Vector2(.94f,.97f));
             healthFill = Bar(plate.transform, new Vector2(.06f,.48f),new Vector2(.94f,.6f),new Color(1,.33f,.37f));
-            xpText = Label(plate.transform,"LEVEL 1",18,TextAnchor.MiddleLeft,new Vector2(.06f,.17f),new Vector2(.94f,.46f));
+            xpText = Label(plate.transform,"УРОВЕНЬ 1",18,TextAnchor.MiddleLeft,new Vector2(.06f,.17f),new Vector2(.94f,.46f));
             xpFill = Bar(plate.transform,new Vector2(.06f,.08f),new Vector2(.94f,.16f),cyan);
             stats=Label(hud.transform,"",24,TextAnchor.UpperCenter,new Vector2(.35f,.84f),new Vector2(.8f,.96f));
-            Button(hud.transform,"II",new Vector2(.91f,.88f),new Vector2(.975f,.97f),()=>GameManager.Instance.Pause());
+            Button(hud.transform,"II",new Vector2(.92f,.935f),new Vector2(.975f,.99f),()=>GameManager.Instance.Pause());
             notification=Label(hud.transform,"",30,TextAnchor.MiddleCenter,new Vector2(.15f,.68f),new Vector2(.85f,.81f)); notification.color=gold;
-            Label(hud.transform,"WASD move  •  Mouse look  •  LMB swing  •  Shift sprint  •  Space dash  •  V camera lock",16,TextAnchor.LowerCenter,new Vector2(.08f,.02f),new Vector2(.92f,.07f));
+            Label(hud.transform,"WASD — движение  •  Мышь — камера  •  ЛКМ — удар  •  Shift — бег  •  Пробел — рывок  •  V — фиксация  •  M — карта",16,TextAnchor.LowerCenter,new Vector2(.08f,.02f),new Vector2(.92f,.07f));
             aimHint=Label(hud.transform,"",16,TextAnchor.LowerCenter,new Vector2(.32f,.07f),new Vector2(.68f,.11f));
             Label(hud.transform,"+",18,TextAnchor.MiddleCenter,new Vector2(.49f,.49f),new Vector2(.51f,.53f)).color=new Color(1,1,1,.5f);
             hitMarker=Label(hud.transform,"",36,TextAnchor.MiddleCenter,new Vector2(.47f,.46f),new Vector2(.53f,.56f));
             hitLabel=Label(hud.transform,"",17,TextAnchor.MiddleCenter,new Vector2(.4f,.41f),new Vector2(.6f,.46f));
-            boss=Box("Boss",hud.transform,new Vector2(.28f,.73f),new Vector2(.72f,.82f),new Color(.03f,.08f,.13f,.88f));
-            bossText=Label(boss.transform,"KING TRALALA",20,TextAnchor.MiddleCenter,new Vector2(0,.35f),Vector2.one);
-            bossFill=Bar(boss.transform,new Vector2(.04f,.12f),new Vector2(.96f,.32f),new Color(.85f,.25f,.9f));
+            BuildMinimap(root.transform);
             overlay=Box("Screens",root.transform,Vector2.zero,Vector2.one,new Color(.015f,.055f,.1f,.91f));
             BuildMobile(root.transform);
+            BuildFullMap(root.transform);
             Refresh();
         }
 
@@ -70,29 +74,28 @@ namespace Brainrot
         {
             if (canvas == null || GameManager.Instance == null) return;
             var gm=GameManager.Instance;
-            hud.SetActive(gm.State==GameState.Playing || gm.State==GameState.Paused || gm.State==GameState.Upgrade);
+            hud.SetActive(gm.State==GameState.Playing || gm.State==GameState.Paused || gm.State==GameState.Upgrade || gm.State==GameState.Map);
             mobile.SetActive(Application.isMobilePlatform && gm.State==GameState.Playing);
-            overlay.SetActive(gm.State!=GameState.Playing);
+            overlay.SetActive(gm.State!=GameState.Playing&&gm.State!=GameState.Map);
             if (gm.Player != null && gm.Upgrades != null)
             {
-                healthText.text=$"HEALTH   {Mathf.CeilToInt(gm.Player.Health)} / {Mathf.CeilToInt(gm.Player.Stats.MaxHealth)}";
+                healthText.text=$"ЗДОРОВЬЕ   {Mathf.CeilToInt(gm.Player.Health)} / {Mathf.CeilToInt(gm.Player.Stats.MaxHealth)}";
                 healthFill.fillAmount=Mathf.Clamp01(gm.Player.Health/Mathf.Max(1,gm.Player.Stats.MaxHealth));
-                xpText.text=$"LEVEL {gm.Upgrades.Level}   ·   {gm.Upgrades.Experience} / {gm.Upgrades.RequiredExperience} XP";
+                xpText.text=$"УРОВЕНЬ {gm.Upgrades.Level}   ·   {gm.Upgrades.Experience} / {gm.Upgrades.RequiredExperience} ОПЫТА";
                 xpFill.fillAmount=Mathf.Clamp01((float)gm.Upgrades.Experience/Mathf.Max(1,gm.Upgrades.RequiredExperience));
             }
-            stats.text=$"{TimeLabel(gm.Elapsed)}   |   {gm.Kills} KILLS\n<size=18>WAVE {gm.Wave}</size>";
+            stats.text=$"{TimeLabel(gm.Elapsed)}   |   Побеждено: {gm.Kills}\n<size=17>{IslandMap.Name(gm.CurrentZone)}</size>\n<size=14>{ZoneHint(gm.CurrentZone)}</size>";
             notification.text=gm.Notification ?? "";
-            aimHint.text=gm.Player!=null && gm.Player.CameraLocked ? "CAMERA LOCK ON  ·  V" : "FREE FACING  ·  V";
+            aimHint.text=gm.Player!=null && gm.Player.CameraLocked ? "ВЗГЛЯД ПО КАМЕРЕ  ·  V" : "СВОБОДНЫЙ ПОВОРОТ  ·  V";
             if(Time.unscaledTime>=hitUntil) {hitMarker.text="";hitLabel.text="";}
             else {
                 float alpha=Mathf.Clamp01((hitUntil-Time.unscaledTime)/.12f);
                 Color feedback=lastHitCritical?gold:Color.white;feedback.a=alpha;
                 hitMarker.color=feedback;hitLabel.color=feedback;
             }
-            EnemyController king=null;
-            if(gm.Spawner != null) foreach(var enemy in gm.Spawner.Active) if(enemy != null && enemy.Alive && enemy.IsBoss) {king=enemy;break;}
-            boss.SetActive(king!=null);
-            if(king!=null) {bossFill.fillAmount=king.Health/Mathf.Max(1,king.MaxHealth);bossText.text=$"{(king.Kind==EnemyKind.King?"KING TRALALA":"MEGA TRALALA")}   {Mathf.CeilToInt(king.Health)}";}
+            if((gm.State==GameState.Playing||gm.State==GameState.Map)&&GameInput.MapToggle)ToggleMap();
+            mapExpanded=gm.State==GameState.Map;
+            fullMap.SetActive(mapExpanded);
             int level=gm.Upgrades!=null?gm.Upgrades.Level:0;
             if(shownState!=gm.State || (gm.State==GameState.Upgrade && shownLevel!=level))
             {
@@ -111,33 +114,33 @@ namespace Brainrot
             ClearScreen();var gm=GameManager.Instance;
             if(gm.State==GameState.Menu)
             {
-                Label(overlay.transform,"AN ENDLESS ISLAND SURVIVAL",19,TextAnchor.MiddleCenter,new Vector2(.1f,.82f),new Vector2(.9f,.9f)).color=cyan;
-                Label(overlay.transform,"BRAINROT\nIRELAND",64,TextAnchor.MiddleCenter,new Vector2(.1f,.56f),new Vector2(.9f,.83f)).color=gold;
-                Label(overlay.transform,"One wooden bat. An ocean full of sharks.",23,TextAnchor.MiddleCenter,new Vector2(.1f,.47f),new Vector2(.9f,.55f));
-                MenuButton("PLAY",.36f,()=>gm.StartRun());MenuButton("RECORDS",.26f,ShowRecords);MenuButton("SETTINGS",.16f,ShowSettings);MenuButton("QUIT",.06f,()=>gm.Quit());
+                Label(overlay.transform,"ПЯТЬ ЗОН. ОДИН ОСТРОВ. ТВОЯ ИСТОРИЯ.",19,TextAnchor.MiddleCenter,new Vector2(.1f,.82f),new Vector2(.9f,.9f)).color=cyan;
+                Label(overlay.transform,"БРЕЙНРОТ\nИРЛАНДИЯ",56,TextAnchor.MiddleCenter,new Vector2(.1f,.56f),new Vector2(.9f,.83f)).color=gold;
+                Label(overlay.transform,"Исследуй остров. Выбирай риск. Держи биту крепче.",23,TextAnchor.MiddleCenter,new Vector2(.1f,.47f),new Vector2(.9f,.55f));
+                MenuButton("ИГРАТЬ",.36f,()=>gm.StartRun());MenuButton("РЕКОРДЫ",.26f,ShowRecords);MenuButton("НАСТРОЙКИ",.16f,ShowSettings);MenuButton("ВЫХОД",.06f,()=>gm.Quit());
             }
             else if(gm.State==GameState.Paused)
             {
-                Title("TAKE A BREATHER");MenuButton("RESUME",.49f,()=>gm.Resume());MenuButton("SETTINGS",.37f,ShowSettings);MenuButton("MAIN MENU",.25f,()=>gm.MainMenu());
+                Title("ПАУЗА");MenuButton("ПРОДОЛЖИТЬ",.49f,()=>gm.Resume());MenuButton("НАСТРОЙКИ",.37f,ShowSettings);MenuButton("ГЛАВНОЕ МЕНЮ",.25f,()=>gm.MainMenu());
             }
             else if(gm.State==GameState.Dead)
             {
-                Title("THE OCEAN WON");
-                Label(overlay.transform,$"SURVIVED  {TimeLabel(gm.Elapsed)}     •     KILLS  {gm.Kills}     •     LEVEL  {gm.Upgrades.Level}\n\nPERSONAL BEST   {TimeLabel(SaveSystem.Data.BestTime)}   /   {SaveSystem.Data.BestKills} KILLS",25,TextAnchor.MiddleCenter,new Vector2(.12f,.42f),new Vector2(.88f,.65f));
-                MenuButton("ONE MORE RUN",.25f,()=>gm.StartRun());MenuButton("MAIN MENU",.13f,()=>gm.MainMenu());
+                Title("ЗАБЕГ ОКОНЧЕН");
+                Label(overlay.transform,$"Выживание: {TimeLabel(gm.Elapsed)}     •     Побеждено: {gm.Kills}     •     Уровень: {gm.Upgrades.Level}\n\nЛИЧНЫЙ РЕКОРД   {TimeLabel(SaveSystem.Data.BestTime)}   /   {SaveSystem.Data.BestKills} ПОБЕД",25,TextAnchor.MiddleCenter,new Vector2(.12f,.42f),new Vector2(.88f,.65f));
+                MenuButton("ЕЩЁ ОДИН ЗАБЕГ",.25f,()=>gm.StartRun());MenuButton("ГЛАВНОЕ МЕНЮ",.13f,()=>gm.MainMenu());
             }
             else if(gm.State==GameState.Upgrade)
             {
-                Title("LEVEL UP!");Label(overlay.transform,"CHOOSE YOUR NEXT BAD IDEA",23,TextAnchor.MiddleCenter,new Vector2(.1f,.66f),new Vector2(.9f,.74f)).color=cyan;
+                Title("НОВЫЙ УРОВЕНЬ!");Label(overlay.transform,"ВЫБЕРИ УЛУЧШЕНИЕ",23,TextAnchor.MiddleCenter,new Vector2(.1f,.66f),new Vector2(.9f,.74f)).color=cyan;
                 var choices=gm.Upgrades.Choices;
                 for(int i=0;i<choices.Count && i<3;i++)
                 {
                     int index=i;var def=choices[i];float left=.055f+i*.31f;
                     var card=Box("Upgrade",overlay.transform,new Vector2(left,.23f),new Vector2(left+.28f,.61f),new Color(.08f,.2f,.27f,.98f));
-                    Label(card.transform,def.Rarity.ToString().ToUpperInvariant(),17,TextAnchor.MiddleCenter,new Vector2(.06f,.83f),new Vector2(.94f,.96f)).color=gold;
-                    Label(card.transform,def.Title,28,TextAnchor.MiddleCenter,new Vector2(.06f,.57f),new Vector2(.94f,.84f));
-                    Label(card.transform,gm.Upgrades.Describe(def),19,TextAnchor.MiddleCenter,new Vector2(.08f,.23f),new Vector2(.92f,.59f));
-                    string take=gm.Upgrades.Rank(def)>=def.MaxRank?"RESTORE HEALTH":$"TAKE  ·  {gm.Upgrades.Rank(def)+1}/{def.MaxRank}";
+                    Label(card.transform,UpgradeSystem.RarityTitle(def.Rarity),17,TextAnchor.MiddleCenter,new Vector2(.06f,.83f),new Vector2(.94f,.96f)).color=gold;
+                    Label(card.transform,gm.Upgrades.DisplayTitle(def),25,TextAnchor.MiddleCenter,new Vector2(.06f,.57f),new Vector2(.94f,.84f));
+                    Label(card.transform,gm.Upgrades.Describe(def),18,TextAnchor.MiddleCenter,new Vector2(.08f,.23f),new Vector2(.92f,.59f));
+                    string take=gm.Upgrades.Rank(def)>=def.MaxRank?"ВОССТАНОВИТЬ ЗДОРОВЬЕ":$"ВЫБРАТЬ  ·  {gm.Upgrades.Rank(def)+1}/{def.MaxRank}";
                     Button(card.transform,take,new Vector2(.08f,.06f),new Vector2(.92f,.22f),()=>{gm.Upgrades.Choose(index);if(gm.State==GameState.Upgrade)BuildScreen();});
                 }
             }
@@ -146,35 +149,36 @@ namespace Brainrot
         void MenuButton(string title,float y,UnityEngine.Events.UnityAction action) {Button(overlay.transform,title,new Vector2(.35f,y),new Vector2(.65f,y+.08f),action);}
         void ShowRecords()
         {
-            page="records";ClearScreen();Title("ISLAND LEGENDS");var d=SaveSystem.Data;
-            Label(overlay.transform,$"LONGEST SURVIVAL    {TimeLabel(d.BestTime)}\n\nMOST SHARKS DEFEATED    {d.BestKills}\n\nHIGHEST LEVEL    {d.BestLevel}",29,TextAnchor.MiddleCenter,new Vector2(.1f,.33f),new Vector2(.9f,.7f));MenuButton("BACK",.16f,BuildScreen);
+            page="records";ClearScreen();Title("ЛЕГЕНДЫ ОСТРОВА");var d=SaveSystem.Data;
+            Label(overlay.transform,$"ВРЕМЯ ВЫЖИВАНИЯ    {TimeLabel(d.BestTime)}\n\nПОБЕЖДЕНО ВРАГОВ    {d.BestKills}\n\nМАКСИМАЛЬНЫЙ УРОВЕНЬ    {d.BestLevel}",29,TextAnchor.MiddleCenter,new Vector2(.1f,.33f),new Vector2(.9f,.7f));MenuButton("НАЗАД",.16f,BuildScreen);
         }
         void ShowSettings()
         {
-            page="settings";ClearScreen();Title("SETTINGS");
-            SettingSlider("VOLUME",.63f,0,1,SaveSystem.Data.Volume,v=>{SaveSystem.Data.Volume=v;AudioListener.volume=v;SaveSystem.Save();});
-            SettingSlider("MOUSE SENSITIVITY",.49f,.2f,3,SaveSystem.Data.Sensitivity,v=>{SaveSystem.Data.Sensitivity=v;SaveSystem.Save();});
+            page="settings";ClearScreen();Title("НАСТРОЙКИ");
+            SettingSlider("ГРОМКОСТЬ",.63f,0,1,SaveSystem.Data.Volume,v=>{SaveSystem.Data.Volume=v;AudioListener.volume=v;SaveSystem.Save();});
+            SettingSlider("ЧУВСТВИТЕЛЬНОСТЬ МЫШИ",.49f,.2f,3,SaveSystem.Data.Sensitivity,v=>{SaveSystem.Data.Sensitivity=v;SaveSystem.Save();});
             bool locked=GameManager.Instance.Player!=null?GameManager.Instance.Player.CameraLocked:SaveSystem.Data.CameraLocked;
-            Button(overlay.transform,"CAMERA LOCK: "+(locked?"ON":"OFF"),new Vector2(.25f,.385f),new Vector2(.75f,.445f),()=>{
+            Button(overlay.transform,"ФИКСАЦИЯ КАМЕРЫ: "+(locked?"ВКЛ":"ВЫКЛ"),new Vector2(.25f,.385f),new Vector2(.75f,.445f),()=>{
                 var player=GameManager.Instance.Player;
                 if(player!=null)player.SetCameraLock(!player.CameraLocked);
                 else {SaveSystem.Data.CameraLocked=!SaveSystem.Data.CameraLocked;SaveSystem.Save();}
                 ShowSettings();
             });
-            Button(overlay.transform,"ATTACK OUTLINE: "+(SaveSystem.Data.ShowAttackRange?"ON":"OFF"),new Vector2(.25f,.30f),new Vector2(.75f,.36f),()=>{
+            Button(overlay.transform,"КОНТУР УДАРА: "+(SaveSystem.Data.ShowAttackRange?"ВКЛ":"ВЫКЛ"),new Vector2(.25f,.30f),new Vector2(.75f,.36f),()=>{
                 SaveSystem.Data.ShowAttackRange=!SaveSystem.Data.ShowAttackRange;SaveSystem.Save();ShowSettings();
             });
-            Button(overlay.transform,"QUALITY: LOW",new Vector2(.2f,.205f),new Vector2(.39f,.265f),()=>Quality(0));
-            Button(overlay.transform,"MEDIUM",new Vector2(.405f,.205f),new Vector2(.595f,.265f),()=>Quality(1));
-            Button(overlay.transform,"HIGH",new Vector2(.61f,.205f),new Vector2(.8f,.265f),()=>Quality(2));
-            MenuButton("BACK",.075f,BuildScreen);
+            Label(overlay.transform,"КАЧЕСТВО ГРАФИКИ",16,TextAnchor.MiddleCenter,new Vector2(.2f,.265f),new Vector2(.8f,.297f));
+            Button(overlay.transform,"НИЗКОЕ",new Vector2(.2f,.205f),new Vector2(.39f,.265f),()=>Quality(0));
+            Button(overlay.transform,"СРЕДНЕЕ",new Vector2(.405f,.205f),new Vector2(.595f,.265f),()=>Quality(1));
+            Button(overlay.transform,"ВЫСОКОЕ",new Vector2(.61f,.205f),new Vector2(.8f,.265f),()=>Quality(2));
+            MenuButton("НАЗАД",.075f,BuildScreen);
         }
 
         public void ShowHit(bool critical,int count=1)
         {
             if(hitMarker==null)return;
             hitUntil=Time.unscaledTime+.3f;lastHitCritical=critical;
-            hitMarker.text="×";hitLabel.text=(critical?"CRITICAL":"HIT")+(count>1?" ×"+count:"");
+            hitMarker.text="×";hitLabel.text=(critical?"КРИТИЧЕСКИЙ УДАР":"ПОПАДАНИЕ")+(count>1?" ×"+count:"");
         }
 
         public void ShowMiss()
@@ -182,7 +186,7 @@ namespace Brainrot
             // A miss must not erase a confirmed hit from an immediately preceding echo.
             if(hitMarker==null || Time.unscaledTime<hitUntil)return;
             hitUntil=Time.unscaledTime+.13f;lastHitCritical=false;
-            hitMarker.text="";hitLabel.text="MISS";
+            hitMarker.text="";hitLabel.text="ПРОМАХ";
         }
 
         void Quality(int quality) {SaveSystem.Data.Quality=quality;QualitySettings.SetQualityLevel(Mathf.Min(quality,QualitySettings.names.Length-1),true);SaveSystem.Save();}
@@ -198,11 +202,45 @@ namespace Brainrot
         {
             mobile=Box("Touch Controls",root,Vector2.zero,Vector2.one,Color.clear);
             var look=Box("Look",mobile.transform,new Vector2(.45f,.12f),new Vector2(1,.76f),new Color(0,0,0,.001f));look.AddComponent<MobileLookArea>();
-            var stick=Box("Move",mobile.transform,new Vector2(.035f,.12f),new Vector2(.23f,.4f),new Color(.1f,.3f,.4f,.48f));stick.AddComponent<MobileJoystick>();Label(stick.transform,"MOVE",21,TextAnchor.MiddleCenter,Vector2.zero,Vector2.one);
-            var attack=Button(mobile.transform,"SWING",new Vector2(.82f,.11f),new Vector2(.97f,.29f),()=>{});attack.gameObject.AddComponent<MobileHoldButton>().Action=0;
-            var sprint=Button(mobile.transform,"RUN",new Vector2(.27f,.12f),new Vector2(.38f,.23f),()=>{});sprint.gameObject.AddComponent<MobileHoldButton>().Action=1;
-            Button(mobile.transform,"DASH",new Vector2(.68f,.12f),new Vector2(.8f,.23f),()=>MobileInput.Dash=true);
+            var stick=Box("Move",mobile.transform,new Vector2(.035f,.12f),new Vector2(.23f,.4f),new Color(.1f,.3f,.4f,.48f));stick.AddComponent<MobileJoystick>();Label(stick.transform,"ДВИЖЕНИЕ",21,TextAnchor.MiddleCenter,Vector2.zero,Vector2.one);
+            var attack=Button(mobile.transform,"УДАР",new Vector2(.82f,.11f),new Vector2(.97f,.29f),()=>{});attack.gameObject.AddComponent<MobileHoldButton>().Action=0;
+            var sprint=Button(mobile.transform,"БЕГ",new Vector2(.27f,.12f),new Vector2(.38f,.23f),()=>{});sprint.gameObject.AddComponent<MobileHoldButton>().Action=1;
+            Button(mobile.transform,"РЫВОК",new Vector2(.68f,.12f),new Vector2(.8f,.23f),()=>MobileInput.Dash=true);
+            Button(mobile.transform,"КАРТА",new Vector2(.69f,.87f),new Vector2(.8f,.95f),ToggleMap);
         }
+        static string ZoneHint(IslandZone zone)
+        {
+            switch(zone) {
+                case IslandZone.Beach:return "Тралалеро Тралала · рекомендуется уровень 1–3";
+                case IslandZone.Meadows:return "Лирили Ларила · рекомендуется уровень 2–5";
+                case IslandZone.Forest:return "Брр Брр Патапим · рекомендуется уровень 4–8";
+                case IslandZone.Ruins:return "Капучино Ассасино · рекомендуется уровень 7–12";
+                default:return "Бомбардиро Крокодило · рекомендуется уровень 10+";
+            }
+        }
+        void BuildMinimap(Transform root)
+        {
+            var plate=Box("Миникарта",hud.transform,new Vector2(.81f,.64f),new Vector2(.98f,.925f),new Color(.025f,.10f,.15f,.9f));
+            var frame=Box("Рамка карты",plate.transform,new Vector2(.025f,.12f),new Vector2(.975f,.98f),Color.clear);
+            var area=Box("Карта острова",frame.transform,Vector2.zero,Vector2.one,Color.clear);
+            area.AddComponent<AspectRatioFitter>().aspectMode=AspectRatioFitter.AspectMode.FitInParent;
+            area.GetComponent<AspectRatioFitter>().aspectRatio=1;
+            area.AddComponent<IslandMinimap>().Initialize(font,solid,false);
+            Label(plate.transform,"КАРТА ОСТРОВА · M",13,TextAnchor.MiddleCenter,new Vector2(0,0),new Vector2(1,.13f)).color=gold;
+        }
+        void BuildFullMap(Transform root)
+        {
+            fullMap=Box("Карта",root,Vector2.zero,Vector2.one,new Color(.01f,.045f,.075f,.97f));
+            Label(fullMap.transform,"КАРТА ОСТРОВА",35,TextAnchor.MiddleCenter,new Vector2(.1f,.87f),new Vector2(.9f,.97f)).color=gold;
+            var frame=Box("Рамка большой карты",fullMap.transform,new Vector2(.23f,.17f),new Vector2(.77f,.86f),Color.clear);
+            var area=Box("Большая карта",frame.transform,Vector2.zero,Vector2.one,Color.clear);
+            var aspect=area.AddComponent<AspectRatioFitter>();aspect.aspectMode=AspectRatioFitter.AspectMode.FitInParent;aspect.aspectRatio=1;
+            area.AddComponent<IslandMinimap>().Initialize(font,solid,true);
+            Label(fullMap.transform,"Все зоны открыты. Чем дальше от пляжа, тем опаснее.\nБелая точка — ты; жёлтая линия — направление взгляда. Карта ставит игру на паузу.",19,TextAnchor.MiddleCenter,new Vector2(.05f,.08f),new Vector2(.95f,.17f));
+            Button(fullMap.transform,"ЗАКРЫТЬ · M",new Vector2(.37f,.015f),new Vector2(.63f,.075f),ToggleMap);
+            fullMap.SetActive(false);
+        }
+        void ToggleMap(){var gm=GameManager.Instance;if(gm.State==GameState.Map)gm.CloseMap();else if(gm.IsPlaying)gm.OpenMap();mapExpanded=gm.State==GameState.Map;if(fullMap!=null)fullMap.SetActive(mapExpanded);}
         GameObject Box(string name,Transform parent,Vector2 min,Vector2 max,Color color)
         {
             var obj=new GameObject(name,typeof(RectTransform),typeof(Image));obj.transform.SetParent(parent,false);var rect=obj.GetComponent<RectTransform>();rect.anchorMin=min;rect.anchorMax=max;rect.offsetMin=rect.offsetMax=Vector2.zero;

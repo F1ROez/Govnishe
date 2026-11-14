@@ -2,10 +2,10 @@ using UnityEngine;
 
 namespace Brainrot
 {
-    public enum UpgradeKind { Damage, AttackSpeed, MaxHealth, MoveSpeed, Lifesteal, FireBat, Shockwave, Range, ExtraStrike, CriticalChance, Regeneration, DashCooldown }
-    public enum UpgradeRarity { Common, Rare, Epic }
+    public enum UpgradeKind { [InspectorName("Урон")] Damage, [InspectorName("Скорость атаки")] AttackSpeed, [InspectorName("Максимальное здоровье")] MaxHealth, [InspectorName("Передвижение")] MoveSpeed, [InspectorName("Вампиризм")] Lifesteal, [InspectorName("Огненная бита")] FireBat, [InspectorName("Круговой удар")] Shockwave, [InspectorName("Дальность")] Range, [InspectorName("Дополнительный удар")] ExtraStrike, [InspectorName("Критический удар")] CriticalChance, [InspectorName("Регенерация")] Regeneration, [InspectorName("Перезарядка рывка")] DashCooldown }
+    public enum UpgradeRarity { [InspectorName("Обычное")] Common, [InspectorName("Редкое")] Rare, [InspectorName("Эпическое")] Epic }
 
-    [CreateAssetMenu(menuName = "Brainrot/Upgrade", fileName = "Upgrade")]
+    [CreateAssetMenu(menuName = "Брейнрот/Улучшение", fileName = "Upgrade")]
     public sealed class UpgradeDefinition : ScriptableObject
     {
         public UpgradeKind Kind;

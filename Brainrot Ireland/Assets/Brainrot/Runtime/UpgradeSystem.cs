@@ -114,28 +114,51 @@ namespace Brainrot
             return Mathf.Max(0, amount);
         }
 
+        public string DisplayTitle(UpgradeDefinition definition)
+        {
+            if(definition==null)return "Улучшение";
+            switch(definition.Kind) {
+                case UpgradeKind.Damage:return "СИЛЬНЫЙ УДАР";
+                case UpgradeKind.AttackSpeed:return "ТУНГ-ТУРБО";
+                case UpgradeKind.MaxHealth:return "КРЕПКОЕ БРЕВНО";
+                case UpgradeKind.MoveSpeed:return "ПЕСЧАНЫЙ СПРИНТЕР";
+                case UpgradeKind.Lifesteal:return "ЖАЖДА САХУРА";
+                case UpgradeKind.FireBat:return "ЖАРКАЯ БИТА";
+                case UpgradeKind.Shockwave:return "СОТРЯСЕНИЕ ОСТРОВА";
+                case UpgradeKind.Range:return "ДЛИННЫЙ ЗАМАХ";
+                case UpgradeKind.ExtraStrike:return "ДВОЙНОЙ ТУНГ";
+                case UpgradeKind.CriticalChance:return "УДАЧА ИРЛАНДИИ";
+                case UpgradeKind.Regeneration:return "КОКОСОВОЕ ЛЕЧЕНИЕ";
+                case UpgradeKind.DashCooldown:return "СКОЛЬЗКОЕ БРЕВНО";
+                default:return "Улучшение";
+            }
+        }
+        public static string RarityTitle(UpgradeRarity rarity)
+        {
+            return rarity==UpgradeRarity.Epic?"ЭПИЧЕСКОЕ":rarity==UpgradeRarity.Rare?"РЕДКОЕ":"ОБЫЧНОЕ";
+        }
         public string Describe(UpgradeDefinition definition)
         {
             if (definition == null) return "";
-            if (Rank(definition) >= definition.MaxRank) return "Restore 50% of maximum health.";
+            if (Rank(definition) >= definition.MaxRank) return "Восстанавливает 50% максимального здоровья.";
             float amount = EffectiveAmount(definition);
-            string number = amount.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
-            string percent = (amount * 100).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
+            string number = amount.ToString("0.##", System.Globalization.CultureInfo.GetCultureInfo("ru-RU"));
+            string percent = (amount * 100).ToString("0.#", System.Globalization.CultureInfo.GetCultureInfo("ru-RU"));
             switch (definition.Kind)
             {
-                case UpgradeKind.Damage: return "+" + number + " damage on every bat strike.";
-                case UpgradeKind.AttackSpeed: return "Attack cooldown reduced by " + percent + "%. Minimum 0.12s.";
-                case UpgradeKind.MaxHealth: return "+" + number + " maximum HP and heal " + number + " HP.";
-                case UpgradeKind.MoveSpeed: return "+" + number + " movement speed.";
-                case UpgradeKind.Lifesteal: return "Heal for an additional " + percent + "% of damage dealt. Maximum 30%.";
-                case UpgradeKind.FireBat: return "+" + number + " fire damage on every hit.";
-                case UpgradeKind.Shockwave: return "+" + number + " radial shockwave damage per attack.";
-                case UpgradeKind.Range: return "+" + number + " melee reach; the ground outline expands.";
-                case UpgradeKind.ExtraStrike: return "+" + number + " follow-up strike per attack. Maximum 4.";
-                case UpgradeKind.CriticalChance: return "+" + percent + "% critical chance. Maximum 75%.";
-                case UpgradeKind.Regeneration: return "Regenerate +" + number + " HP every second.";
-                case UpgradeKind.DashCooldown: return "Dash cooldown reduced by " + percent + "%. Minimum 0.7s.";
-                default: return definition.Description;
+                case UpgradeKind.Damage: return "+" + number + " к урону каждого удара битой.";
+                case UpgradeKind.AttackSpeed: return "Перерыв между ударами короче на " + percent + "%. Минимум 0,12 с.";
+                case UpgradeKind.MaxHealth: return "+" + number + " к максимальному здоровью и лечение на " + number + ".";
+                case UpgradeKind.MoveSpeed: return "+" + number + " к скорости передвижения.";
+                case UpgradeKind.Lifesteal: return "Лечение ещё на " + percent + "% нанесённого урона. Максимум 30%.";
+                case UpgradeKind.FireBat: return "+" + number + " огненного урона при попадании.";
+                case UpgradeKind.Shockwave: return "+" + number + " урона ударной волной вокруг персонажа.";
+                case UpgradeKind.Range: return "+" + number + " к дальности удара; контур расширяется.";
+                case UpgradeKind.ExtraStrike: return "+" + number + " дополнительный удар. Максимум 4.";
+                case UpgradeKind.CriticalChance: return "+" + percent + "% шанса двойного урона. Максимум 75%.";
+                case UpgradeKind.Regeneration: return "Восстановление +" + number + " здоровья в секунду.";
+                case UpgradeKind.DashCooldown: return "Перезарядка рывка короче на " + percent + "%. Минимум 0,7 с.";
+                default: return "Усиливает персонажа.";
             }
         }
 
@@ -146,18 +169,18 @@ namespace Brainrot
             if (definitions.Length > 0) return;
             definitions = new[]
             {
-                Make(UpgradeKind.Damage,"BONK HARDER","Stronger bat strikes.",UpgradeRarity.Common,8,12),
-                Make(UpgradeKind.AttackSpeed,"TUNG TURBO","Shorter attack cooldown.",UpgradeRarity.Common,6,.18f),
-                Make(UpgradeKind.MaxHealth,"BIG LOG ENERGY","More maximum health and immediate healing.",UpgradeRarity.Common,8,40),
-                Make(UpgradeKind.MoveSpeed,"SAND SPRINTER","Faster movement.",UpgradeRarity.Common,5,.85f),
-                Make(UpgradeKind.Lifesteal,"SIPHON SAHUR","Heal when dealing damage.",UpgradeRarity.Rare,6,.05f),
-                Make(UpgradeKind.FireBat,"SPICY TIMBER","Additional fire damage on every hit.",UpgradeRarity.Rare,6,10),
-                Make(UpgradeKind.Shockwave,"ISLAND SLAM","Radial shockwave when attacking.",UpgradeRarity.Epic,5,16),
-                Make(UpgradeKind.Range,"LONGER BONK","More melee reach.",UpgradeRarity.Common,5,.5f),
-                Make(UpgradeKind.ExtraStrike,"DOUBLE TUNG","One additional strike per attack.",UpgradeRarity.Epic,2,1),
-                Make(UpgradeKind.CriticalChance,"LUCK OF IRELAND","More chance to deal double damage.",UpgradeRarity.Rare,6,.12f),
-                Make(UpgradeKind.Regeneration,"COCONUT RECOVERY","Regenerate health every second.",UpgradeRarity.Rare,6,1.3f),
-                Make(UpgradeKind.DashCooldown,"SLIPPERY LOG","Shorter dash cooldown.",UpgradeRarity.Common,5,.22f)
+                Make(UpgradeKind.Damage,"СИЛЬНЫЙ УДАР","Усиливает удары битой.",UpgradeRarity.Common,8,12),
+                Make(UpgradeKind.AttackSpeed,"ТУНГ-ТУРБО","Уменьшает перерыв между ударами.",UpgradeRarity.Common,6,.18f),
+                Make(UpgradeKind.MaxHealth,"КРЕПКОЕ БРЕВНО","Повышает запас здоровья и лечит.",UpgradeRarity.Common,8,40),
+                Make(UpgradeKind.MoveSpeed,"ПЕСЧАНЫЙ СПРИНТЕР","Повышает скорость передвижения.",UpgradeRarity.Common,5,.85f),
+                Make(UpgradeKind.Lifesteal,"ЖАЖДА САХУРА","Лечит при нанесении урона.",UpgradeRarity.Rare,6,.05f),
+                Make(UpgradeKind.FireBat,"ЖАРКАЯ БИТА","Добавляет огненный урон при попадании.",UpgradeRarity.Rare,6,10),
+                Make(UpgradeKind.Shockwave,"СОТРЯСЕНИЕ ОСТРОВА","Создаёт ударную волну при атаке.",UpgradeRarity.Epic,5,16),
+                Make(UpgradeKind.Range,"ДЛИННЫЙ ЗАМАХ","Увеличивает дальность удара.",UpgradeRarity.Common,5,.5f),
+                Make(UpgradeKind.ExtraStrike,"ДВОЙНОЙ ТУНГ","Добавляет повторный удар.",UpgradeRarity.Epic,2,1),
+                Make(UpgradeKind.CriticalChance,"УДАЧА ИРЛАНДИИ","Повышает шанс двойного урона.",UpgradeRarity.Rare,6,.12f),
+                Make(UpgradeKind.Regeneration,"КОКОСОВОЕ ЛЕЧЕНИЕ","Восстанавливает здоровье каждую секунду.",UpgradeRarity.Rare,6,1.3f),
+                Make(UpgradeKind.DashCooldown,"СКОЛЬЗКОЕ БРЕВНО","Ускоряет восстановление рывка.",UpgradeRarity.Common,5,.22f)
             };
         }
 

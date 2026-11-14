@@ -46,7 +46,7 @@ namespace Brainrot
             }
             catch (Exception exception) when (exception is IOException || exception is UnauthorizedAccessException || exception is ArgumentException)
             {
-                Debug.LogWarning("Could not read Brainrot save: " + exception.Message);
+                Debug.LogWarning("Не удалось прочитать сохранение: " + exception.Message);
                 return false;
             }
         }
@@ -75,7 +75,7 @@ namespace Brainrot
             }
             catch (Exception exception) when (exception is IOException || exception is UnauthorizedAccessException || exception is ArgumentException)
             {
-                Debug.LogWarning("Could not persist Brainrot save: " + exception.Message);
+                Debug.LogWarning("Не удалось записать сохранение: " + exception.Message);
             }
         }
 

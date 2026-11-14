@@ -46,7 +46,9 @@ Shader "Brainrot/TropicalWater"
                 float b=dot(p,float2(-.36,.93))*1.47-t*.49;
                 float c=dot(p,float2(.98,-.20))*.53+t*.31;
                 float waves=sin(a+sin(b)*.20)*.48+sin(b)*.30+sin(c)*.22;
-                float distanceFromShore=max(0,length(i.world.xz)-22);
+                float angle=atan2(i.world.z,i.world.x);
+                float coast=100+sin(angle*3+.4)*5+sin(angle*5-.8)*3+cos(angle*9)*1.5;
+                float distanceFromShore=max(0,length(i.world.xz)-coast);
                 half shallow=1-smoothstep(0,25,distanceFromShore);
                 half3 color=lerp(_BaseColor.rgb,_ShallowColor.rgb,shallow*.78);
                 color+=waves*_WaveStrength*.28;

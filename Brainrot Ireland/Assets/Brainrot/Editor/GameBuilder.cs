@@ -18,7 +18,17 @@ namespace Brainrot.Editor {
    if(balance==null){balance=ScriptableObject.CreateInstance<GameBalance>();AssetDatabase.CreateAsset(balance,path);AssetDatabase.SaveAssets();}
    return balance;
   }
-  public static void Configure(){Folder(Root);AssetDatabase.Refresh();EnsureBalance();
+  public static PlayerCharacterDefinition EnsureCharacter(){
+   Folder(Root+"/Resources");AssetDatabase.Refresh();
+   string weaponPath=Root+"/Resources/WoodenBat.asset";
+   var weapon=AssetDatabase.LoadAssetAtPath<WeaponDefinition>(weaponPath);
+   if(weapon==null){weapon=ScriptableObject.CreateInstance<WeaponDefinition>();AssetDatabase.CreateAsset(weapon,weaponPath);}
+   string path=Root+"/Resources/DefaultCharacter.asset";
+   var character=AssetDatabase.LoadAssetAtPath<PlayerCharacterDefinition>(path);
+   if(character==null){character=ScriptableObject.CreateInstance<PlayerCharacterDefinition>();character.Weapon=weapon;AssetDatabase.CreateAsset(character,path);}
+   AssetDatabase.SaveAssets();return character;
+  }
+  public static void Configure(){Folder(Root);AssetDatabase.Refresh();EnsureBalance();EnsureCharacter();
    string rendererPath=Root+"/ArenaRenderer.asset";var renderer=AssetDatabase.LoadAssetAtPath<UniversalRendererData>(rendererPath);
    if(renderer==null){renderer=ScriptableObject.CreateInstance<UniversalRendererData>();AssetDatabase.CreateAsset(renderer,rendererPath);}
    string pipelinePath=Root+"/ArenaURP.asset";var pipeline=AssetDatabase.LoadAssetAtPath<UniversalRenderPipelineAsset>(pipelinePath);
@@ -32,11 +42,12 @@ namespace Brainrot.Editor {
    var graphics=new SerializedObject(AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/GraphicsSettings.asset")[0]);var included=graphics.FindProperty("m_AlwaysIncludedShaders");foreach(string shaderName in new[]{"Brainrot/TropicalWater","Universal Render Pipeline/Lit","Universal Render Pipeline/Unlit","Universal Render Pipeline/Particles/Unlit"}){var shader=Shader.Find(shaderName);if(shader==null)continue;bool found=false;for(int i=0;i<included.arraySize;i++)if(included.GetArrayElementAtIndex(i).objectReferenceValue==shader)found=true;if(!found){int i=included.arraySize;included.InsertArrayElementAtIndex(i);included.GetArrayElementAtIndex(i).objectReferenceValue=shader;}}graphics.ApplyModifiedPropertiesWithoutUndo();
    EditorBuildSettings.scenes=new[]{new EditorBuildSettingsScene(ScenePath,true)};AssetDatabase.SaveAssets();
   }
+  [MenuItem("Tools/TungTung/Создать или обновить игру")]
   [MenuItem("Tools/TungTung/Build Game")] public static void BuildGame(){
    if(!Application.isBatchMode&&!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())return;
    Configure();Folder("Assets/Scenes");Folder(Root+"/Prefabs");Folder("Assets/Resources/Upgrades");AssetDatabase.Refresh();
    var scene=EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
-   var root=new GameObject("Brainrot Ireland");root.AddComponent<GameManager>().Balance=EnsureBalance();EditorSceneManager.SaveScene(scene,ScenePath);
+   var root=new GameObject("Brainrot Ireland");var manager=root.AddComponent<GameManager>();manager.Balance=EnsureBalance();manager.PlayerCharacter=EnsureCharacter();EditorSceneManager.SaveScene(scene,ScenePath);
    var template=new GameObject("Pooled Shark");template.AddComponent<EnemyController>();PrefabUtility.SaveAsPrefabAsset(template,Root+"/Prefabs/Shark.prefab");UnityEngine.Object.DestroyImmediate(template);
    var sandPath=Root+"/Sand.mat";if(AssetDatabase.LoadAssetAtPath<Material>(sandPath)==null){var material=new Material(Shader.Find("Universal Render Pipeline/Lit"));material.color=new Color(1,.8f,.42f);AssetDatabase.CreateAsset(material,sandPath);}
    // Persist fallback definitions as editable ScriptableObjects without entering Play mode.
@@ -44,9 +55,11 @@ namespace Brainrot.Editor {
    var ensure=typeof(UpgradeSystem).GetMethod("EnsureDefinitions",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance);ensure.Invoke(system,null);
    var field=typeof(UpgradeSystem).GetField("definitions",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance);
    foreach(var definition in (UpgradeDefinition[])field.GetValue(system)){string path="Assets/Resources/Upgrades/"+definition.Kind+".asset";if(AssetDatabase.LoadAssetAtPath<UpgradeDefinition>(path)!=null)continue;var copy=UnityEngine.Object.Instantiate(definition);copy.hideFlags=HideFlags.None;AssetDatabase.CreateAsset(copy,path);}
-   UnityEngine.Object.DestroyImmediate(upgradesObject);AssetDatabase.SaveAssets();AssetDatabase.Refresh();Debug.Log("Brainrot Ireland scene and generated assets ready: "+ScenePath);
+   UnityEngine.Object.DestroyImmediate(upgradesObject);AssetDatabase.SaveAssets();AssetDatabase.Refresh();Debug.Log("Карта и игровые ресурсы созданы: "+ScenePath);
   }
+  [MenuItem("Tools/TungTung/Собрать для Windows")]
   [MenuItem("Tools/TungTung/Build Windows")] public static void BuildWindows(){BuildGame();Build(BuildTarget.StandaloneWindows64,"Builds/Windows/BrainrotIreland.exe");}
+  [MenuItem("Tools/TungTung/Собрать для Android")]
   [MenuItem("Tools/TungTung/Build Android")] public static void BuildAndroid(){BuildGame();PlayerSettings.Android.minSdkVersion=AndroidSdkVersions.AndroidApiLevel26;Build(BuildTarget.Android,"Builds/Android/BrainrotIreland.apk");}
   static void Build(BuildTarget target,string destination){Directory.CreateDirectory(Path.GetDirectoryName(destination));var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions{scenes=new[]{ScenePath},target=target,locationPathName=destination,options=BuildOptions.None});if(report.summary.result!=UnityEditor.Build.Reporting.BuildResult.Succeeded)throw new Exception("Build failed: "+report.summary.result);}
   public static void Validate(){BuildGame();if(AssetDatabase.LoadAssetAtPath<SceneAsset>(ScenePath)==null)throw new Exception("Scene missing");if(GraphicsSettings.defaultRenderPipeline==null)throw new Exception("URP missing");Debug.Log("BRAINROT_VALIDATION_OK");}

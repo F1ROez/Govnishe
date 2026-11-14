@@ -2,119 +2,137 @@ using UnityEngine;
 
 namespace Brainrot
 {
-    public enum EnemyAction { Chasing, MeleeWindup, ChargeWindup, Charging, Recovery, Staggered, BossWindup, BossWave }
+    public enum EnemyAction
+    {
+        Chasing = 0, MeleeWindup = 1, ChargeWindup = 2, Charging = 3, Recovery = 4, Staggered = 5,
+        BossWindup = 6, BossWave = 7, Idle = 8, Wandering = 9
+    }
 
-    /// <summary>Low-cost, committed attacks: a tell, one impact, then an escape window.</summary>
+    /// <summary>Local wildlife: idle, wander, notice a nearby player, attack, then lose interest.</summary>
     public sealed class EnemyController : MonoBehaviour
     {
         public bool Alive { get; private set; }
         public float Health { get; private set; }
         public float MaxHealth { get; private set; }
-        public bool IsBoss => Kind == EnemyKind.King || Kind == EnemyKind.MiniBoss;
+        public bool IsBoss => false;
         public EnemyKind Kind { get; private set; }
         public EnemyAction Action { get; private set; }
-        public bool IsPreparingAttack => Action == EnemyAction.MeleeWindup || Action == EnemyAction.ChargeWindup || Action == EnemyAction.BossWindup;
+        public IslandZone HomeZone { get; private set; }
+        public Vector3 HomePosition { get; private set; }
+        public bool IsAlerted { get; private set; }
+        public bool IsPreparingAttack => Action == EnemyAction.MeleeWindup || Action == EnemyAction.ChargeWindup;
 
         EnemySpawner owner;
         CharacterVisual visual;
         EnemyTelegraph telegraph;
         EnemyTuning tuning;
-        float speed, damage, stateClock, attackClock, chargeClock, abilityClock, size, difficulty, waveRadius;
-        int abilityIndex;
+        float speed, damage, stateClock, attackClock, chargeClock;
         bool attackHit;
-        Vector3 knockVelocity, committedDirection, targetArea;
-        Color tint;
-        float Radius => Kind == EnemyKind.King ? 2.1f : Kind == EnemyKind.MiniBoss ? 1.4f : Kind == EnemyKind.Fast ? .6f : .7f;
+        Vector3 knockVelocity, committedDirection, wanderTarget;
+        float Radius => Kind == EnemyKind.LiriliLarila ? 1.15f : Kind == EnemyKind.BrrBrrPatapim ? 1.05f : Kind == EnemyKind.BombardiroCrocodilo ? .95f : Kind == EnemyKind.CappuccinoAssassino ? .55f : .7f;
         float AttackRange => Mathf.Max(Radius + .5f, tuning.AttackRange);
 
         public void Initialize(EnemySpawner owner, EnemyKind kind, float difficulty, Vector3 position)
         {
-            this.owner = owner;
-            Kind = kind;
-            this.difficulty = Mathf.Max(1, difficulty);
+            this.owner = owner; Kind = kind;
             tuning = GameBalance.Current.Enemy(kind);
-            size = kind == EnemyKind.King ? 3f : kind == EnemyKind.MiniBoss ? 1.9f : kind == EnemyKind.Tank ? 1.45f : kind == EnemyKind.Fast ? .8f : 1f;
-            tint = kind == EnemyKind.King ? new Color(.52f,.24f,.84f) : kind == EnemyKind.MiniBoss ? new Color(.94f,.34f,.3f) : kind == EnemyKind.Tank ? new Color(.22f,.42f,.6f) : kind == EnemyKind.Fast ? new Color(.15f,.88f,.77f) : new Color(.23f,.65f,.95f);
-            MaxHealth = Health = Mathf.Max(1, tuning.Health) * this.difficulty;
-            speed = Mathf.Max(.1f, tuning.Speed) * Mathf.Min(1.5f, 1 + (this.difficulty - 1) * .07f);
-            damage = Mathf.Max(0, tuning.Damage) * Mathf.Sqrt(this.difficulty);
-            if (visual == null) visual = CharacterVisual.Create(transform, true, tint, size);
+            HomeZone = IslandMap.GetZone(position);
+            HomePosition = IslandMap.ClampToZone(position, HomeZone);
+            HomePosition = new Vector3(HomePosition.x, 0, HomePosition.z);
+            transform.position = HomePosition;
+            transform.rotation = Quaternion.Euler(0, Random.Range(0, 360), 0);
+            MaxHealth = Health = Mathf.Max(1, tuning.Health) * Mathf.Max(1, difficulty);
+            speed = Mathf.Max(.1f, tuning.Speed);
+            damage = Mathf.Max(0, tuning.Damage) * Mathf.Sqrt(Mathf.Max(1, difficulty));
+            if (visual == null) visual = CharacterVisual.CreateEnemy(transform, kind, Skin(kind), Size(kind));
             if (telegraph == null) telegraph = new EnemyTelegraph(transform);
-            transform.position = position;
-            transform.rotation = Quaternion.identity;
-            committedDirection = Vector3.forward;
-            targetArea = knockVelocity = Vector3.zero;
-            stateClock = waveRadius = 0;
-            attackClock = .6f;
-            chargeClock = .8f;
-            abilityClock = IsBoss ? 3 : float.PositiveInfinity;
-            abilityIndex = 0;
-            attackHit = false;
-            Action = EnemyAction.Chasing;
+            committedDirection = transform.forward;
+            knockVelocity = Vector3.zero;
+            wanderTarget = HomePosition;
+            attackClock = .6f; chargeClock = .8f;
+            attackHit = IsAlerted = false;
             Alive = true;
-            telegraph.Hide();
+            EnterIdle();
             visual.ResetFeedback();
+        }
+        static Color Skin(EnemyKind kind)
+        {
+            switch (kind)
+            {
+                case EnemyKind.LiriliLarila: return new Color(.48f,.70f,.43f);
+                case EnemyKind.BrrBrrPatapim: return new Color(.45f,.29f,.13f);
+                case EnemyKind.CappuccinoAssassino: return new Color(.87f,.80f,.65f);
+                case EnemyKind.BombardiroCrocodilo: return new Color(.29f,.49f,.24f);
+                default: return new Color(.23f,.65f,.95f);
+            }
+        }
+        static float Size(EnemyKind kind)
+        {
+            return kind == EnemyKind.LiriliLarila ? 1.25f : kind == EnemyKind.BrrBrrPatapim ? 1.45f : kind == EnemyKind.BombardiroCrocodilo ? 1.25f : kind == EnemyKind.CappuccinoAssassino ? .95f : 1;
         }
 
         public void Tick(float dt)
         {
             var game = GameManager.Instance;
             if (!Alive || game == null || !game.IsPlaying || game.Player == null || game.Player.Health <= 0 || dt <= 0) return;
-            attackClock -= dt;
-            chargeClock -= dt;
-            abilityClock -= dt;
-            // Knockback is a short, damped displacement; it never creates per-enemy rigidbodies.
-            transform.position += knockVelocity * dt;
-            knockVelocity *= Mathf.Exp(-10 * dt);
+            attackClock -= dt; chargeClock -= dt;
+            // Integrate damped knockback analytically so the distance is stable at low frame rates.
+            float decay = Mathf.Exp(-6 * dt);
+            MoveWithinZone(knockVelocity * ((1 - decay) / 6));
+            knockVelocity *= decay;
             if (knockVelocity.sqrMagnitude < .001f) knockVelocity = Vector3.zero;
 
-            Vector3 delta = Flat(game.Player.transform.position - transform.position);
+            Vector3 playerPosition = game.Player.transform.position;
+            Vector3 delta = Flat(playerPosition - transform.position);
             float distance = delta.magnitude;
+            var settings = GameBalance.Current.Exploration;
+            bool sameZone = IslandMap.GetZone(playerPosition) == HomeZone;
+            float detection = Mathf.Max(1, settings.DetectionRadius);
+            float lose = Mathf.Max(detection + 1, settings.LoseInterestRadius);
+            float leash = Mathf.Max(2, settings.LeashDistance);
+            bool insideHomeLeash = Flat(playerPosition - HomePosition).sqrMagnitude <= leash * leash;
+
+            if (IsAlerted && (!sameZone || !insideHomeLeash || distance > lose)) LoseInterest();
+            if (!IsAlerted && sameZone && insideHomeLeash && distance <= detection)
+            {
+                IsAlerted = true;
+                if (Action != EnemyAction.Staggered) Action = EnemyAction.Chasing;
+                telegraph.Hide();
+            }
+            if (!IsAlerted) { TickAmbient(dt); return; }
+
             Vector3 direction = distance > .001f ? delta / distance : transform.forward;
             switch (Action)
             {
                 case EnemyAction.MeleeWindup:
-                    stateClock -= dt;
-                    visual.Animate(0, true);
+                    stateClock -= dt; visual.Animate(0, true);
                     if (stateClock <= 0)
                     {
-                        // Range and facing are checked at impact: stepping aside or backwards avoids it.
                         if (distance <= AttackRange && Vector3.Dot(committedDirection, direction) > .3f)
                             game.Player.TakeDamage(damage, transform.position);
                         EnterRecovery(tuning.Recovery);
                     }
                     return;
                 case EnemyAction.ChargeWindup:
-                    stateClock -= dt;
-                    visual.Animate(0, true);
+                    stateClock -= dt; visual.Animate(0, true);
                     if (stateClock <= 0) BeginCharge();
                     return;
                 case EnemyAction.Charging:
-                    TickCharge(dt, game.Player.transform.position);
-                    return;
-                case EnemyAction.BossWindup:
-                    stateClock -= dt;
-                    visual.Animate(0, true);
-                    if (stateClock <= 0) ResolveBossAbility();
-                    return;
-                case EnemyAction.BossWave:
-                    TickBossWave(dt, distance);
+                    TickCharge(dt, playerPosition);
                     return;
                 case EnemyAction.Recovery:
                 case EnemyAction.Staggered:
-                    stateClock -= dt;
-                    visual.Animate(0, false);
+                    stateClock -= dt; visual.Animate(0, false);
                     if (stateClock <= 0) Action = EnemyAction.Chasing;
                     return;
             }
-            if (IsBoss && abilityClock <= 0) { PrepareBossAbility(direction); return; }
-            if (!IsBoss && tuning.CanCharge && chargeClock <= 0 && distance >= Mathf.Max(1, tuning.ChargeMinDistance) && distance <= Mathf.Max(tuning.ChargeMinDistance, tuning.ChargeMaxDistance))
+            if (tuning.CanCharge && chargeClock <= 0 && distance >= Mathf.Max(1, tuning.ChargeMinDistance) && distance <= Mathf.Max(tuning.ChargeMinDistance, tuning.ChargeMaxDistance))
             {
                 committedDirection = direction;
                 transform.rotation = Quaternion.LookRotation(direction);
                 Action = EnemyAction.ChargeWindup;
-                stateClock = Mathf.Max(.15f, tuning.ChargeWindup);
-                telegraph.Charge(transform.position, direction, Mathf.Max(1, tuning.ChargeSpeed * tuning.ChargeDuration), Radius + .5f);
+                stateClock = Mathf.Max(.25f, tuning.ChargeWindup);
+                telegraph.Charge(transform.position, direction, Mathf.Max(1, tuning.ChargeSpeed * tuning.ChargeDuration), Radius + .5f, HomeZone);
                 visual.Animate(0, true);
                 return;
             }
@@ -123,158 +141,131 @@ namespace Brainrot
                 committedDirection = direction;
                 transform.rotation = Quaternion.LookRotation(direction);
                 Action = EnemyAction.MeleeWindup;
-                stateClock = Mathf.Max(.1f, tuning.MeleeWindup);
+                stateClock = Mathf.Max(.15f, tuning.MeleeWindup);
                 telegraph.Cone(transform.position, direction, AttackRange);
                 visual.Animate(0, true);
                 return;
             }
             float stop = Mathf.Max(Radius + .4f, AttackRange * .8f);
             Vector3 move = distance > stop ? direction * speed : Vector3.zero;
-            if (distance > 3) move += Vector3.Cross(direction, Vector3.up) * Mathf.Sin(GetInstanceID() * .71f + game.Elapsed) * .22f;
-            transform.position += move * dt;
-            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), dt * 10);
+            if (distance > 3) move += Vector3.Cross(direction, Vector3.up) * Mathf.Sin(GetInstanceID() * .71f + game.Elapsed) * .18f;
+            MoveWithinZone(move * dt);
+            Face(direction, dt);
             visual.Animate(move.magnitude, false);
         }
 
+        void TickAmbient(float dt)
+        {
+            if (Action == EnemyAction.Staggered)
+            {
+                stateClock -= dt;
+                if (stateClock <= 0) EnterIdle();
+                visual.Animate(0, false);return;
+            }
+            if (Action != EnemyAction.Idle && Action != EnemyAction.Wandering) EnterIdle();
+            stateClock -= dt;
+            if (Action == EnemyAction.Idle)
+            {
+                visual.Animate(0, false);
+                if (stateClock > 0) return;
+                if (Random.value < .35f) { EnterIdle(); return; }
+                var settings = GameBalance.Current.Exploration;
+                Vector2 offset = Random.insideUnitCircle * Mathf.Max(0, settings.WanderRadius);
+                wanderTarget = IslandMap.ClampToZone(HomePosition + new Vector3(offset.x, 0, offset.y), HomeZone);
+                Action = EnemyAction.Wandering; stateClock = Random.Range(3, 7);
+            }
+            Vector3 delta = Flat(wanderTarget - transform.position);
+            if (delta.sqrMagnitude <= .12f || stateClock <= 0) { EnterIdle(); visual.Animate(0, false); return; }
+            float wanderSpeed = Mathf.Min(speed * .5f, Mathf.Max(0, GameBalance.Current.Exploration.WanderSpeed));
+            Vector3 step = delta.normalized * Mathf.Min(delta.magnitude, wanderSpeed * dt);
+            MoveWithinZone(step);Face(delta.normalized, dt);
+            visual.Animate(wanderSpeed, false);
+        }
+        void EnterIdle()
+        {
+            telegraph.Hide();
+            Action = EnemyAction.Idle;
+            var settings = GameBalance.Current.Exploration;
+            float min = Mathf.Max(.2f, settings.IdleMin);
+            stateClock = Random.Range(min, Mathf.Max(min, settings.IdleMax));
+        }
+        void LoseInterest()
+        {
+            IsAlerted = false;attackHit = false;
+            attackClock = .6f;chargeClock = Mathf.Max(chargeClock, .8f);
+            EnterIdle();
+        }
+        void MoveWithinZone(Vector3 displacement)
+        {
+            Vector3 next = IslandMap.ClampToZone(transform.position + displacement, HomeZone);
+            next.y = 0;transform.position = next;
+        }
+        void Face(Vector3 direction, float dt)
+        {
+            if (direction.sqrMagnitude > .001f) transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), Mathf.Clamp01(dt * 8));
+        }
         void BeginCharge()
         {
             Action = EnemyAction.Charging;
             stateClock = Mathf.Max(.1f, tuning.ChargeDuration);
             chargeClock = Mathf.Max(.5f, tuning.ChargeCooldown);
-            attackHit = false;
-            telegraph.Hide();
+            attackHit = false;telegraph.Hide();
         }
         void TickCharge(float dt, Vector3 playerPosition)
         {
             float step = Mathf.Min(dt, Mathf.Max(0, stateClock));
             Vector3 start = transform.position;
-            Vector3 next = start + committedDirection * (Mathf.Max(1, tuning.ChargeSpeed) * step);
-            Vector2 flat = Vector2.ClampMagnitude(new Vector2(next.x, next.z), 30);
-            next.x = flat.x; next.z = flat.y;
-            transform.position = next;
-            // Segment test prevents a fast dash skipping over the player at a low frame rate.
-            if (!attackHit && SweptHitXZ(start, next, playerPosition, Radius + .5f))
+            MoveWithinZone(committedDirection * (Mathf.Max(1, tuning.ChargeSpeed) * step));
+            if (!attackHit && SweptHitXZ(start, transform.position, playerPosition, Radius + .5f))
             {
                 attackHit = true;
-                GameManager.Instance.Player.TakeDamage(damage * (IsBoss ? 1.7f : 1.25f), transform.position);
+                GameManager.Instance.Player.TakeDamage(damage * 1.25f, transform.position);
             }
-            stateClock -= dt;
-            visual.Animate(6, true);
-            if (stateClock <= 0)
-            {
-                if (IsBoss) FinishBossAbility();
-                else EnterRecovery(tuning.Recovery);
-            }
+            stateClock -= dt;visual.Animate(6, true);
+            if (stateClock <= 0) EnterRecovery(tuning.Recovery);
         }
         public static bool SweptHitXZ(Vector3 start, Vector3 end, Vector3 target, float radius)
         {
-            Vector3 segment = Flat(end - start);
-            Vector3 offset = Flat(target - start);
+            Vector3 segment = Flat(end - start), offset = Flat(target - start);
             float t = segment.sqrMagnitude > .000001f ? Mathf.Clamp01(Vector3.Dot(offset, segment) / segment.sqrMagnitude) : 0;
             return (offset - segment * t).sqrMagnitude <= Mathf.Max(0, radius) * Mathf.Max(0, radius);
         }
         static Vector3 Flat(Vector3 value) { value.y = 0; return value; }
         void EnterRecovery(float duration)
         {
-            telegraph.Hide();
-            Action = EnemyAction.Recovery;
-            stateClock = Mathf.Max(.1f, duration);
-        }
-
-        void PrepareBossAbility(Vector3 direction)
-        {
-            committedDirection = direction;
-            transform.rotation = Quaternion.LookRotation(direction);
-            targetArea = GameManager.Instance.Player.transform.position;
-            Action = EnemyAction.BossWindup;
-            stateClock = Mathf.Max(.5f, tuning.ChargeWindup);
-            int ability = abilityIndex % 4;
-            if (ability == 0) telegraph.Charge(transform.position, direction, Mathf.Max(1, tuning.ChargeSpeed * tuning.ChargeDuration), Radius + .5f);
-            else if (ability == 3) telegraph.Circle(targetArea, 6.5f);
-            else telegraph.Circle(transform.position, ability == 1 ? 10 : 3);
-        }
-        void ResolveBossAbility()
-        {
-            int ability = abilityIndex % 4;
-            telegraph.Hide();
-            if (ability == 0) { BeginCharge(); return; }
-            if (ability == 1)
-            {
-                Action = EnemyAction.BossWave;
-                stateClock = 1.4f;
-                waveRadius = 1;
-                attackHit = false;
-                telegraph.Circle(transform.position, waveRadius);
-                return;
-            }
-            if (ability == 2)
-            {
-                int count = Kind == EnemyKind.King ? 6 : 3;
-                for (int i = 0; i < count; i++)
-                {
-                    float a = i * Mathf.PI * 2 / count;
-                    owner.Spawn(EnemyKind.Normal, transform.position + new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * 3, difficulty);
-                }
-                HitEffects.Burst(transform.position + Vector3.up * 2, tint, 18);
-            }
-            else
-            {
-                HitEffects.Burst(targetArea + Vector3.up, new Color(1,.42f,.12f), 24);
-                if (Flat(targetArea - GameManager.Instance.Player.transform.position).sqrMagnitude <= 6.5f * 6.5f)
-                    GameManager.Instance.Player.TakeDamage(damage * 1.4f, targetArea);
-            }
-            FinishBossAbility();
-        }
-        void TickBossWave(float dt, float distance)
-        {
-            stateClock -= dt;
-            float previousRadius = waveRadius;
-            waveRadius = Mathf.Lerp(1, 10, Mathf.Clamp01(1 - stateClock / 1.4f));
-            telegraph.Circle(transform.position, waveRadius);
-            if (!attackHit && distance >= previousRadius - .6f && distance <= waveRadius + .6f)
-            {
-                attackHit = true;
-                GameManager.Instance.Player.TakeDamage(damage, transform.position);
-            }
-            visual.Animate(0, true);
-            if (stateClock <= 0) FinishBossAbility();
-        }
-        void FinishBossAbility()
-        {
-            abilityIndex++;
-            abilityClock = Kind == EnemyKind.King ? 4 : 6;
-            EnterRecovery(Mathf.Max(.5f, tuning.Recovery));
+            telegraph.Hide();Action = EnemyAction.Recovery;stateClock = Mathf.Max(.1f, duration);
         }
 
         public void TakeDamage(float amount, Vector3 knockback)
         {
             if (!Alive || amount <= 0) return;
-            Health = Mathf.Max(0, Health - amount);
-            knockback.y = 0;
-            knockVelocity = Vector3.ClampMagnitude(knockVelocity + knockback / Mathf.Max(.2f, tuning.KnockbackResistance), 7);
+            Health = Mathf.Max(0, Health - amount);knockback.y = 0;
+            knockVelocity = Vector3.ClampMagnitude(knockVelocity + knockback / Mathf.Max(.2f, tuning.KnockbackResistance), 18);
             var feedback = GameBalance.Current.Combat;
             visual.FlashHit(Mathf.Max(0, feedback.HitFlashDuration), Mathf.Clamp01(feedback.HitFlashStrength));
-            if (!IsBoss && Action != EnemyAction.Charging)
+            var game = GameManager.Instance;
+            if (game != null && game.Player != null)
             {
-                // A hit cancels a pending normal attack but bosses retain their commitments.
-                telegraph.Hide();
-                Action = EnemyAction.Staggered;
-                stateClock = Mathf.Max(.02f, tuning.HitStagger);
-                attackClock = .2f;
+                Vector3 target = game.Player.transform.position;
+                float lose = Mathf.Max(1, GameBalance.Current.Exploration.LoseInterestRadius);
+                float leash = Mathf.Max(2, GameBalance.Current.Exploration.LeashDistance);
+                if (IslandMap.GetZone(target) == HomeZone && Flat(target - transform.position).sqrMagnitude <= lose * lose && Flat(target - HomePosition).sqrMagnitude <= leash * leash) IsAlerted = true;
+            }
+            if (Action != EnemyAction.Charging)
+            {
+                telegraph.Hide();Action = EnemyAction.Staggered;
+                stateClock = Mathf.Max(.02f, tuning.HitStagger);attackClock = .2f;
             }
             if (Health > 0) return;
-            Alive = false;
-            telegraph.Hide();
-            HitEffects.Burst(transform.position + Vector3.up, tint, IsBoss ? 24 : 8);
-            int xp = Mathf.Max(0, tuning.Experience);
-            GameManager.Instance.Reward(xp, 1);
-            if (IsBoss) GameManager.Instance.Notify((Kind == EnemyKind.King ? "KING TRALALA DEFEATED! +" : "MINI-BOSS DEFEATED! +") + xp + " XP", 4);
+            Alive = false;IsAlerted = false;telegraph.Hide();
+            HitEffects.Burst(transform.position + Vector3.up, Skin(Kind), 8);
+            GameManager.Instance.Reward(Mathf.Max(0, tuning.Experience), 1);
             owner.Despawn(this);
         }
-        void OnDisable() { if (telegraph != null) telegraph.Hide(); if (visual != null) visual.ResetFeedback(); }
+        void OnDisable() { IsAlerted = false;if (telegraph != null) telegraph.Hide();if (visual != null) visual.ResetFeedback(); }
     }
 
-    /// <summary>Reused outline tells; no filled discs obscure the fight.</summary>
+    /// <summary>Reusable attack outlines. No opaque warning discs cover the terrain.</summary>
     sealed class EnemyTelegraph
     {
         static Material material;
@@ -282,56 +273,34 @@ namespace Brainrot
         readonly Vector3[] points = new Vector3[35];
         public EnemyTelegraph(Transform owner)
         {
-            var go = new GameObject("Attack telegraph");
-            go.transform.SetParent(owner, false);
-            line = go.AddComponent<LineRenderer>();
+            var go = new GameObject("Предупреждение атаки");go.transform.SetParent(owner, false);line = go.AddComponent<LineRenderer>();
             if (material == null)
             {
                 var shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Color");
-                material = new Material(shader) { name = "Enemy attack outline", color = new Color(1,.36f,.08f) };
+                material = new Material(shader) { name = "Контур атаки врага", color = new Color(1,.36f,.08f) };
             }
-            line.sharedMaterial = material;
-            line.useWorldSpace = true;
-            line.widthMultiplier = .07f;
-            line.numCapVertices = 2;
-            line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            line.receiveShadows = false;
-            Hide();
+            line.sharedMaterial = material;line.useWorldSpace = true;line.widthMultiplier = .07f;line.numCapVertices = 2;
+            line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;line.receiveShadows = false;Hide();
         }
         public void Hide() { line.enabled = false; }
         void Show(int count)
         {
-            line.enabled = true;
-            line.positionCount = count;
+            line.enabled = true;line.positionCount = count;
             for (int i = 0; i < count; i++) line.SetPosition(i, points[i]);
         }
-        static Vector3 Ground(Vector3 point) { point.y = .075f; return point; }
-        public void Circle(Vector3 origin, float radius)
-        {
-            origin = Ground(origin);
-            for (int i = 0; i < 33; i++)
-            {
-                float a = i * Mathf.PI * 2 / 32;
-                points[i] = origin + new Vector3(Mathf.Sin(a), 0, Mathf.Cos(a)) * radius;
-            }
-            Show(33);
-        }
+        static Vector3 Ground(Vector3 point) { point.y = .075f;return point; }
         public void Cone(Vector3 origin, Vector3 direction, float radius)
         {
-            origin = Ground(origin);
-            points[0] = origin;
+            origin = Ground(origin);points[0] = origin;
             for (int i = 0; i <= 24; i++) points[i + 1] = origin + Quaternion.Euler(0, Mathf.Lerp(-72, 72, i / 24f), 0) * direction * radius;
-            points[26] = origin;
-            Show(27);
+            points[26] = origin;Show(27);
         }
-        public void Charge(Vector3 origin, Vector3 direction, float length, float width)
+        public void Charge(Vector3 origin, Vector3 direction, float length, float width, IslandZone zone)
         {
-            origin = Ground(origin);
-            Vector3 side = Vector3.Cross(Vector3.up, direction) * width;
-            Vector3 end = origin + direction * length;
-            points[0] = origin - side; points[1] = end - side; points[2] = end + direction * .5f;
-            points[3] = end + side; points[4] = origin + side; points[5] = origin - side;
-            Show(6);
+            origin = Ground(origin);Vector3 side = Vector3.Cross(Vector3.up, direction) * width;
+            Vector3 end = Ground(IslandMap.ClampToZone(origin + direction * length, zone));
+            points[0] = origin - side;points[1] = end - side;points[2] = end + direction * .5f;
+            points[3] = end + side;points[4] = origin + side;points[5] = origin - side;Show(6);
         }
     }
 }
