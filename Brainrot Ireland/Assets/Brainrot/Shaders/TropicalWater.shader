@@ -2,8 +2,8 @@ Shader "Brainrot/TropicalWater"
 {
  Properties
  {
-  _BaseColor("Глубокая вода",Color)=(.07,.39,.59,1)
-  _ShallowColor("Мелководье",Color)=(.28,.79,.78,1)
+  _BaseColor("Глубокая вода",Color)=(.07,.59,.79,1)
+  _ShallowColor("Мелководье",Color)=(.20,.88,.80,1)
   _WaveSpeed("Скорость волн",Range(0,3))=.6
   _WaveScale("Масштаб волн",Range(.05,2))=.45
   _WaveStrength("Сила ряби",Range(0,.4))=.12
@@ -48,11 +48,14 @@ Shader "Brainrot/TropicalWater"
     float coast=22+sin(angle*5)*.3+cos(angle*9)*.17;
     float shore=max(0,length(i.world.xz)-coast);
     half shallow=1-smoothstep(.2,16,shore);
-    half3 deep=lerp(_BaseColor.rgb,half3(.20,.49,.66),.18);
-    half3 color=lerp(deep,_ShallowColor.rgb,shallow*.90);
+    // Older saved balance profiles contain dark blue values. Give the candy art direction a
+    // stable bright base while retaining a restrained contribution from those colour controls.
+    half3 deep=lerp(_BaseColor.rgb,half3(.07,.59,.79),.78);
+    half3 lagoon=lerp(_ShallowColor.rgb,half3(.20,.88,.80),.78);
+    half3 color=lerp(deep,lagoon,shallow*.96);
     half fresnel=pow(1-saturate(dot(normal,view)),4);
-    color=lerp(color,half3(.70,.85,.91),fresnel*.46);
-    color*=.95+.05*saturate(dot(normal,sun.direction));
+    color=lerp(color,half3(.66,.88,.99),fresnel*.28);
+    color*=.97+.03*saturate(dot(normal,sun.direction));
     color+=wave*_WaveStrength*.14;
     // Soft broad sunlight rather than a clipped white spotlight; distance fades small details.
     float detail=saturate(view.y*4);
@@ -67,7 +70,7 @@ Shader "Brainrot/TropicalWater"
     half foam=saturate(roll*(1-smoothstep(.3,3.8,shore))*broken*.60);
     // A persistent narrow lace line ties the ocean to the wet sand.
     foam=max(foam,(1-smoothstep(.04,.43,shore))*broken*.72);
-    color=lerp(color,half3(.91,.98,.93),foam);
+    color=lerp(color,half3(.96,1,.97),foam);
     float spark=pow(saturate(sin(warped.x*6.1+t)*sin(warped.y*7.3-t*.7)),28);
     color+=half3(.92,.97,1)*spark*spec*detail*.35;
     return half4(MixFog(saturate(color),i.fog),1);

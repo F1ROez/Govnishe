@@ -46,3 +46,7 @@
 Файлы игрового плейлиста — Art/Audio/Resources/Audio/Gameplay; меню — Audio/Menu.mp3, кнопки — Audio/Button.mp3. Новый MP3 в Gameplay автоматически попадает в библиотеку при следующем запуске; Build Game обновляет импорт аудио. Длинная музыка Streaming/Vorbis/preload=false, короткий клик DecompressOnLoad/PCM/preload=true. Настройка громкости общая, mute не перезаписывает её.
 
 TropicalUIAtlasLayout.json хранит top-left координаты и borders иллюстрированных спрайтов. NPOT-перемасштабирование и mipmaps отключены импортёром, чтобы координаты не смещались. Не менять размеры atlas отдельно от JSON. Новый фон TropicalMenuBackdrop используется как fallback для пользовательского MenuBackground.
+
+## Светлый дневной пресет v2
+
+«Создать или обновить игру» обновляет существующий Generated/Resources/IslandAtmosphere.asset: экспозиция+.30, contrast-4, saturation14, vignette0. Маркер миграции хранится в userData meta, не зависит от имени asset; GUID сохраняется. После первого обновления профиль можно настраивать вручную — повторные Build Game его не перезаписывают. Океан сохраняет влияние выбранных цветов (22%), с яркой базовой палитрой78% для согласования с HUD.

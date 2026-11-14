@@ -9,15 +9,20 @@ namespace Brainrot
     {
         VolumeProfile profile;
         UniversalAdditionalCameraData cameraData;int quality=-1;
+        public const string PresetName="Яркий тропический день — v2";
+        static T Component<T>(VolumeProfile profile) where T:VolumeComponent {if(profile.TryGet<T>(out var value))return value;return profile.Add<T>(true);}
+        public static void ApplyDaylight(VolumeProfile profile,bool bloomAllowed=true)
+        {
+            profile.name=PresetName;
+            var tone=Component<Tonemapping>(profile);tone.active=true;tone.mode.Override(TonemappingMode.Neutral);
+            var color=Component<ColorAdjustments>(profile);color.active=true;color.postExposure.Override(.30f);color.contrast.Override(-4);color.saturation.Override(14);color.colorFilter.Override(Color.white);
+            var balance=Component<WhiteBalance>(profile);balance.active=true;balance.temperature.Override(2);balance.tint.Override(0);
+            var vignette=Component<Vignette>(profile);vignette.active=false;vignette.intensity.Override(0);vignette.smoothness.Override(.7f);
+            var bloom=Component<Bloom>(profile);bloom.active=bloomAllowed;bloom.intensity.Override(.13f);bloom.threshold.Override(1.3f);bloom.scatter.Override(.48f);bloom.highQualityFiltering.Override(false);
+        }
         public static VolumeProfile CreateProfile(bool bloomAllowed=true)
         {
-            var profile=ScriptableObject.CreateInstance<VolumeProfile>();profile.name="Мягкое тропическое освещение";
-            var tone=profile.Add<Tonemapping>(true);tone.mode.Override(TonemappingMode.Neutral);
-            var color=profile.Add<ColorAdjustments>(true);color.postExposure.Override(-.12f);color.contrast.Override(4);color.saturation.Override(5);color.colorFilter.Override(new Color(1,.985f,.96f));
-            var balance=profile.Add<WhiteBalance>(true);balance.temperature.Override(3);balance.tint.Override(1);
-            var vignette=profile.Add<Vignette>(true);vignette.intensity.Override(.12f);vignette.smoothness.Override(.7f);vignette.color.Override(new Color(.08f,.17f,.23f));
-            {var bloom=profile.Add<Bloom>(true);bloom.active=bloomAllowed;bloom.intensity.Override(.17f);bloom.threshold.Override(1.15f);bloom.scatter.Override(.52f);bloom.highQualityFiltering.Override(false);}
-            return profile;
+            var profile=ScriptableObject.CreateInstance<VolumeProfile>();ApplyDaylight(profile,bloomAllowed);return profile;
         }
         IEnumerator Start()
         {

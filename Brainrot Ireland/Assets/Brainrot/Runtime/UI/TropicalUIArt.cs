@@ -23,7 +23,7 @@ namespace Brainrot
             return blue!=null?blue:blue=Fallback(false);
         }
         public static Image Place(string name,Transform parent,Vector2 min,Vector2 max,string key,bool preserve=false){
-            var image=CartoonUI.Image(name,parent,min,max,Color.white,Get(key));image.preserveAspect=preserve;
+            var image=CartoonUI.Image(name,parent,min,max,Color.white,Get(key));image.preserveAspect=preserve;image.pixelsPerUnitMultiplier=1.35f;
             if(image.sprite.border.sqrMagnitude>.01f&&!preserve)image.type=Image.Type.Sliced;
             return image;
         }

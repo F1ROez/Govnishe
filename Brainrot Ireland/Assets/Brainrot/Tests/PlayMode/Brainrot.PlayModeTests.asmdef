@@ -2,7 +2,9 @@
   "name": "Brainrot.PlayModeTests",
   "references": [
     "Brainrot.Runtime",
-    "UnityEngine.UI"
+    "UnityEngine.UI",
+    "Unity.RenderPipelines.Core.Runtime",
+    "Unity.RenderPipelines.Universal.Runtime"
   ],
   "optionalUnityReferences": [
     "TestAssemblies"

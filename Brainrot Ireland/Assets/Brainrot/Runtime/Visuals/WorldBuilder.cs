@@ -22,13 +22,13 @@ namespace Brainrot
             var root = new GameObject("Procedural Island").transform;
             sand = Material(Color.white, "Vanilla sand — hand-painted procedural palette");
             sand.SetTexture("_BaseMap",SandPalette());
-            grass = Material(new Color(.47f,.73f,.36f), "Lime vegetation");
-            bark = Material(new Color(.52f,.34f,.21f), "Palm trunk");
-            leaf = Material(new Color(.25f,.59f,.39f), "Palm leaves");
-            stone = Material(new Color(.47f,.59f,.62f), "Coastal slate");
-            foam = Material(new Color(.87f,.98f,.92f), "Foam");
+            grass = Material(new Color(.56f,.81f,.32f), "Lime vegetation");
+            bark = Material(new Color(.63f,.42f,.24f), "Palm trunk");
+            leaf = Material(new Color(.32f,.78f,.33f), "Palm leaves");
+            stone = Material(new Color(.66f,.75f,.79f), "Coastal slate");
+            foam = Material(new Color(.96f,1,.96f), "Foam");
             coral=Material(new Color(.98f,.61f,.48f),"Peach seashells");
-            leafLight=Material(new Color(.53f,.76f,.36f),"Young lime leaves");
+            leafLight=Material(new Color(.68f,.89f,.32f),"Young lime leaves");
             leaf.SetFloat("_Cull",0);leafLight.SetFloat("_Cull",0);grass.SetFloat("_Cull",0);
             var rng = new System.Random(731);
             Island(root);
@@ -79,21 +79,21 @@ namespace Brainrot
             foreach(var light in Object.FindObjectsByType<Light>(FindObjectsSortMode.None))if(light.type==LightType.Directional&&(old==null||!light.transform.IsChildOf(old.transform))){sun=light;break;}
             if(sun==null){sun=new GameObject("Тропическое солнце").AddComponent<Light>();sun.transform.SetParent(root,false);sun.type=LightType.Directional;}
             sun.name="Персиковое тропическое солнце";
-            sun.color=new Color(1,.91f,.77f);sun.intensity=1.55f;
-            sun.shadows=LightShadows.Soft;sun.shadowStrength=.68f;sun.shadowBias=.035f;sun.shadowNormalBias=.18f;
+            sun.color=new Color(1,.94f,.82f);sun.intensity=1.35f;
+            sun.shadows=LightShadows.Soft;sun.shadowStrength=.40f;sun.shadowBias=.035f;sun.shadowNormalBias=.18f;
             sun.transform.rotation=Quaternion.Euler(48,-38,0);RenderSettings.sun=sun;
             // Sky and sand bounce light keep silhouettes readable without extra shadow maps.
             var fill=new GameObject("Небесный заполняющий свет").AddComponent<Light>();fill.transform.SetParent(root,false);
-            fill.type=LightType.Directional;fill.color=new Color(.69f,.84f,1);fill.intensity=.22f;fill.shadows=LightShadows.None;fill.transform.rotation=Quaternion.Euler(28,142,0);
+            fill.type=LightType.Directional;fill.color=new Color(.73f,.88f,1);fill.intensity=.30f;fill.shadows=LightShadows.None;fill.transform.rotation=Quaternion.Euler(28,142,0);
             RenderSettings.ambientMode=AmbientMode.Trilight;RenderSettings.ambientIntensity=1;
-            RenderSettings.ambientSkyColor=new Color(.62f,.77f,.91f);
-            RenderSettings.ambientEquatorColor=new Color(.56f,.70f,.73f);
-            RenderSettings.ambientGroundColor=new Color(.45f,.36f,.29f);
+            RenderSettings.ambientSkyColor=new Color(.75f,.88f,1);
+            RenderSettings.ambientEquatorColor=new Color(.70f,.82f,.84f);
+            RenderSettings.ambientGroundColor=new Color(.66f,.59f,.43f);
             RenderSettings.fog=true;RenderSettings.fogMode=FogMode.ExponentialSquared;
-            RenderSettings.fogColor=new Color(.73f,.86f,.91f);RenderSettings.fogDensity=.0032f;
+            RenderSettings.fogColor=new Color(.69f,.88f,.97f);RenderSettings.fogDensity=.0022f;
             RenderSettings.reflectionIntensity=.38f;
             var skyShader=Shader.Find("Brainrot/TropicalSky");
-            if(skyShader!=null){var sky=new Material(skyShader){name="Акварельное тропическое небо"};sky.SetColor("_Zenith",new Color(.27f,.57f,.81f));sky.SetColor("_Horizon",RenderSettings.fogColor);sky.SetVector("_SunDirection",-sun.transform.forward);RenderSettings.skybox=sky;}
+            if(skyShader!=null){var sky=new Material(skyShader){name="Акварельное тропическое небо"};sky.SetColor("_Zenith",new Color(.21f,.63f,.91f));sky.SetColor("_Horizon",RenderSettings.fogColor);sky.SetVector("_SunDirection",-sun.transform.forward);RenderSettings.skybox=sky;}
             root.gameObject.AddComponent<WorldAtmosphere>();
         }
 
@@ -163,8 +163,8 @@ namespace Brainrot
             for(int y=0;y<n;y++)for(int x=0;x<n;x++){
                 float u=(x+.5f)/n,v=(y+.5f)/n;float r=Vector2.Distance(new Vector2(u,v),Vector2.one*.5f)*2;
                 float wet=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.8f,1,r));float patches=Mathf.PerlinNoise(x*.025f+13,y*.025f+7);
-                var color=Color.Lerp(new Color(.99f,.87f,.65f),new Color(.81f,.68f,.48f),wet*.62f);
-                color*=.96f+patches*.065f;
+                var color=Color.Lerp(new Color(1,.91f,.70f),new Color(.92f,.78f,.52f),wet*.62f);
+                color*=.985f+patches*.035f;
                 // Rare tiny darker grains, restrained enough to stay soft at gameplay distance.
                 float grain=Mathf.PerlinNoise(x*.83f,y*.89f);color*=Mathf.Lerp(.965f,1.02f,grain);
                 pixels[y*n+x]=color;

@@ -42,11 +42,11 @@ Shader "Brainrot/ToonCharacter"
     half3 albedo=saturate(lerp(texColor,half3(1,1,1),_TextureSoftening)*_BaseColor.rgb*_Brightness);
     half3 n=normalize(i.normal);Light sun=GetMainLight(TransformWorldToShadowCoord(i.world));
     half diffuse=dot(n,sun.direction)*.5+.5;half band=smoothstep(.36,.63,diffuse);
-    half shadow=lerp(.70,1,sun.shadowAttenuation);half3 light=lerp(half3(.56,.66,.83),half3(1.02,1.01,.96),band)*shadow;
+    half shadow=lerp(.88,1,sun.shadowAttenuation);half3 light=lerp(half3(.78,.85,.96),half3(1.15,1.14,1.06),band)*shadow;
     light+=saturate(SampleSH(n))*.12;
     half rim=pow(1-saturate(dot(n,SafeNormalize(GetWorldSpaceViewDir(i.world)))),3)*.16;
     half3 color=albedo*light+rim*half3(.55,.78,1);
-    return half4(MixFog(saturate(color),i.fog),1);
+    return half4(MixFog(color,i.fog),1);
    }
    ENDHLSL
   }

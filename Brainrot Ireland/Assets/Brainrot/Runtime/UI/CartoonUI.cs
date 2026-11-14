@@ -72,14 +72,22 @@ namespace Brainrot
             var go=new GameObject(name,typeof(RectTransform),typeof(Image));go.transform.SetParent(parent,false);var rect=go.GetComponent<RectTransform>();rect.anchorMin=min;rect.anchorMax=max;rect.offsetMin=rect.offsetMax=Vector2.zero;
             var image=go.GetComponent<Image>();image.sprite=sprite!=null?sprite:Rounded;image.type=sprite==null?UnityEngine.UI.Image.Type.Sliced:UnityEngine.UI.Image.Type.Simple;image.color=color;image.raycastTarget=false;return image;
         }
-        public static void Typography(Text text,bool heading=false){text.font=Font;text.fontStyle=heading?FontStyle.Bold:FontStyle.Normal;text.color=Cream;text.resizeTextForBestFit=true;text.resizeTextMinSize=Mathf.Max(11,text.fontSize-5);text.resizeTextMaxSize=text.fontSize;text.verticalOverflow=VerticalWrapMode.Truncate;var outline=text.gameObject.AddComponent<Outline>();outline.effectColor=new Color(.19f,.095f,.035f,.95f);outline.effectDistance=new Vector2(1.5f,-1.5f);var shadow=text.gameObject.AddComponent<Shadow>();shadow.effectColor=new Color(.09f,.07f,.04f,.6f);shadow.effectDistance=new Vector2(0,-3);}
+        public static void Typography(Text text,bool heading=false){text.font=Font;text.fontStyle=heading?FontStyle.Bold:FontStyle.Normal;text.color=Cream;text.resizeTextForBestFit=true;text.resizeTextMinSize=Mathf.Min(text.fontSize,Mathf.Max(8,text.fontSize-4));text.resizeTextMaxSize=text.fontSize;text.verticalOverflow=VerticalWrapMode.Truncate;var outline=text.gameObject.AddComponent<Outline>();outline.effectColor=new Color(.19f,.095f,.035f,.95f);outline.effectDistance=new Vector2(1.5f,-1.5f);var shadow=text.gameObject.AddComponent<Shadow>();shadow.effectColor=new Color(.09f,.07f,.04f,.6f);shadow.effectDistance=new Vector2(0,-3);}
         public static void StyleButton(Button button,bool primary=false){
-            var image=button.GetComponent<Image>();image.sprite=TropicalUIArt.Get(primary?"WoodButtonGold":"WoodButton");image.type=image.sprite.border.sqrMagnitude>.01f?UnityEngine.UI.Image.Type.Sliced:UnityEngine.UI.Image.Type.Simple;image.color=Color.white;image.raycastTarget=true;
+            var image=button.GetComponent<Image>();image.sprite=TropicalUIArt.Get(primary?"WoodButtonGold":"WoodButton");image.type=image.sprite.border.sqrMagnitude>.01f?UnityEngine.UI.Image.Type.Sliced:UnityEngine.UI.Image.Type.Simple;image.color=Color.white;image.raycastTarget=true;image.pixelsPerUnitMultiplier=1.4f;
             var shadow=button.gameObject.AddComponent<Shadow>();shadow.effectDistance=new Vector2(0,-4);shadow.effectColor=new Color(.11f,.065f,.02f,.45f);
             var colors=button.colors;colors.normalColor=Color.white;colors.highlightedColor=new Color(1,1,.86f);colors.pressedColor=new Color(.82f,.76f,.66f);colors.disabledColor=new Color(.48f,.47f,.43f,.86f);colors.fadeDuration=.1f;button.colors=colors;
             button.onClick.AddListener(GameMusic.PlayButtonClick);
-            button.gameObject.AddComponent<CartoonButtonMotion>();
+            button.gameObject.AddComponent<CartoonButtonMotion>();EnsureTouchTarget(button);
         }
+        public static void EnsureTouchTarget(Button button){if(Application.isMobilePlatform&&button.GetComponent<CartoonMinimumTouchTarget>()==null)button.gameObject.AddComponent<CartoonMinimumTouchTarget>();}
+    }
+    /// <summary>Small desktop controls retain a physical finger target on mobile screens.</summary>
+    public sealed class CartoonMinimumTouchTarget:MonoBehaviour
+    {
+        RectTransform rect;Canvas canvas;
+        void Awake(){rect=(RectTransform)transform;canvas=GetComponentInParent<Canvas>();}
+        void LateUpdate(){if(canvas==null)return;float minimum=52/Mathf.Max(.1f,canvas.scaleFactor);if(rect.rect.width<minimum)rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal,minimum);if(rect.rect.height<minimum)rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical,minimum);}
     }
     public sealed class CartoonButtonMotion:MonoBehaviour,IPointerEnterHandler,IPointerExitHandler,IPointerDownHandler,IPointerUpHandler
     {

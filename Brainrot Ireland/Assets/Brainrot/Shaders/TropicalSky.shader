@@ -2,8 +2,8 @@ Shader "Brainrot/TropicalSky"
 {
  Properties
  {
-  _Zenith("Зенит",Color)=(.27,.57,.81,1)
-  _Horizon("Горизонт",Color)=(.73,.86,.91,1)
+  _Zenith("Зенит",Color)=(.21,.63,.91,1)
+  _Horizon("Горизонт",Color)=(.69,.88,.97,1)
   _SunDirection("Направление солнца",Vector)=(.4,.7,.3,0)
  }
  SubShader
@@ -37,7 +37,7 @@ Shader "Brainrot/TropicalSky"
     float cloud=Noise(p)*.70+Noise(p*2.12+7.3)*.23+Noise(p*4.1-3.7)*.07;
     float upper=Noise(p+float2(0,.08))*.70+Noise(p*2.12+7.3+float2(0,.08))*.23;
     half mask=smoothstep(.57,.69,cloud)*smoothstep(.07,.19,height)*(1-smoothstep(.61,.91,height));
-    half3 cloudColor=lerp(half3(.76,.85,.91),half3(1,.985,.94),saturate(.5+(cloud-upper)*4));
+    half3 cloudColor=lerp(half3(.79,.90,1),half3(1,.985,.94),saturate(.5+(cloud-upper)*4));
     color=lerp(color,cloudColor,mask*.91);
     // Fog-coloured lower hemisphere keeps a full camera orbit clean below the water horizon.
     color=lerp(_Horizon.rgb,color,smoothstep(-.16,.04,d.y));

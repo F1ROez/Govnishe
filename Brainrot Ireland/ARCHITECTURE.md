@@ -31,3 +31,7 @@ SahurModelImporter настраивает Generic FBX, создаёт URP мат
 GameMusic — единственный DontDestroyOnLoad координатор трёх AudioSource (menu/game/UI). MusicShuffleBag даёт полный случайный цикл без немедленного повтора между циклами. GameManager.SetState и MenuBootstrap управляют режимом; SceneFlow отключает menu AudioListener перед созданием/восстановлением игровой камеры. UI click не зависит от lifetime нажатой кнопки. Mute отдельный sessionflag, громкость применяется ровно через AudioListener.
 
 TropicalUIArt создаёт sprites из общего Texture2D по JSON, текст/полосы остаются uGUI. TropicalUIImporter фиксирует Texture2D/NPOT None/max4096/no mip/no compression для atlas. Все декоративные images raycastTarget=false, сам Button остаётся raycastTarget=true; существующий тест паузы сохранён. Без PNG/JSON предусмотрен процедурный fallback.
+
+## Обновление профиля света
+
+WorldAtmosphere.ApplyDaylight обновляет компоненты VolumeProfile на месте; существующие TryGet не дублируются. Editor EnsureAtmosphere фиксирует одноразовую версию в AssetImporter.userData (Brainrot.DaylightPreset=2), сохраняет GUID и subassets. После миграции ручные правки профиля не затираются повторной генерацией. Новый ToonCharacter корректно выдаёт HDR в тональную компрессию вместо раннего saturate, светлая сторона/тени согласованы с окружением.

@@ -12,8 +12,9 @@ namespace Brainrot.Tests {
    yield return null; // Let the actual runtime Animator and model calibration evaluate their first frame.
    var skin=actor.GetComponentInChildren<SkinnedMeshRenderer>();Assert.IsTrue(skin.enabled);Assert.IsTrue(skin.updateWhenOffscreen);
    var material=skin.sharedMaterial;
+   Assert.AreEqual("Brainrot/ToonCharacter",material.shader.name);Assert.IsNotNull(material.GetTexture("_BaseMap"));
    foreach(string slot in new[]{"_MainTex","_BaseMap","_BumpMap","_MetallicGlossMap"}){
-    Assert.IsTrue(material.HasProperty(slot),"Отсутствует слот материала: "+slot);
+    if(!material.HasProperty(slot))continue;
     var texture=material.GetTexture(slot);Assert.IsNotNull(texture,"Карта не загрузилась: "+slot);
     Assert.IsInstanceOf<Texture2D>(texture,"Для материала Сахура требуется 2D-карта: "+slot);
    }

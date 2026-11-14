@@ -28,11 +28,15 @@ namespace Brainrot.Editor
             Texture2D albedo=Texture(Source+"Material_ALB.png",false,true);
             Texture2D normal=Texture(Source+"Material_NRM.png",true,false);
             var material=AssetDatabase.LoadAssetAtPath<Material>(Output+"Sahur.mat");
-            if(material==null){material=new Material(Shader.Find("Universal Render Pipeline/Lit")){name="Сахур — материал владельца"};material.SetColor("_BaseColor",Color.white);material.SetFloat("_Smoothness",.42f);AssetDatabase.CreateAsset(material,Output+"Sahur.mat");}
+            var skinShader=Shader.Find("Brainrot/ToonCharacter")??Shader.Find("Universal Render Pipeline/Lit");
+            if(material==null){material=new Material(skinShader){name="Сахур — яркое дерево"};AssetDatabase.CreateAsset(material,Output+"Sahur.mat");}
+            else material.shader=skinShader;
+            material.SetColor("_BaseColor",Color.white);
+            if(material.HasProperty("_Brightness")){material.SetFloat("_Brightness",1.15f);material.SetFloat("_Saturation",1.2f);material.SetFloat("_TextureSoftening",.10f);}
             ClearNon2DMaps(material);
-            if(albedo!=null){material.SetTexture("_BaseMap",albedo);material.SetTexture("_MainTex",albedo);}
-            if(normal!=null){material.SetTexture("_BumpMap",normal);material.SetFloat("_BumpScale",.55f);material.EnableKeyword("_NORMALMAP");}
-            var packed=Smoothness();if(packed!=null){material.SetTexture("_MetallicGlossMap",packed);material.SetFloat("_Metallic",0);material.SetFloat("_Smoothness",1);material.EnableKeyword("_METALLICSPECGLOSSMAP");}
+            if(albedo!=null){material.SetTexture("_BaseMap",albedo);if(material.HasProperty("_MainTex"))material.SetTexture("_MainTex",albedo);}
+            if(normal!=null&&material.HasProperty("_BumpMap")){material.SetTexture("_BumpMap",normal);material.SetFloat("_BumpScale",.55f);material.EnableKeyword("_NORMALMAP");}
+            if(material.HasProperty("_MetallicGlossMap")){var packed=Smoothness();if(packed!=null){material.SetTexture("_MetallicGlossMap",packed);material.SetFloat("_Metallic",0);material.SetFloat("_Smoothness",1);material.EnableKeyword("_METALLICSPECGLOSSMAP");}}
             EditorUtility.SetDirty(material);
             var root=new GameObject("Сахур — импортированная модель");
             try

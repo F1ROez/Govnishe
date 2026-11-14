@@ -116,3 +116,11 @@ UI: единая rounded nine-slice тема и оригинальные anti-al
 Скачаны8 MP3 оригинальными байтами; Git SHA совпадают, ffprobe разобрал все файлы. Длины gameplay34–218с, menu13.79с, click1.03с. AudioImporter Unity6 API сверены с UnityCsReference: preloadAudioData в defaultSampleSettings, старое obsolete importer-свойство не используется. Persistent GameMusic со streaming shufflebag, отдельным menu loop/UI click, сохранением позиции игры и sessionmute. Menu AudioListener добавлен; SceneFlow отключает его до InitializeWorld, чтобы не получить двойной слушатель. Gameplay SetState/StartRun/Settings/buttons интегрированы.
 
 Статическая проверка55 C#/JSON/asmdef/GUID/diff пройдена;34 теста подготовлены (новые material/playlist/atlas, расширен scene continuation audio mode). Unity/HLSL/PlayMode, фактическое звучание и UI кадр в этой среде не выполнялись.
+
+## 2026-11-14 — компактный UI и светлый candy-проход
+
+UI агент уменьшил anchors поэлементно (без сдвига всегоHUD): vitals31.5×20→24×15%, wave35×11→24×8.2%, ability11.6×25.5→7.5×18.5%, controls97×9.2→60×4.3%. Main buttons−21%w/−26%h, pause−19%. Nine-slice multiplier1.35/1.4 утончил рамки, минимальный touch52px на Android. Music/raycast сохранены. На паузе dim57→28%.
+
+World агент изменил palette/ambient/fill/shadow strength.4, яркие turquoise oceancolors78% плюс22% старых настроек. Root исправил важную причину отсутствия эффекта прошлых правок: старый сохранённый VolumeProfile ранее никогда не обновлялся. Добавлена одноразовая миграция v2 в meta userData без сменыGUID, компонентные subassets сохраняются. Exposure-.12→+.30, saturation5→14, contrast4→-4, vignette0. Toon shadowfloor.70→.88, shadeRGB.56/.66/.83→.78/.85/.96, преждевременный saturate перед tonemap убран. Sahur материал переведён на toon с безопасными HasProperty guards для normal/metallic, исходники не тронуты.
+
+Новый DaylightProfileTests проверяет обновление прежнего тёмного профиля без дублирования, ImportedModelTests обновлён под toon. Независимый read-only review не нашёл concrete API/scope blockers; generic VolumeProfile Add/TryGet сверены с Unity Graphics6000.3 source. Static56C#/JSON/asmdef/GUID/diff проверки пройдены;35 тестов подготовлены. Unity/HLSL/PlayMode и фактический кадр не выполнялись.

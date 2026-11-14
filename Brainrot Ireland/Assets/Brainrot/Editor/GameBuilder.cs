@@ -51,10 +51,14 @@ namespace Brainrot.Editor {
   }
   static void EnsureAtmosphere(){
    const string path=Root+"/Resources/IslandAtmosphere.asset";
-   if(AssetDatabase.LoadAssetAtPath<VolumeProfile>(path)!=null)return;
-   var profile=WorldAtmosphere.CreateProfile(true);AssetDatabase.CreateAsset(profile,path);
-   foreach(var component in profile.components)AssetDatabase.AddObjectToAsset(component,profile);
+   var profile=AssetDatabase.LoadAssetAtPath<VolumeProfile>(path);const string marker="Brainrot.DaylightPreset=2";
+   var settings=AssetImporter.GetAtPath(path);
+   if(profile!=null&&settings!=null&&(settings.userData??"").Contains(marker))return;
+   if(profile==null){profile=WorldAtmosphere.CreateProfile(true);AssetDatabase.CreateAsset(profile,path);}
+   else WorldAtmosphere.ApplyDaylight(profile,true);
+   foreach(var component in profile.components){if(!AssetDatabase.Contains(component))AssetDatabase.AddObjectToAsset(component,profile);EditorUtility.SetDirty(component);}
    EditorUtility.SetDirty(profile);AssetDatabase.SaveAssets();
+   settings=AssetImporter.GetAtPath(path);if(settings!=null){settings.userData=(settings.userData??"")+"\n"+marker;AssetDatabase.WriteImportSettingsIfDirty(path);}
   }
   [MenuItem("Tools/TungTung/Создать или обновить игру")]
   [MenuItem("Tools/TungTung/Build Game")] public static void BuildGame(){
