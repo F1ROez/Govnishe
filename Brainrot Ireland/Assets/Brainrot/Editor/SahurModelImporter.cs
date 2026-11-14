@@ -74,13 +74,37 @@ namespace Brainrot.Editor
         {
             string path=Output+"MetallicSmoothness.png";
             if(!File.Exists(path)){
-                var importer=AssetImporter.GetAtPath(Source+"Material_RGH.png") as TextureImporter;if(importer==null)return null;
-                bool readable=importer.isReadable;importer.isReadable=true;importer.sRGBTexture=false;importer.maxTextureSize=1024;importer.SaveAndReimport();
-                var rough=AssetDatabase.LoadAssetAtPath<Texture2D>(Source+"Material_RGH.png");var pixels=rough.GetPixels32();
-                for(int i=0;i<pixels.Length;i++)pixels[i]=new Color32(0,0,0,(byte)(255-pixels[i].r));
-                var packed=new Texture2D(rough.width,rough.height,TextureFormat.RGBA32,false,true);packed.SetPixels32(pixels);packed.Apply();File.WriteAllBytes(path,packed.EncodeToPNG());UnityEngine.Object.DestroyImmediate(packed);
-                importer.isReadable=readable;importer.SaveAndReimport();AssetDatabase.ImportAsset(path);
-                var output=AssetImporter.GetAtPath(path) as TextureImporter;output.sRGBTexture=false;output.maxTextureSize=1024;output.SaveAndReimport();
+                string source=Source+"Material_RGH.png";
+                if(!File.Exists(source)){Debug.LogWarning("Карта шероховатости Сахура отсутствует. Используется обычная гладкость материала.");return null;}
+                // Read the PNG directly: SaveAndReimport can leave LoadAssetAtPath null during an import refresh.
+                // This also avoids changing the owner's source TextureImporter settings.
+                Texture2D rough=null,packed=null;
+                try{
+                    rough=new Texture2D(2,2,TextureFormat.RGBA32,false,true);
+                    if(!ImageConversion.LoadImage(rough,File.ReadAllBytes(source),false)){
+                        Debug.LogWarning("Не удалось прочитать карту шероховатости Сахура. Используется обычная гладкость материала.");return null;
+                    }
+                    var pixels=rough.GetPixels32();
+                    for(int i=0;i<pixels.Length;i++)pixels[i]=new Color32(0,0,0,(byte)(255-pixels[i].r));
+                    packed=new Texture2D(rough.width,rough.height,TextureFormat.RGBA32,false,true);
+                    packed.SetPixels32(pixels);packed.Apply();
+                    var png=packed.EncodeToPNG();
+                    if(png==null||png.Length==0){Debug.LogWarning("Не удалось создать карту гладкости Сахура.");return null;}
+                    File.WriteAllBytes(path,png);
+                }
+                catch(Exception exception){Debug.LogWarning("Карта гладкости Сахура пропущена: "+exception.Message);return null;}
+                finally{
+                    if(packed!=null)UnityEngine.Object.DestroyImmediate(packed);
+                    if(rough!=null)UnityEngine.Object.DestroyImmediate(rough);
+                }
+            }
+            // Register the generated file synchronously before asking Unity for its importer.
+            AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
+            AssetDatabase.ImportAsset(path,ImportAssetOptions.ForceSynchronousImport|ImportAssetOptions.ForceUpdate);
+            var output=AssetImporter.GetAtPath(path) as TextureImporter;
+            if(output==null){Debug.LogWarning("Карта гладкости ещё недоступна в AssetDatabase. Модель создаётся с обычной гладкостью материала.");return null;}
+            if(output.textureType!=TextureImporterType.Default||output.sRGBTexture||output.maxTextureSize!=1024){
+                output.textureType=TextureImporterType.Default;output.sRGBTexture=false;output.maxTextureSize=1024;output.SaveAndReimport();
             }
             return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
         }
