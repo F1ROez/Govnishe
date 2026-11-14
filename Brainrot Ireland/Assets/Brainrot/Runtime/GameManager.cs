@@ -19,11 +19,12 @@ namespace Brainrot {
    Spawner=gameObject.AddComponent<EnemySpawner>(); Upgrades=gameObject.AddComponent<UpgradeSystem>();
    ui=gameObject.AddComponent<UIManager>(); ui.Initialize(); SetState(GameState.Menu);
   }
+  void Start(){if(initialized)UIInputRouter.EnsureForScene(gameObject.scene);}
   void Update(){ if(!initialized)return;if(GameInput.Pause){if(State==GameState.Map)CloseMap();else if(IsPlaying)Pause();else if(State==GameState.Paused)Resume();}
    if(IsPlaying){Elapsed+=Time.deltaTime;Spawner.Tick(Time.deltaTime);}
    if(Time.unscaledTime>noticeUntil) Notification=""; ui.Refresh();
   }
-  void SetState(GameState value){ if(value!=GameState.Playing&&Player!=null)Player.CancelAttacks();State=value;Time.timeScale=IsPlaying?1:0; bool lockMouse=IsPlaying&&!Application.isMobilePlatform;Cursor.lockState=lockMouse?CursorLockMode.Locked:CursorLockMode.None;Cursor.visible=!lockMouse; MobileInput.Move=Vector2.zero;MobileInput.Look=Vector2.zero;MobileInput.Attack=false;MobileInput.Sprint=false;MobileInput.Dash=false; }
+  void SetState(GameState value){ if(value!=GameState.Playing&&Player!=null)Player.CancelAttacks();State=value;if(value==GameState.Paused||value==GameState.Dead)UIInputRouter.EnsureForScene(gameObject.scene);Time.timeScale=IsPlaying?1:0; bool lockMouse=IsPlaying&&!Application.isMobilePlatform;Cursor.lockState=lockMouse?CursorLockMode.Locked:CursorLockMode.None;Cursor.visible=!lockMouse; MobileInput.Move=Vector2.zero;MobileInput.Look=Vector2.zero;MobileInput.Attack=false;MobileInput.Sprint=false;MobileInput.Dash=false; }
   public void StartRun(){HasRun=true;Spawner.ResetRun();Elapsed=0;Kills=0;Notification="";Player.ResetRun();Upgrades.ResetRun();SetState(GameState.Playing);Notify("Акулы выходят из океана. Продержитесь как можно дольше.",5);}
   public void OpenMap(){if(IsPlaying)SetState(GameState.Map);}
   public void CloseMap(){if(State==GameState.Map)SetState(GameState.Playing);}

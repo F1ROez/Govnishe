@@ -17,7 +17,7 @@ namespace Brainrot.Editor
         void OnGUI()
         {
             if (profile == null) profile = GameBuilder.EnsureBalance();
-            EditorGUILayout.LabelField("Брейнрот Ирландия — настройки острова", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("Брейнрот Ирландия — настройки острова", new GUIStyle(EditorStyles.boldLabel) { wordWrap = true });
             EditorGUILayout.HelpBox("Маленький остров и обычные акулы. Волны имеют тихое начало и конец, пик в середине. Короткое нажатие ЛКМ — обычный удар, удержание и отпускание — сильный. Прокачка отключена.", MessageType.Info);
             using (new EditorGUILayout.HorizontalScope())
             {
@@ -34,8 +34,8 @@ namespace Brainrot.Editor
                 }
             }
             EditorGUILayout.Space();
-            EditorGUILayout.LabelField("Волна: "+profile.Waves.Duration+" с, передышка: "+profile.Waves.Rest+" с");
-            EditorGUILayout.LabelField("Спавн: "+profile.Waves.SlowInterval+" с по краям → "+profile.Waves.PeakInterval+" с на пике");
+            EditorGUILayout.LabelField("Волна: "+profile.Waves.Duration+" с, передышка: "+profile.Waves.Rest+" с", EditorStyles.wordWrappedLabel);
+            EditorGUILayout.LabelField("Спавн: "+profile.Waves.SlowInterval+" с по краям → "+profile.Waves.PeakInterval+" с на пике", EditorStyles.wordWrappedLabel);
             EditorGUILayout.HelpBox("Разделы: игрок, бой, волны, физика тел, акула и океан. Правки сохраняются в профиле, Ctrl+Z отменяет изменения.",MessageType.None);
             scroll = EditorGUILayout.BeginScrollView(scroll);
             UnityEditor.Editor.CreateCachedEditor(profile, null, ref inspector);

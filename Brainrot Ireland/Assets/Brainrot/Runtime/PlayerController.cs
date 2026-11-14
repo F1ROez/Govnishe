@@ -31,7 +31,7 @@ namespace Brainrot {
    Character=Character!=null?Character:PlayerCharacterDefinition.Default;
    visual=CharacterVisual.CreatePlayer(transform,Character.VisualStyle,Character.BodyColor,Character.VisualScale);
    combat=gameObject.AddComponent<CombatSystem>();combat.Initialize(this,visual);
-   var cameraGo=new GameObject("Arena Camera");cam=cameraGo.AddComponent<Camera>();cam.fieldOfView=62;cam.clearFlags=CameraClearFlags.SolidColor;cam.backgroundColor=new Color(.40f,.78f,.89f);cam.nearClipPlane=.15f;cam.farClipPlane=500;cameraGo.AddComponent<AudioListener>();
+   var cameraGo=new GameObject("Arena Camera");cam=cameraGo.AddComponent<Camera>();cam.fieldOfView=62;cam.clearFlags=CameraClearFlags.Skybox;cam.backgroundColor=new Color(.40f,.78f,.89f);cam.nearClipPlane=.15f;cam.farClipPlane=500;cameraGo.AddComponent<AudioListener>();
    var outline=new GameObject("Bat reach").AddComponent<AttackRangeVisual>();outline.Initialize(this);combat.SetRangeVisual(outline);
    ResetRun();
   }

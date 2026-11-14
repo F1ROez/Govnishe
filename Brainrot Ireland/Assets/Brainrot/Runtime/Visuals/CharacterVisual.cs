@@ -7,7 +7,8 @@ namespace Brainrot
     {
         public Transform Weapon;
         public Transform WeaponTip;
-        public bool AttackActive => attackRemaining > 0;
+        ImportedSahurVisual imported;
+        public bool AttackActive => imported!=null?imported.AttackActive:attackRemaining > 0;
         TrailRenderer batTrail;
         float attackRemaining, attackDuration = .32f;
         Vector3 weaponRestPosition;
@@ -37,7 +38,14 @@ namespace Brainrot
         }
         public static CharacterVisual CreatePlayer(Transform parent,PlayerVisualStyle style,Color color,float size=1)
         {
-            // Imported rigs can add a new visual style without changing movement or combat.
+            var prefab=Resources.Load<GameObject>("ImportedSahur");
+            if(prefab!=null){
+                var go=Object.Instantiate(prefab,parent,false);go.name="Тун-Тун Сахур — модель владельца";go.transform.localScale=Vector3.one*size;
+                var c=go.AddComponent<CharacterVisual>();c.imported=go.GetComponent<ImportedSahurVisual>();
+                if(c.imported!=null){c.Weapon=c.imported.Weapon;c.WeaponTip=c.imported.WeaponTip;c.CacheFeedbackRenderers();return c;}
+                Object.Destroy(go);
+            }
+            Debug.LogWarning("Импортированная модель Сахура ещё не создана. Выполните Tools → TungTung → Создать или обновить игру. Пока используется временная модель.");
             return CreateInternal(parent,-1,color,size);
         }
         public static CharacterVisual CreateEnemy(Transform parent,EnemyKind kind,Color color,float size=1)
@@ -288,6 +296,7 @@ namespace Brainrot
         }
         public void SetAttackReach(float worldRange)
         {
+            if(imported!=null){imported.SetAttackReach(worldRange);return;}
             if(Weapon==null||WeaponTip==null)return;
             float bodyScale=Mathf.Max(.1f,Mathf.Abs(transform.lossyScale.z));
             float tip=Mathf.Max(.1f,WeaponTip.localPosition.z);
@@ -295,6 +304,7 @@ namespace Brainrot
         }
         public void PlayAttack(float duration=.32f)
         {
+            if(imported!=null){imported.PlayAttack(duration);return;}
             if(Weapon==null)return;
             attackDuration=Mathf.Max(.15f,duration);attackRemaining=attackDuration;
             if(batTrail!=null){batTrail.emitting=false;batTrail.Clear();}
@@ -319,6 +329,10 @@ namespace Brainrot
         }
         void Update()
         {
+            if(imported!=null){
+                if(flashRemaining>0){flashRemaining=Mathf.Max(0,flashRemaining-Time.deltaTime);if(flashRemaining<=0)ResetFeedback();else ApplyFeedback(flashStrength*flashRemaining/flashDuration);}
+                return;
+            }
             if(Weapon!=null&&GameManager.Instance!=null&&!GameManager.Instance.IsPlaying)ResetAttack();
             else TickAttack(Time.deltaTime);
             if(isShark&&biteRemaining>0&&GameManager.Instance!=null&&GameManager.Instance.IsPlaying){
@@ -341,6 +355,7 @@ namespace Brainrot
         }
         public void ResetAttack()
         {
+            if(imported!=null){imported.ResetAttack();return;}
             attackRemaining=0;
             if(Weapon!=null){Weapon.localPosition=weaponRestPosition;Weapon.localRotation=weaponRestRotation;Weapon.localScale=Vector3.one;}
             if(batTrail!=null){batTrail.emitting=false;batTrail.Clear();}
@@ -352,6 +367,7 @@ namespace Brainrot
         public void ResetBite(){biteRemaining=0;if(body!=null){body.localPosition=bodyPosition;body.localRotation=Quaternion.identity;}}
         public void Animate(float speed,bool attacking)
         {
+            if(imported!=null){imported.Animate(speed,attacking);return;}
             float intensity=Mathf.Clamp01(speed/3);
             phase+=Time.deltaTime*(3+Mathf.Abs(speed)*2.5f);
             float swing=Mathf.Sin(phase)*32*intensity;

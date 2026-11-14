@@ -41,14 +41,7 @@ namespace Brainrot
             canvas = root.GetComponent<Canvas>(); canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             var scale = root.GetComponent<CanvasScaler>(); scale.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scale.referenceResolution = new Vector2(1280, 720); scale.matchWidthOrHeight = .5f;
-            if (FindFirstObjectByType<EventSystem>() == null) {
-                var events=new GameObject("Event System",typeof(EventSystem));
-#if ENABLE_INPUT_SYSTEM
-                events.AddComponent<InputSystemUIInputModule>().AssignDefaultActions();
-#else
-                events.AddComponent<StandaloneInputModule>();
-#endif
-            }
+            UIInputRouter.EnsureForScene(gameObject.scene);
             hud = Box("HUD", root.transform, Vector2.zero, Vector2.one, Color.clear);
             var plate = Box("Vitals", hud.transform, new Vector2(.025f,.79f),new Vector2(.34f,.965f),new Color(.03f,.1f,.16f,.85f));
             healthText = Label(plate.transform,"ЗДОРОВЬЕ",23,TextAnchor.MiddleLeft,new Vector2(.06f,.62f),new Vector2(.94f,.97f));
@@ -142,9 +135,9 @@ namespace Brainrot
             ClearScreen();var gm=GameManager.Instance;
             if(gm.State==GameState.Menu)
             {
-                Label(overlay.transform,"ПЯТЬ ЗОН. ОДИН ОСТРОВ. ТВОЯ ИСТОРИЯ.",19,TextAnchor.MiddleCenter,new Vector2(.1f,.82f),new Vector2(.9f,.9f)).color=cyan;
+                Label(overlay.transform,"МАЛЕНЬКИЙ ОСТРОВ. БОЛЬШИЕ НЕПРИЯТНОСТИ.",19,TextAnchor.MiddleCenter,new Vector2(.1f,.82f),new Vector2(.9f,.9f)).color=cyan;
                 Label(overlay.transform,"БРЕЙНРОТ\nИРЛАНДИЯ",56,TextAnchor.MiddleCenter,new Vector2(.1f,.56f),new Vector2(.9f,.83f)).color=gold;
-                Label(overlay.transform,"Исследуй остров. Выбирай риск. Держи биту крепче.",23,TextAnchor.MiddleCenter,new Vector2(.1f,.47f),new Vector2(.9f,.55f));
+                Label(overlay.transform,"Выживай среди акул. Держи биту крепче.",23,TextAnchor.MiddleCenter,new Vector2(.1f,.47f),new Vector2(.9f,.55f));
                 MenuButton("ПРОДОЛЖИТЬ ИГРУ",.39f,()=>gm.ResumeRun());MenuButton("НОВАЯ ИГРА",.30f,()=>gm.StartRun());MenuButton("РЕКОРДЫ",.21f,ShowRecords);MenuButton("НАСТРОЙКИ",.12f,ShowSettings);MenuButton("ВЫХОД",.03f,()=>gm.Quit());
             }
             else if(gm.State==GameState.Paused)

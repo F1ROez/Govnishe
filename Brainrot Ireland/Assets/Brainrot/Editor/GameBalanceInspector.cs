@@ -114,11 +114,16 @@ namespace Brainrot.Editor
 
         void DrawProperty(SerializedProperty property)
         {
+            if (Hidden.Contains(property.name)) return;
             var label = Label(property);
             if (property.propertyType == SerializedPropertyType.Generic && !property.isArray)
             {
                 EditorGUILayout.Space(3);
-                property.isExpanded = EditorGUILayout.Foldout(property.isExpanded, label, true);
+                var foldoutStyle = new GUIStyle(EditorStyles.foldout) { wordWrap = true, fixedHeight = 0 };
+                float available = Mathf.Max(120, EditorGUIUtility.currentViewWidth - 44 - EditorGUI.indentLevel * 15);
+                float height = Mathf.Max(EditorGUIUtility.singleLineHeight, foldoutStyle.CalcHeight(label, available));
+                var foldoutRect = EditorGUILayout.GetControlRect(false, height);
+                property.isExpanded = EditorGUI.Foldout(foldoutRect, property.isExpanded, label, true, foldoutStyle);
                 if (!property.isExpanded) return;
                 EditorGUI.indentLevel++;
                 var child = property.Copy();
@@ -137,19 +142,24 @@ namespace Brainrot.Editor
             FieldInfo field = FindField(property);
             var range = field != null ? Attribute.GetCustomAttribute(field, typeof(RangeAttribute)) as RangeAttribute : null;
             var min = field != null ? Attribute.GetCustomAttribute(field, typeof(MinAttribute)) as MinAttribute : null;
+            // Place the full Russian label above its editor. Long text cannot steal slider width.
+            EditorGUILayout.LabelField(label, EditorStyles.wordWrappedLabel,
+                GUILayout.MinHeight(EditorStyles.wordWrappedLabel.CalcHeight(label,
+                    Mathf.Max(120, EditorGUIUtility.currentViewWidth - 48 - EditorGUI.indentLevel * 15))));
+            var fieldLabel = GUIContent.none;
             switch (property.propertyType)
             {
                 case SerializedPropertyType.Float:
-                    float value = range != null ? EditorGUILayout.Slider(label, property.floatValue, range.min, range.max) : EditorGUILayout.FloatField(label, property.floatValue);
+                    float value = range != null ? EditorGUILayout.Slider(fieldLabel, property.floatValue, range.min, range.max) : EditorGUILayout.FloatField(fieldLabel, property.floatValue);
                     property.floatValue = min != null ? Mathf.Max(min.min, value) : value;
                     break;
                 case SerializedPropertyType.Integer:
-                    int integer = range != null ? EditorGUILayout.IntSlider(label, property.intValue, Mathf.CeilToInt(range.min), Mathf.FloorToInt(range.max)) : EditorGUILayout.IntField(label, property.intValue);
+                    int integer = range != null ? EditorGUILayout.IntSlider(fieldLabel, property.intValue, Mathf.CeilToInt(range.min), Mathf.FloorToInt(range.max)) : EditorGUILayout.IntField(fieldLabel, property.intValue);
                     property.intValue = min != null ? Mathf.Max(Mathf.CeilToInt(min.min), integer) : integer;
                     break;
-                case SerializedPropertyType.Boolean: property.boolValue = EditorGUILayout.Toggle(label, property.boolValue); break;
-                case SerializedPropertyType.Color: property.colorValue = EditorGUILayout.ColorField(label, property.colorValue); break;
-                default: EditorGUILayout.PropertyField(property, label, true); break;
+                case SerializedPropertyType.Boolean: property.boolValue = EditorGUILayout.Toggle(fieldLabel, property.boolValue); break;
+                case SerializedPropertyType.Color: property.colorValue = EditorGUILayout.ColorField(fieldLabel, property.colorValue); break;
+                default: EditorGUILayout.PropertyField(property, fieldLabel, true); break;
             }
         }
 

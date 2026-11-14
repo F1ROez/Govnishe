@@ -41,8 +41,7 @@ namespace Brainrot
             HomeZone = IslandMap.GetZone(position);
             HomePosition = position;
             HomePosition = new Vector3(HomePosition.x, 0, HomePosition.z);
-            transform.position = HomePosition;
-            transform.rotation = Quaternion.Euler(0, Random.Range(0, 360), 0);
+            PhysicsBody.PrepareSpawn(HomePosition,Quaternion.Euler(0, Random.Range(0, 360), 0));
             MaxHealth = Health = Mathf.Max(1, tuning.Health) * Mathf.Max(1, difficulty);
             speed = Mathf.Max(.1f, tuning.Speed);
             damage = Mathf.Max(0, tuning.Damage) * Mathf.Sqrt(Mathf.Max(1, difficulty));

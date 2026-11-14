@@ -23,6 +23,7 @@ namespace Brainrot {
 #endif
    Main();
   }
+  void Start(){UIInputRouter.EnsureForScene(gameObject.scene);}
   void Update(){if(continueButton!=null)continueButton.interactable=!SceneFlow.Instance.Busy&&GameManager.Instance!=null&&GameManager.Instance.HasRun;if(newButton!=null)newButton.interactable=!SceneFlow.Instance.Busy;}
   void Clear(){foreach(Transform child in panel.transform){child.gameObject.SetActive(false);Destroy(child.gameObject);}continueButton=newButton=null;}
   void Main(){Clear();Text(panel.transform,"БРЕЙНРОТ\nИРЛАНДИЯ",42,.75f,.97f);continueButton=Button("ПРОДОЛЖИТЬ ИГРУ",.60f,()=>SceneFlow.Instance.Play(false));newButton=Button("НОВАЯ ИГРА",.47f,()=>SceneFlow.Instance.Play(true));Button("НАСТРОЙКИ",.34f,Settings);Button("РЕКОРДЫ",.21f,Records);Button("ВЫХОД",.08f,()=>Application.Quit());}
@@ -31,7 +32,7 @@ namespace Brainrot {
    Clear();Text(panel.transform,"НАСТРОЙКИ",32,.79f,.95f);
    Button("ГРОМКОСТЬ: "+Mathf.RoundToInt(SaveSystem.Data.Volume*100)+"%",.62f,()=>{SaveSystem.Data.Volume=SaveSystem.Data.Volume>=.99f?0:Mathf.Min(1,SaveSystem.Data.Volume+.1f);AudioListener.volume=SaveSystem.Data.Volume;SaveSystem.Save();Settings();});
    Button("ЧУВСТВИТЕЛЬНОСТЬ: "+SaveSystem.Data.Sensitivity.ToString("0.#"),.49f,()=>{SaveSystem.Data.Sensitivity=SaveSystem.Data.Sensitivity>=3?.5f:Mathf.Min(3,SaveSystem.Data.Sensitivity+.5f);SaveSystem.Save();Settings();});
-   Button("ФИКСАЦИЯ КАМЕРЫ: "+(SaveSystem.Data.CameraLocked?"ВКЛ":"ВЫКЛ"),.36f,()=>{if(GameManager.Instance!=null)GameManager.Instance.Player.SetCameraLock(!GameManager.Instance.Player.CameraLocked);else{SaveSystem.Data.CameraLocked=!SaveSystem.Data.CameraLocked;SaveSystem.Data.HasCameraPreference=true;SaveSystem.Save();}Settings();});
+   Button("ФИКСАЦИЯ КАМЕРЫ: "+(SaveSystem.Data.CameraLocked?"ВКЛ":"ВЫКЛ"),.36f,()=>{if(GameManager.Instance!=null&&GameManager.Instance.Player!=null)GameManager.Instance.Player.SetCameraLock(!GameManager.Instance.Player.CameraLocked);else{SaveSystem.Data.CameraLocked=!SaveSystem.Data.CameraLocked;SaveSystem.Data.HasCameraPreference=true;SaveSystem.Save();}Settings();});
    Button("КАЧЕСТВО: "+(SaveSystem.Data.Quality+1),.23f,()=>{int levels=Mathf.Clamp(QualitySettings.names.Length,1,3);SaveSystem.Data.Quality=(SaveSystem.Data.Quality+1)%levels;QualitySettings.SetQualityLevel(SaveSystem.Data.Quality);SaveSystem.Save();Settings();});
    Button("НАЗАД",.08f,Main);
   }

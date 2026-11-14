@@ -18,6 +18,10 @@ namespace Brainrot {
    if((kind!=EnemyKind.Normal&&kind!=EnemyKind.BlueberrinniOctopusini)||Active.Count>=CurrentAliveLimit)return null;
    var enemy=Pool(kind).Get();position.y=0;enemy.Initialize(this,kind,1,position);Active.Add(enemy);return enemy;
   }
+  public static Vector3 OceanSpawnPoint(float angle){
+   float radius=Mathf.Max(28,IslandMap.CoastRadius(angle)+6);
+   return new Vector3(Mathf.Cos(angle),0,Mathf.Sin(angle))*radius;
+  }
   public void Tick(float dt){
    var game=GameManager.Instance;if(game==null||!game.IsPlaying||dt<=0)return;
    Waves.Advance(dt,Active.Count);
@@ -26,7 +30,7 @@ namespace Brainrot {
     spawnClock-=dt;
     if(spawnClock<=0){
      var t=GameBalance.Current.Waves;spawnClock=Interval(t,Waves.Intensity);
-     if(Active.Count<CurrentAliveLimit){float a=Random.Range(0,Mathf.PI*2);Spawn(Waves.Number>=GameBalance.Current.Octopus.FirstWave&&Random.value<GameBalance.Current.Octopus.SpawnChance?EnemyKind.BlueberrinniOctopusini:EnemyKind.Normal,new Vector3(Mathf.Cos(a),0,Mathf.Sin(a))*28);}
+     if(Active.Count<CurrentAliveLimit){float a=Random.Range(0,Mathf.PI*2);Spawn(Waves.Number>=GameBalance.Current.Octopus.FirstWave&&Random.value<GameBalance.Current.Octopus.SpawnChance?EnemyKind.BlueberrinniOctopusini:EnemyKind.Normal,OceanSpawnPoint(a));}
     }
    }
    for(int i=Active.Count-1;i>=0&&game.IsPlaying;i--)if(i<Active.Count)Active[i].Tick(dt);

@@ -12,7 +12,7 @@ namespace Brainrot
             var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
             var m = new Material(shader) { name = name };
             m.color = color; m.enableInstancing=true;
-            if (m.HasProperty("_Smoothness")) m.SetFloat("_Smoothness", .18f);
+            if (m.HasProperty("_Smoothness")) m.SetFloat("_Smoothness", .12f);
             return m;
         }
         public static void Build()
@@ -20,12 +20,12 @@ namespace Brainrot
             var old = GameObject.Find("Procedural Island");
             if (old != null) Object.Destroy(old);
             var root = new GameObject("Procedural Island").transform;
-            sand = Material(new Color(.98f,.78f,.40f), "Honey sand");
+            sand = Material(new Color(.98f,.82f,.52f), "Honey sand");
             grass = Material(new Color(.38f,.72f,.23f), "Lime vegetation");
             bark = Material(new Color(.49f,.28f,.12f), "Palm trunk");
             leaf = Material(new Color(.12f,.55f,.28f), "Palm leaves");
             stone = Material(new Color(.35f,.48f,.52f), "Coastal slate");
-            foam = Material(new Color(.80f,.98f,.96f), "Foam");
+            foam = Material(new Color(.87f,.98f,.92f), "Foam");
             var rng = new System.Random(731);
             Island(root);
             // Physics support below the ocean: tumbling bodies cannot fall forever outside the sand.
@@ -43,7 +43,7 @@ namespace Brainrot
                 waterMat.SetFloat("_WaveStrength",ocean.WaveStrength);
             }
             Primitive("Endless ocean", PrimitiveType.Plane, root, new Vector3(0,-.43f,0), new Vector3(400,1,400), waterMat);
-            Ring(root, "Shore foam", 22.4f, .26f, -.28f, foam, 160);
+            // Animated foam now lives in the water shader; no opaque floating foam ring.
             // Shore colour is blended smoothly by the ocean shader instead of a hard turquoise ring.
             for (int i = 0; i < 13; i++)
             {
@@ -64,20 +64,22 @@ namespace Brainrot
                 var shell=Primitive("Shell",PrimitiveType.Sphere,root,new Vector3(Mathf.Cos(a)*r,.04f,Mathf.Sin(a)*r),new Vector3(.13f,.06f,.18f),foam);
                 shell.transform.Rotate(0,a*Mathf.Rad2Deg,0);
             }
-            if (Object.FindFirstObjectByType<Light>() == null)
-            {
-                var sun = new GameObject("Tropical sun").AddComponent<Light>();
-                sun.type=LightType.Directional; sun.color=new Color(1,.94f,.81f); sun.intensity=1.4f;
-                sun.shadows=LightShadows.Soft; sun.transform.rotation=Quaternion.Euler(48,-35,0);
-            }
-            RenderSettings.ambientMode=AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor=new Color(.49f,.76f,.91f);
-            RenderSettings.ambientEquatorColor=new Color(.43f,.64f,.66f);
-            RenderSettings.ambientGroundColor=new Color(.39f,.32f,.22f);
-            RenderSettings.fog=true; RenderSettings.fogMode=FogMode.ExponentialSquared;
-            RenderSettings.fogColor=new Color(.40f,.78f,.89f); RenderSettings.fogDensity=.0038f;
-            RenderSettings.skybox=null;
+            Light sun=null;
+            foreach(var light in Object.FindObjectsByType<Light>(FindObjectsSortMode.None))if(light.type==LightType.Directional){sun=light;break;}
+            if(sun==null){sun=new GameObject("Тропическое солнце").AddComponent<Light>();sun.transform.SetParent(root,false);sun.type=LightType.Directional;}
+            sun.color=new Color(1,.95f,.84f);sun.intensity=1.15f;sun.shadows=LightShadows.Soft;sun.shadowStrength=.74f;sun.shadowBias=.045f;sun.shadowNormalBias=.22f;sun.transform.rotation=Quaternion.Euler(46,-34,0);
+            RenderSettings.sun=sun;
+            RenderSettings.ambientMode=AmbientMode.Trilight;RenderSettings.ambientIntensity=1;
+            RenderSettings.ambientSkyColor=new Color(.54f,.74f,.87f);
+            RenderSettings.ambientEquatorColor=new Color(.50f,.66f,.67f);
+            RenderSettings.ambientGroundColor=new Color(.45f,.37f,.24f);
+            RenderSettings.fog=true;RenderSettings.fogMode=FogMode.ExponentialSquared;
+            RenderSettings.fogColor=new Color(.62f,.83f,.90f);RenderSettings.fogDensity=.0027f;
+            RenderSettings.reflectionIntensity=.45f;
+            var skyShader=Shader.Find("Brainrot/TropicalSky");
+            if(skyShader!=null){var sky=new Material(skyShader){name="Тропическое небо"};sky.SetColor("_Zenith",new Color(.12f,.44f,.76f));sky.SetColor("_Horizon",RenderSettings.fogColor);sky.SetVector("_SunDirection",-sun.transform.forward);RenderSettings.skybox=sky;}
         }
+
         static void Island(Transform parent)
         {
             const int n=128;

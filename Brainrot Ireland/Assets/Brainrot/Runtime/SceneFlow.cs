@@ -18,9 +18,9 @@ namespace Brainrot {
   IEnumerator ReturnToMenu(){
    if(!Application.CanStreamedLevelBeLoaded(MenuPath)){Debug.LogError("Сцена меню не найдена. Выполните Tools → TungTung → Создать или обновить игру.");yield break;}
    Busy=true;var game=GameManager.Instance;if(game!=null)game.SuspendRun();hidden.Clear();
-   var scene=SceneManager.GetSceneByPath(GamePath);if(scene.IsValid()&&scene.isLoaded)foreach(var root in scene.GetRootGameObjects())foreach(var component in root.GetComponentsInChildren<Behaviour>(true))if(component.enabled&&(component is Camera||component is Canvas||component is AudioListener||component is EventSystem)){component.enabled=false;hidden.Add(component);}
+   var scene=SceneManager.GetSceneByPath(GamePath);if(scene.IsValid()&&scene.isLoaded)foreach(var root in scene.GetRootGameObjects())foreach(var component in root.GetComponentsInChildren<Behaviour>(true))if(component.enabled&&(component is Camera||component is Canvas||component is AudioListener||component is EventSystem||component is BaseInputModule)){component.enabled=false;hidden.Add(component);}
    var menu=SceneManager.GetSceneByPath(MenuPath);if(!menu.isLoaded)yield return SceneManager.LoadSceneAsync(MenuPath,LoadSceneMode.Additive);
-   menu=SceneManager.GetSceneByPath(MenuPath);if(menu.IsValid())SceneManager.SetActiveScene(menu);Busy=false;
+   menu=SceneManager.GetSceneByPath(MenuPath);if(menu.IsValid())SceneManager.SetActiveScene(menu);UIInputRouter.EnsureForScene(menu);Busy=false;
   }
   IEnumerator EnterGame(bool fresh){
    if(!Application.CanStreamedLevelBeLoaded(GamePath)){Debug.LogError("Игровая сцена не найдена. Выполните Tools → TungTung → Создать или обновить игру.");yield break;}
@@ -28,16 +28,9 @@ namespace Brainrot {
    scene=SceneManager.GetSceneByPath(GamePath);var menu=SceneManager.GetSceneByPath(MenuPath);
    if(menu.IsValid()&&menu.isLoaded)foreach(var root in menu.GetRootGameObjects())foreach(var events in root.GetComponentsInChildren<EventSystem>())events.enabled=false;
    SceneManager.SetActiveScene(scene);GameManager.Instance.InitializeWorld();foreach(var b in hidden)if(b!=null)b.enabled=true;hidden.Clear();
-   bool hasEvents=false;foreach(var root in scene.GetRootGameObjects())if(root.GetComponentInChildren<EventSystem>(true)!=null)hasEvents=true;
-   if(!hasEvents){var go=new GameObject("Управление интерфейсом",typeof(EventSystem));SceneManager.MoveGameObjectToScene(go,scene);
-#if ENABLE_INPUT_SYSTEM
-    go.AddComponent<InputSystemUIInputModule>().AssignDefaultActions();
-#else
-    go.AddComponent<StandaloneInputModule>();
-#endif
-   }
+   UIInputRouter.EnsureForScene(scene);
    if(fresh||!GameManager.Instance.HasRun)GameManager.Instance.StartRun();else GameManager.Instance.ResumeRun();
-   if(menu.IsValid()&&menu.isLoaded)yield return SceneManager.UnloadSceneAsync(menu);Busy=false;
+   if(menu.IsValid()&&menu.isLoaded)yield return SceneManager.UnloadSceneAsync(menu);UIInputRouter.EnsureForScene(scene);Busy=false;
   }
   void OnDestroy(){if(instance==this){instance=null;LoadingGame=false;}}
  }
