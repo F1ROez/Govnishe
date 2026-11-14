@@ -1,0 +1,10 @@
+{
+  "name": "Brainrot.PlayModeTests",
+  "references": [
+    "Brainrot.Runtime",
+    "UnityEngine.UI"
+  ],
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}
