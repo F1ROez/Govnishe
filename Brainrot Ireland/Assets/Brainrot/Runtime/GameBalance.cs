@@ -19,6 +19,7 @@ namespace Brainrot
         }
         [Tooltip("Параметры нового забега. Спавн теперь зависит от текущей зоны острова.")]
         public PlayerTuning Player = new PlayerTuning();
+        public StaminaTuning Stamina = new StaminaTuning();
         public CombatTuning Combat = new CombatTuning();
         public WaveTuning Waves = new WaveTuning();
         public BodyTuning Bodies = new BodyTuning();
@@ -41,7 +42,7 @@ namespace Brainrot
         public EnemyTuning Crocodilo = new EnemyTuning {Health=210,Speed=2.6f,Damage=28,CanCharge=true,ChargeWindup=1.3f,ChargeSpeed=12,ChargeDuration=.65f,ChargeCooldown=7,AttackRange=2.5f,KnockbackResistance=2,Experience=40};
 
         void OnEnable(){EnsureExploration();}
-        public void EnsureExploration(){if(Exploration==null)Exploration=new ExplorationTuning();if(Waves==null)Waves=new WaveTuning();if(Bodies==null)Bodies=new BodyTuning();if(Octopus==null)Octopus=new OctopusTuning();}
+        public void EnsureExploration(){if(Stamina==null)Stamina=new StaminaTuning();if(Exploration==null)Exploration=new ExplorationTuning();if(Waves==null)Waves=new WaveTuning();if(Bodies==null)Bodies=new BodyTuning();if(Octopus==null)Octopus=new OctopusTuning();}
         public EnemyTuning Enemy(EnemyKind kind) {
             switch (kind) { case EnemyKind.BlueberrinniOctopusini:return BlueOctopus;case EnemyKind.LiriliLarila:return Lirili;case EnemyKind.BrrBrrPatapim:return Patapim;case EnemyKind.CappuccinoAssassino:return Cappuccino;case EnemyKind.BombardiroCrocodilo:return Crocodilo;case EnemyKind.Fast:return Fast;case EnemyKind.Tank:return Tank;case EnemyKind.MiniBoss:return MiniBoss;case EnemyKind.King:return King;default:return Normal; }
         }
@@ -98,6 +99,12 @@ namespace Brainrot
         [Min(1)]public int EscapeClicks=12;
         [Min(1)]public float RetreatSpeed=6;
     }
+    [Serializable]public sealed class StaminaTuning {
+        [Min(1)]public float Maximum=100;
+        [Min(.1f)]public float DrainPerSecond=25,RestorePerSecond=20;
+        [Min(0)]public float RestoreDelay=.7f;
+        [Min(1)]public float RestartThreshold=15;
+    }
     [Serializable] public sealed class WaveTuning {
         [Min(10)]public float Duration=60;
         [Min(1)]public int MaxDesktop=64,MaxMobile=32;
@@ -111,6 +118,7 @@ namespace Brainrot
     [Serializable] public sealed class BodyTuning {
         [Min(.3f)]public float TumbleSeconds=1.8f;
         [Min(1)]public float CorpseSeconds=7;
+        [Min(1)]public float DeathBodyLifetime=4;
         [Min(1)]public float LaunchSpeed=11;
         [Min(0)]public float UpSpeed=3,Spin=12;
         [Range(0,1)]public float ChainPush=.55f;

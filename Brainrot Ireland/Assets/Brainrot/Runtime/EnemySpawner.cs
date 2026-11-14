@@ -20,7 +20,7 @@ namespace Brainrot {
   }
   public void Tick(float dt){
    var game=GameManager.Instance;if(game==null||!game.IsPlaying||dt<=0)return;
-   Waves.Advance(dt);
+   Waves.Advance(dt,Active.Count);
    if(announcedWave!=Waves.Number){announcedWave=Waves.Number;spawnClock=Mathf.Max(0,GameBalance.Current.Waves.InitialDelay);game.Notify("ВОЛНА "+announcedWave,3);}
    if(!Waves.Resting){
     spawnClock-=dt;

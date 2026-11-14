@@ -32,7 +32,7 @@ namespace Brainrot.Tests {
    combat.UpdateAttackInput(false);Assert.IsFalse(combat.IsCharging);yield return new WaitForSeconds(.15f);Assert.IsTrue(enemy.PhysicsBody.IsPhysical);
   }
   [UnityTest]public IEnumerator DeathKeepsPhysicalCorpseThenReturnsItToPool(){
-   profile.Bodies.CorpseSeconds=1;var enemy=Spawn();enemy.TakeDamage(9999,Vector3.zero);
+   profile.Bodies.DeathBodyLifetime=1;var enemy=Spawn();enemy.TakeDamage(9999,Vector3.zero);
    Assert.IsFalse(enemy.Alive);Assert.IsTrue(enemy.gameObject.activeSelf);Assert.IsTrue(enemy.PhysicsBody.IsPhysical);Assert.AreEqual(1,game.Spawner.Corpses.Count);Assert.AreEqual(0,game.Spawner.Active.Count);Assert.AreEqual(1,game.Kills);
    yield return new WaitForSeconds(1.2f);Assert.AreEqual(0,game.Spawner.Corpses.Count);Assert.IsFalse(enemy.gameObject.activeSelf);
   }
@@ -53,7 +53,7 @@ namespace Brainrot.Tests {
   }
   [UnityTest]public IEnumerator RestartResetsWavesAndCorpsesAndKeepsXpDisabled(){
    var enemy=Spawn();enemy.TakeDamage(9999,Vector3.zero);Assert.AreEqual(0,game.Upgrades.Experience);Assert.AreEqual(1,game.Upgrades.Level);
-   game.Spawner.Waves.Advance(140);Assert.Greater(game.Wave,1);game.StartRun();Assert.AreEqual(1,game.Wave);Assert.AreEqual(0,game.Spawner.Corpses.Count);Assert.AreEqual(0,game.Spawner.Active.Count);yield return null;
+   game.Spawner.Waves.Advance(60);game.Spawner.Waves.Advance(8);Assert.Greater(game.Wave,1);game.StartRun();Assert.AreEqual(1,game.Wave);Assert.AreEqual(0,game.Spawner.Corpses.Count);Assert.AreEqual(0,game.Spawner.Active.Count);yield return null;
   }
   [UnityTest]public IEnumerator HeavyCooldownIsIndependentAndResetsOnNewRun(){
    Assert.That(profile.Combat.StrongDamageMultiplier,Is.EqualTo(2.5f));Assert.That(profile.Combat.StrongCooldownSeconds,Is.EqualTo(10));
@@ -77,9 +77,28 @@ namespace Brainrot.Tests {
   }
   [UnityTest]public IEnumerator CaptureBlocksAttackAndTapsReleasePlayer(){
    var oct=game.Spawner.Spawn(EnemyKind.BlueberrinniOctopusini,Vector3.forward*8);var attack=oct.GetComponent<OctopusAttack>();
-   Assert.IsTrue(game.Player.BeginCapture(attack));Assert.IsFalse(game.Player.Combat.ExecuteAttack(false));Assert.IsFalse(game.Player.TryDash(Vector3.forward));
+   Assert.IsTrue(game.Player.BeginCapture(attack));Assert.IsFalse(game.Player.Combat.ExecuteAttack(false));Assert.IsTrue(game.Player.TryDash(Vector3.forward));
    for(int i=0;i<profile.Octopus.EscapeClicks;i++)game.Player.EscapeTap();Assert.IsFalse(game.Player.IsCaptured);Assert.AreEqual(OctopusPhase.Dropping,attack.Phase);yield return null;
   }
+  [UnityTest]public IEnumerator CapturedPlayerCanMoveAndResumeKeepsState(){
+   var oct=game.Spawner.Spawn(EnemyKind.BlueberrinniOctopusini,Vector3.forward*12);var attack=oct.GetComponent<OctopusAttack>();
+   Assert.IsTrue(game.Player.BeginCapture(attack));var start=game.Player.transform.position;
+   Assert.IsTrue(game.Player.TryDash(Vector3.right));yield return new WaitForSeconds(.08f);Assert.Greater(game.Player.transform.position.x,start.x+.1f);Assert.IsFalse(game.Player.Combat.ExecuteAttack(false));
+   float health=game.Player.Health,stamina=game.Player.Stamina.Value;int count=game.Spawner.Active.Count;
+   game.SuspendRun();yield return null;Assert.IsTrue(game.HasRun);Assert.AreEqual(count,game.Spawner.Active.Count);game.ResumeRun();Assert.IsTrue(game.IsPlaying);Assert.AreEqual(health,game.Player.Health);Assert.AreEqual(stamina,game.Player.Stamina.Value);
+  }
+  [Test]public void WaveWaitsForEveryLiveEnemyBeforeStartingBreak(){
+   var w=new WaveDirector();w.Reset();w.Advance(60,2);Assert.IsTrue(w.WaitingForClear);w.Advance(100,1);Assert.AreEqual(1,w.Number);
+   w.Advance(.01f,0);Assert.IsFalse(w.WaitingForClear);w.Advance(8,0);Assert.AreEqual(2,w.Number);
+  }
+  [Test]public void StaminaDrainsOnlyForMovingSprintAndRecovers(){
+   var t=new StaminaTuning();var stamina=new StaminaPool();stamina.Reset(t);
+   Assert.IsTrue(stamina.Tick(true,true,false,1,t));Assert.AreEqual(75,stamina.Value);
+   stamina.Tick(true,false,false,2,t);Assert.Greater(stamina.Value,75);
+   stamina.Tick(true,true,false,10,t);Assert.AreEqual(0,stamina.Value);Assert.IsTrue(stamina.Exhausted);
+   stamina.Tick(false,false,false,10,t);Assert.AreEqual(100,stamina.Value);Assert.IsTrue(stamina.Tick(true,true,false,.01f,t));
+  }
+  [Test]public void NewBodyLifetimeIsFourSeconds(){Assert.AreEqual(4,profile.Bodies.DeathBodyLifetime);}
   [Test]public void WaveHasQuietEdgesAndMiddlePeak(){Assert.That(WaveDirector.Envelope(0),Is.EqualTo(0).Within(.00001));Assert.That(WaveDirector.Envelope(1),Is.EqualTo(0).Within(.00001));Assert.That(WaveDirector.Envelope(.5f),Is.EqualTo(1).Within(.00001));Assert.Greater(EnemySpawner.Interval(profile.Waves,0),EnemySpawner.Interval(profile.Waves,1));}
   [Test]public void RestAndNextWaveAreDeterministic(){var wave=new WaveDirector();wave.Reset();wave.Advance(60);Assert.IsTrue(wave.Resting);Assert.AreEqual(1,wave.Number);wave.Advance(8);Assert.IsFalse(wave.Resting);Assert.AreEqual(2,wave.Number);}
   [Test]public void NormalOnlySpawnAndSmallIsland(){Assert.IsNotNull(Spawn());Assert.IsNull(game.Spawner.Spawn(EnemyKind.King,Vector3.zero));Assert.IsNull(game.Spawner.Spawn(EnemyKind.LiriliLarila,Vector3.zero));Assert.IsFalse(IslandMap.IsWalkable(Vector3.forward*23));}

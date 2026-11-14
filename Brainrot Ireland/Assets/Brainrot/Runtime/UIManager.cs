@@ -53,7 +53,7 @@ namespace Brainrot
             var plate = Box("Vitals", hud.transform, new Vector2(.025f,.79f),new Vector2(.34f,.965f),new Color(.03f,.1f,.16f,.85f));
             healthText = Label(plate.transform,"ЗДОРОВЬЕ",23,TextAnchor.MiddleLeft,new Vector2(.06f,.62f),new Vector2(.94f,.97f));
             healthFill = Bar(plate.transform, new Vector2(.06f,.48f),new Vector2(.94f,.6f),new Color(1,.33f,.37f));
-            xpText = Label(plate.transform,"УРОВЕНЬ 1",18,TextAnchor.MiddleLeft,new Vector2(.06f,.17f),new Vector2(.94f,.46f));
+            xpText = Label(plate.transform,"ВЫНОСЛИВОСТЬ",18,TextAnchor.MiddleLeft,new Vector2(.06f,.17f),new Vector2(.94f,.46f));
             xpFill = Bar(plate.transform,new Vector2(.06f,.08f),new Vector2(.94f,.16f),cyan);
             stats=Label(hud.transform,"",24,TextAnchor.UpperCenter,new Vector2(.35f,.84f),new Vector2(.8f,.96f));
             Button(hud.transform,"II",new Vector2(.92f,.935f),new Vector2(.975f,.99f),()=>GameManager.Instance.Pause());
@@ -86,10 +86,10 @@ namespace Brainrot
             {
                 healthText.text=$"ЗДОРОВЬЕ   {Mathf.CeilToInt(gm.Player.Health)} / {Mathf.CeilToInt(gm.Player.Stats.MaxHealth)}";
                 healthFill.fillAmount=Mathf.Clamp01(gm.Player.Health/Mathf.Max(1,gm.Player.Stats.MaxHealth));
-                xpText.text=$"УРОВЕНЬ {gm.Upgrades.Level}   ·   {gm.Upgrades.Experience} / {gm.Upgrades.RequiredExperience} ОПЫТА";
-                xpFill.fillAmount=Mathf.Clamp01((float)gm.Upgrades.Experience/Mathf.Max(1,gm.Upgrades.RequiredExperience));
+                xpText.text=$"ВЫНОСЛИВОСТЬ  {Mathf.CeilToInt(gm.Player.Stamina.Value)} / {Mathf.CeilToInt(gm.Player.Stamina.Maximum)}";
+                xpFill.fillAmount=gm.Player.Stamina.Value/Mathf.Max(1,gm.Player.Stamina.Maximum);
             }
-            xpText.transform.parent.gameObject.SetActive(true);xpText.gameObject.SetActive(false);xpFill.transform.parent.gameObject.SetActive(false);
+            xpText.gameObject.SetActive(true);xpFill.transform.parent.gameObject.SetActive(true);
             stats.text=$"ВОЛНА {gm.Wave} · {gm.Spawner.Waves.Stage} · {Mathf.CeilToInt(gm.Spawner.Waves.Remaining)} с\n{TimeLabel(gm.Elapsed)}  |  Побеждено: {gm.Kills}";
             capturePanel.SetActive(gm.Player!=null&&gm.Player.IsCaptured);if(gm.Player!=null)escapeFill.fillAmount=gm.Player.EscapeProgress;
             notification.text=gm.Notification ?? "";
@@ -145,7 +145,7 @@ namespace Brainrot
                 Label(overlay.transform,"ПЯТЬ ЗОН. ОДИН ОСТРОВ. ТВОЯ ИСТОРИЯ.",19,TextAnchor.MiddleCenter,new Vector2(.1f,.82f),new Vector2(.9f,.9f)).color=cyan;
                 Label(overlay.transform,"БРЕЙНРОТ\nИРЛАНДИЯ",56,TextAnchor.MiddleCenter,new Vector2(.1f,.56f),new Vector2(.9f,.83f)).color=gold;
                 Label(overlay.transform,"Исследуй остров. Выбирай риск. Держи биту крепче.",23,TextAnchor.MiddleCenter,new Vector2(.1f,.47f),new Vector2(.9f,.55f));
-                MenuButton("ИГРАТЬ",.36f,()=>gm.StartRun());MenuButton("РЕКОРДЫ",.26f,ShowRecords);MenuButton("НАСТРОЙКИ",.16f,ShowSettings);MenuButton("ВЫХОД",.06f,()=>gm.Quit());
+                MenuButton("ПРОДОЛЖИТЬ ИГРУ",.39f,()=>gm.ResumeRun());MenuButton("НОВАЯ ИГРА",.30f,()=>gm.StartRun());MenuButton("РЕКОРДЫ",.21f,ShowRecords);MenuButton("НАСТРОЙКИ",.12f,ShowSettings);MenuButton("ВЫХОД",.03f,()=>gm.Quit());
             }
             else if(gm.State==GameState.Paused)
             {

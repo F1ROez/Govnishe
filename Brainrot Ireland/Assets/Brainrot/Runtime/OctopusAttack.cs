@@ -27,6 +27,7 @@ namespace Brainrot {
    else if(Phase==OctopusPhase.Retreat){Vector3 away=transform.position;away.y=0;if(away.sqrMagnitude<.01f)away=enemy.HomePosition;away.Normalize();transform.position+=away*Mathf.Max(1,t.RetreatSpeed)*dt;if(new Vector2(transform.position.x,transform.position.z).magnitude>=27)owner.Despawn(enemy);}
   }
   void DrawTarget(){marker.enabled=true;for(int i=0;i<48;i++){float a=i*Mathf.PI*2/48;marker.SetPosition(i,target+new Vector3(Mathf.Cos(a),0,Mathf.Sin(a))*GameBalance.Current.Octopus.LandingRadius+Vector3.up*.04f);}}
+  void LateUpdate(){if(Phase==OctopusPhase.Attached&&GameManager.Instance!=null&&GameManager.Instance.IsPlaying)FollowHead();}
   void FollowHead(){var player=GameManager.Instance.Player;transform.position=player.transform.position+Vector3.up*1.6f;transform.rotation=player.transform.rotation;}
   void StartJump(Vector3 destination,bool attacking){start=transform.position;target=destination;clock=0;duration=attacking?Mathf.Max(.4f,GameBalance.Current.Octopus.JumpSeconds):.4f;attackJump=attacking;Phase=attacking?OctopusPhase.Jumping:OctopusPhase.Dropping;enemy.PhysicsBody.SetColliderEnabled(false);}
   public void Escape(){Release();Vector3 drop=IslandMap.ClampToLand(transform.position+GameManager.Instance.Player.transform.forward*2);drop.y=0;StartJump(drop,false);}

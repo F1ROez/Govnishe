@@ -11,7 +11,7 @@ namespace Brainrot.Editor
     public class GameBalanceInspector : UnityEditor.Editor
     {
         static readonly HashSet<string> Hidden = new HashSet<string> {
-            "m_Script", "Spawning", "Bosses", "Fast", "Tank", "MiniBoss", "King", "Exploration", "Progression", "ChainPush", "HeavyDamageMultiplier", "HeavyCooldownMultiplier", "Lirili", "Patapim", "Cappuccino", "Crocodilo"
+            "m_Script", "Spawning", "Bosses", "Fast", "Tank", "MiniBoss", "King", "Exploration", "Progression", "CorpseSeconds", "ChainPush", "HeavyDamageMultiplier", "HeavyCooldownMultiplier", "Lirili", "Patapim", "Cappuccino", "Crocodilo"
         };
         static readonly Dictionary<string, string> Labels = new Dictionary<string, string> {
             {"Id","Идентификатор"},{"DisplayName","Название"},{"VisualStyle","Внешний вид"},{"BodyColor","Цвет модели"},{"VisualScale","Масштаб модели"},
@@ -19,6 +19,7 @@ namespace Brainrot.Editor
             {"UseCustomTiming","Собственные настройки взмаха"},{"DamageMultiplier","Множитель урона"},{"RangeMultiplier","Множитель дальности"},{"AttackIntervalMultiplier","Множитель интервала атак"},
             {"Kind","Вид улучшения"},{"Title","Название"},{"Description","Описание"},{"Rarity","Редкость"},{"MaxRank","Максимальный ранг"},{"Amount","Базовая величина"},
             {"Octopus","Синий осьминог: прыжок и захват"},{"BlueOctopus","Характеристики синего осьминога"},{"SpawnChance","Доля осьминогов среди появлений"},{"FirstWave","Первая волна появления"},{"AimDistance","Дистанция начала прицеливания"},{"AimSeconds","Длительность прицеливания, с"},{"JumpSeconds","Длительность прыжка, с"},{"JumpHeight","Высота прыжка"},{"LandingRadius","Радиус попадания при приземлении"},{"EscapeClicks","Нажатий для освобождения"},{"RetreatSpeed","Скорость возвращения в воду"},
+            {"Stamina","Выносливость"},{"Maximum","Максимум выносливости"},{"DrainPerSecond","Расход при беге за секунду"},{"RestorePerSecond","Восстановление за секунду"},{"RestoreDelay","Задержка восстановления"},{"RestartThreshold","Выносливость для повторного бега"},{"DeathBodyLifetime","Время жизни тела погибшего, с"},
             {"Waves","Волны врагов"},{"Bodies","Физика и тела"},
             {"StrongDamageMultiplier","Множитель урона сильного удара"},{"StrongCooldownSeconds","Перезарядка сильного удара, с"},
             {"HeavyChargeSeconds","Заряд сильной атаки, с"},{"HeavyDamageMultiplier","Множитель урона сильной атаки"},{"HeavyCooldownMultiplier","Перезарядка сильной атаки"},

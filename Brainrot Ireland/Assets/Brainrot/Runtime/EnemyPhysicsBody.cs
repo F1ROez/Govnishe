@@ -18,7 +18,7 @@ namespace Brainrot {
    capsule.enabled=true;IsPhysical=false;remaining=0;
   }
   public void Launch(Vector3 velocity,bool dead){
-   var t=GameBalance.Current.Bodies;remaining=dead?Mathf.Max(1,t.CorpseSeconds):Mathf.Max(.3f,t.TumbleSeconds);
+   var t=GameBalance.Current.Bodies;remaining=dead?Mathf.Max(1,t.DeathBodyLifetime):Mathf.Max(.3f,t.TumbleSeconds);
    IsPhysical=true;body.isKinematic=false;body.constraints=RigidbodyConstraints.None;body.collisionDetectionMode=CollisionDetectionMode.ContinuousDynamic;
    velocity.y=Mathf.Max(velocity.y,Mathf.Max(0,t.UpSpeed));
    body.maxAngularVelocity=Mathf.Max(1,t.Spin);body.linearVelocity=Vector3.ClampMagnitude(velocity,22);body.angularVelocity=Random.onUnitSphere*Mathf.Max(0,t.Spin);

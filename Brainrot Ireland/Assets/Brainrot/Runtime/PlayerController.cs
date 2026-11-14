@@ -8,11 +8,12 @@ namespace Brainrot {
   [SerializeField] public PlayerCharacterDefinition Character;
   readonly System.Collections.Generic.List<IPlayerAbilityRuntime> abilities=new System.Collections.Generic.List<IPlayerAbilityRuntime>();
   public PlayerStats Stats=new PlayerStats(); public float Health{get;private set;}
+  public StaminaPool Stamina{get;}=new StaminaPool();
   OctopusAttack captor;bool captureHeld;
   public bool IsCaptured=>captor!=null;
   public float EscapeProgress{get;private set;}
   public bool IsCapturedBy(OctopusAttack source)=>captor==source;
-  public bool BeginCapture(OctopusAttack source){if(IsCaptured||Health<=0)return false;captor=source;EscapeProgress=0;captureHeld=GameInput.Attack||MobileInput.Attack;CancelAttacks();dashUntil=0;return true;}
+  public bool BeginCapture(OctopusAttack source){if(IsCaptured||Health<=0)return false;captor=source;EscapeProgress=0;captureHeld=GameInput.Attack||MobileInput.Attack;CancelAttacks();return true;}
   public void EndCapture(OctopusAttack source){if(captor==source){captor=null;EscapeProgress=0;CancelAttacks();}}
   public void EscapeTap(){if(!IsCaptured)return;EscapeProgress=Mathf.Clamp01(EscapeProgress+1f/Mathf.Max(1,GameBalance.Current.Octopus.EscapeClicks));if(EscapeProgress>=.999f)captor.Escape();}
   public CombatSystem Combat=>combat;
@@ -37,7 +38,7 @@ namespace Brainrot {
   public void ResetRun(){
    captor=null;EscapeProgress=0;captureHeld=false;var settings=ActiveTuning;Stats=PlayerStats.From(settings);
    var weapon=Character!=null?Character.Weapon:null;if(weapon!=null){Stats.Damage*=Mathf.Max(.1f,weapon.DamageMultiplier);Stats.Range*=Mathf.Max(.1f,weapon.RangeMultiplier);Stats.AttackInterval*=Mathf.Max(.1f,weapon.AttackIntervalMultiplier);}
-   Health=Stats.MaxHealth;
+   Health=Stats.MaxHealth;Stamina.Reset(GameBalance.Current.Stamina);
    foreach(var ability in abilities)ability.Dispose();abilities.Clear();
    if(Character!=null&&Character.Abilities!=null)foreach(var definition in Character.Abilities)if(definition!=null){var runtime=definition.CreateRuntime(this);if(runtime!=null)abilities.Add(runtime);}
    motor.enabled=false;transform.position=IslandMap.StartPosition;transform.rotation=Quaternion.identity;motor.enabled=true;
@@ -49,13 +50,13 @@ namespace Brainrot {
   // All callers provide a world-space movement vector; a stationary dash does not consume cooldown.
   public bool TryDash(Vector3 movement){
    movement.y=0;
-   if(GameManager.Instance==null||!GameManager.Instance.IsPlaying||IsCaptured||Time.time<nextDash||movement.sqrMagnitude<.001f)return false;
+   if(GameManager.Instance==null||!GameManager.Instance.IsPlaying||Time.time<nextDash||movement.sqrMagnitude<.001f)return false;
    var settings=ActiveTuning;DashDirection=movement.normalized;dashUntil=Time.time+Mathf.Max(.05f,settings.DashDuration);nextDash=Time.time+Mathf.Max(.1f,Stats.DashCooldown);invulnerableUntil=dashUntil;
    HitEffects.Burst(transform.position+Vector3.up,Color.cyan);return true;
   }
   void Update(){
    var gm=GameManager.Instance;if(gm==null||!gm.IsPlaying)return;
-   if(IsCaptured){bool held=GameInput.Attack||MobileInput.Attack;if(held&&!captureHeld)EscapeTap();captureHeld=held;EscapeProgress=Mathf.Max(0,EscapeProgress-Time.deltaTime*.025f);return;}
+   if(IsCaptured){bool held=GameInput.Attack||MobileInput.Attack;if(held&&!captureHeld)EscapeTap();captureHeld=held;EscapeProgress=Mathf.Max(0,EscapeProgress-Time.deltaTime*.025f);}
    if(GameInput.CameraToggle)ToggleCameraLock();
    Vector2 look=Application.isMobilePlatform?MobileInput.Look:GameInput.Look;MobileInput.Look=Vector2.zero;
    yaw+=look.x*2.3f*SaveSystem.Data.Sensitivity;pitch=CameraLocked?Mathf.Repeat(pitch-look.y*1.8f*SaveSystem.Data.Sensitivity+180,360)-180:Mathf.Clamp(pitch-look.y*1.8f*SaveSystem.Data.Sensitivity,15,70);
@@ -63,6 +64,7 @@ namespace Brainrot {
    Vector3 move=Quaternion.Euler(0,yaw,0)*new Vector3(input.x,0,input.y);bool sprint=GameInput.Sprint||MobileInput.Sprint;
    var settings=ActiveTuning;
    if(GameInput.Dash||MobileInput.Dash)TryDash(move);MobileInput.Dash=false;
+   sprint=Stamina.Tick(sprint,move.sqrMagnitude>.01f,IsDashing,Time.deltaTime,GameBalance.Current.Stamina);
    Vector3 velocity=IsDashing?DashDirection*Mathf.Max(1,settings.DashSpeed):move*Stats.MoveSpeed*(sprint?Mathf.Max(1,settings.SprintMultiplier):1);
    motor.Move((velocity+Vector3.down*12)*Time.deltaTime);
    Vector3 pos=transform.position;Vector3 bounded=IslandMap.ClampToLand(pos);
@@ -70,7 +72,7 @@ namespace Brainrot {
    // Locked mode keeps aim relative to camera even when moving backwards or sideways.
    if(CameraLocked)transform.rotation=Quaternion.LookRotation(AimForward);
    else if(move.sqrMagnitude>.01f)transform.rotation=Quaternion.Slerp(transform.rotation,Quaternion.LookRotation(move),Time.deltaTime*Mathf.Max(1,settings.TurnSpeed));
-   combat.UpdateAttackInput(GameInput.Attack||MobileInput.Attack);
+   if(!IsCaptured)combat.UpdateAttackInput(GameInput.Attack||MobileInput.Attack);
    visual.Animate(move.magnitude*3*(sprint?1.35f:1),combat.IsAttacking);Heal(Stats.Regen*Time.deltaTime);foreach(var ability in abilities)ability.Tick(Time.deltaTime);
   }
   void LateUpdate(){if(cam==null)return;Quaternion rot=Quaternion.Euler(pitch,yaw,0);Vector3 target=transform.position+Vector3.up*1.6f;cam.transform.position=target-rot*Vector3.forward*Mathf.Max(2,ActiveTuning.CameraDistance)+Random.insideUnitSphere*trauma;cam.transform.rotation=rot;trauma=Mathf.MoveTowards(trauma,0,Time.unscaledDeltaTime);}
