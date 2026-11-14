@@ -15,11 +15,11 @@ namespace Brainrot {
    font=CartoonUI.Font;
    var image=Resources.Load<Texture2D>("MenuBackground");if(image!=null){var bg=new GameObject("Фон",typeof(RectTransform),typeof(RawImage),typeof(AspectRatioFitter));bg.transform.SetParent(canvas,false);bg.GetComponent<RawImage>().texture=image;bg.GetComponent<RawImage>().raycastTarget=false;var fitter=bg.GetComponent<AspectRatioFitter>();fitter.aspectMode=AspectRatioFitter.AspectMode.EnvelopeParent;fitter.aspectRatio=(float)image.width/image.height;}
    if(image==null)BuildBackdrop();
-   var tint=CartoonUI.Image("Мягкое затемнение",canvas,Vector2.zero,Vector2.one,new Color(.02f,.12f,.19f,.18f));
-   var logo=Box(canvas,new Vector2(.045f,.64f),new Vector2(.57f,.94f),new Color(.045f,.15f,.20f,.82f));
+   var tint=CartoonUI.Image("Мягкое затемнение",canvas,Vector2.zero,Vector2.one,new Color(.12f,.38f,.82f,.08f));
+   var logo=Box(canvas,new Vector2(.045f,.64f),new Vector2(.57f,.94f),new Color(.28f,.27f,.83f,.95f));
    Text(logo.transform,"БРЕЙНРОТ\nИРЛАНДИЯ",56,.22f,.94f).color=CartoonUI.Cream;
    Text(logo.transform,"МАЛЕНЬКИЙ ОСТРОВ. БОЛЬШИЕ НЕПРИЯТНОСТИ.",15,.03f,.20f).color=CartoonUI.Aqua;
-   var caption=Box(canvas,new Vector2(.05f,.065f),new Vector2(.56f,.18f),new Color(.045f,.15f,.20f,.78f));
+   var caption=Box(canvas,new Vector2(.05f,.065f),new Vector2(.56f,.18f),new Color(.10f,.48f,.86f,.94f));
    Text(caption.transform,"Солнце, океан и очень голодные акулы.\nДержи биту крепче — остров ждёт!",22,.08f,.92f).color=CartoonUI.Cream;
    panel=Box(canvas,new Vector2(.63f,.075f),new Vector2(.96f,.925f),CartoonUI.Panel);
    var events=new GameObject("Управление меню",typeof(EventSystem));events.transform.SetParent(transform,false);
@@ -43,7 +43,7 @@ namespace Brainrot {
    Button("КАЧЕСТВО: "+(SaveSystem.Data.Quality+1),.23f,()=>{int levels=Mathf.Clamp(QualitySettings.names.Length,1,3);SaveSystem.Data.Quality=(SaveSystem.Data.Quality+1)%levels;QualitySettings.SetQualityLevel(SaveSystem.Data.Quality);SaveSystem.Save();Settings();});
    Button("НАЗАД",.08f,Main);
   }
-  Button Button(string title,float y,UnityEngine.Events.UnityAction action){var go=Box(panel.transform,new Vector2(.075f,y),new Vector2(.925f,y+.095f),CartoonUI.Aqua);go.name=title;var button=go.AddComponent<Button>();button.targetGraphic=go.GetComponent<Image>();CartoonUI.StyleButton(button,title.Contains("НОВАЯ")||title.Contains("ПРОДОЛЖИТЬ"));button.onClick.AddListener(action);var label=Text(go.transform,title,20,.04f,.96f);label.color=CartoonUI.Ink;label.fontStyle=FontStyle.Bold;return button;}
+  Button Button(string title,float y,UnityEngine.Events.UnityAction action){var go=Box(panel.transform,new Vector2(.075f,y),new Vector2(.925f,y+.095f),CartoonUI.Aqua);go.name=title;var button=go.AddComponent<Button>();button.targetGraphic=go.GetComponent<Image>();CartoonUI.StyleButton(button,title.Contains("НОВАЯ")||title.Contains("ПРОДОЛЖИТЬ"));button.onClick.AddListener(action);var label=Text(go.transform,title,20,.04f,.96f);label.color=CartoonUI.Ink;label.fontStyle=FontStyle.Bold;label.GetComponent<Outline>().effectColor=new Color(1,1,1,.65f);label.GetComponent<Outline>().effectDistance=new Vector2(1,-1);return button;}
   Text Text(Transform parent,string value,int size,float bottom,float top){var go=new GameObject("Надпись",typeof(RectTransform),typeof(Text));go.transform.SetParent(parent,false);Rect(go,new Vector2(.04f,bottom),new Vector2(.96f,top));var label=go.GetComponent<Text>();label.font=font;label.text=value;label.fontSize=size;label.alignment=TextAnchor.MiddleCenter;label.color=CartoonUI.Gold;label.raycastTarget=false;CartoonUI.Typography(label,size>=20);return label;}
   static GameObject Box(Transform parent,Vector2 min,Vector2 max,Color color){return CartoonUI.Image("Панель",parent,min,max,color).gameObject;}
   void BuildBackdrop(){

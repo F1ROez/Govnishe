@@ -14,7 +14,7 @@ namespace Brainrot.Editor
             "m_Script", "Spawning", "Bosses", "Fast", "Tank", "MiniBoss", "King", "Exploration", "Progression", "CorpseSeconds", "ChainPush", "HeavyDamageMultiplier", "HeavyCooldownMultiplier", "Lirili", "Patapim", "Cappuccino", "Crocodilo"
         };
         static readonly Dictionary<string, string> Labels = new Dictionary<string, string> {
-            {"PlayerModelScale","Размер модели игрока"},{"EnemyModelScale","Общий размер моделей врагов"},{"ModelScale","Размер модели этого врага"},{"Id","Идентификатор"},{"DisplayName","Название"},{"VisualStyle","Внешний вид"},{"BodyColor","Цвет модели"},{"VisualScale","Масштаб модели"},
+            {"PlayerModelScale","Размер модели игрока"},{"EnemyModelScale","Общий размер моделей врагов"},{"ModelScale","Размер модели этого врага"},{"Camera","Камера от третьего лица"},{"Distance","Расстояние камеры"},{"ShoulderOffset","Смещение к правому плечу"},{"HeightAboveHead","Высота над головой"},{"InitialPitch","Начальный наклон камеры"},{"Id","Идентификатор"},{"DisplayName","Название"},{"VisualStyle","Внешний вид"},{"BodyColor","Цвет модели"},{"VisualScale","Масштаб модели"},
             {"UseCustomStats","Собственные характеристики"},{"StartingStats","Характеристики персонажа"},{"Weapon","Оружие"},{"Abilities","Особые способности"},
             {"UseCustomTiming","Собственные настройки взмаха"},{"DamageMultiplier","Множитель урона"},{"RangeMultiplier","Множитель дальности"},{"AttackIntervalMultiplier","Множитель интервала атак"},
             {"Kind","Вид улучшения"},{"Title","Название"},{"Description","Описание"},{"Rarity","Редкость"},{"MaxRank","Максимальный ранг"},{"Amount","Базовая величина"},

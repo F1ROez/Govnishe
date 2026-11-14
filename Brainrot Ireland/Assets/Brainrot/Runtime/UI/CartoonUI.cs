@@ -7,12 +7,12 @@ namespace Brainrot
     /// <summary>Original runtime UI art. All textures are generated once and shared across scenes.</summary>
     public static class CartoonUI
     {
-        public static readonly Color Ink=new Color(.075f,.16f,.23f);
-        public static readonly Color Cream=new Color(1,.97f,.87f);
-        public static readonly Color Panel=new Color(.075f,.19f,.25f,.94f);
-        public static readonly Color Aqua=new Color(.32f,.86f,.79f);
-        public static readonly Color Gold=new Color(1,.79f,.32f);
-        public static readonly Color Coral=new Color(1,.39f,.43f);
+        public static readonly Color Ink=new Color(.07f,.16f,.38f);
+        public static readonly Color Cream=new Color(1,1,1);
+        public static readonly Color Panel=new Color(.12f,.43f,.88f,.96f);
+        public static readonly Color Aqua=new Color(.08f,.94f,.91f);
+        public static readonly Color Gold=new Color(1,.84f,.12f);
+        public static readonly Color Coral=new Color(1,.23f,.42f);
         static Sprite rounded,disc,dash,heavy,heart,bolt;
         static Font font;
         public static Font Font {
@@ -72,12 +72,13 @@ namespace Brainrot
             var go=new GameObject(name,typeof(RectTransform),typeof(Image));go.transform.SetParent(parent,false);var rect=go.GetComponent<RectTransform>();rect.anchorMin=min;rect.anchorMax=max;rect.offsetMin=rect.offsetMax=Vector2.zero;
             var image=go.GetComponent<Image>();image.sprite=sprite!=null?sprite:Rounded;image.type=sprite==null?UnityEngine.UI.Image.Type.Sliced:UnityEngine.UI.Image.Type.Simple;image.color=color;image.raycastTarget=false;return image;
         }
-        public static void Typography(Text text,bool heading=false){text.font=Font;text.fontStyle=heading?FontStyle.Bold:FontStyle.Normal;text.color=Cream;text.resizeTextForBestFit=true;text.resizeTextMinSize=Mathf.Max(11,text.fontSize-5);text.resizeTextMaxSize=text.fontSize;text.verticalOverflow=VerticalWrapMode.Truncate;var shadow=text.gameObject.AddComponent<Shadow>();shadow.effectColor=new Color(.025f,.07f,.13f,.55f);shadow.effectDistance=new Vector2(0,-2);}
+        public static void Typography(Text text,bool heading=false){text.font=Font;text.fontStyle=heading?FontStyle.Bold:FontStyle.Normal;text.color=Cream;text.resizeTextForBestFit=true;text.resizeTextMinSize=Mathf.Max(11,text.fontSize-5);text.resizeTextMaxSize=text.fontSize;text.verticalOverflow=VerticalWrapMode.Truncate;var outline=text.gameObject.AddComponent<Outline>();outline.effectColor=new Color(.04f,.12f,.40f,.92f);outline.effectDistance=new Vector2(1.5f,-1.5f);var shadow=text.gameObject.AddComponent<Shadow>();shadow.effectColor=new Color(.02f,.07f,.28f,.5f);shadow.effectDistance=new Vector2(0,-3);}
         public static void StyleButton(Button button,bool primary=false){
             var image=button.GetComponent<Image>();image.sprite=Rounded;image.type=UnityEngine.UI.Image.Type.Sliced;image.color=primary?Gold:Aqua;image.raycastTarget=true;
-            var shadow=button.gameObject.AddComponent<Shadow>();shadow.effectDistance=new Vector2(0,-5);shadow.effectColor=primary?new Color(.54f,.31f,.10f,.9f):new Color(.04f,.36f,.38f,.9f);
-            var colors=button.colors;colors.normalColor=Color.white;colors.highlightedColor=new Color(1,1,.86f);colors.pressedColor=new Color(.84f,.9f,.86f);colors.disabledColor=new Color(.44f,.53f,.56f,.8f);colors.fadeDuration=.1f;button.colors=colors;
-            Image("Блик",button.transform,new Vector2(.035f,.58f),new Vector2(.965f,.93f),new Color(1,1,1,.18f));
+            var border=button.gameObject.AddComponent<Outline>();border.effectColor=new Color(.035f,.13f,.43f,1);border.effectDistance=new Vector2(2.5f,-2.5f);
+            var shadow=button.gameObject.AddComponent<Shadow>();shadow.effectDistance=new Vector2(0,-6);shadow.effectColor=primary?new Color(.74f,.36f,.04f,1):new Color(.02f,.34f,.63f,1);
+            var colors=button.colors;colors.normalColor=Color.white;colors.highlightedColor=new Color(1,1,.86f);colors.pressedColor=new Color(.84f,.9f,.86f);colors.disabledColor=new Color(.50f,.64f,.80f,.9f);colors.fadeDuration=.1f;button.colors=colors;
+            Image("Блик",button.transform,new Vector2(.035f,.58f),new Vector2(.965f,.93f),new Color(1,1,1,.31f));
             button.gameObject.AddComponent<CartoonButtonMotion>();
         }
     }

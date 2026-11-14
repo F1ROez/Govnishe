@@ -46,11 +46,11 @@ namespace Brainrot
             xpText = Label(plate.transform,"ВЫНОСЛИВОСТЬ",16,TextAnchor.MiddleLeft,new Vector2(.17f,.20f),new Vector2(.94f,.43f));
             CartoonUI.Image("Энергия",plate.transform,new Vector2(.045f,.23f),new Vector2(.13f,.43f),Color.white,CartoonUI.Bolt).preserveAspect=true;
             xpFill = Bar(plate.transform,new Vector2(.06f,.10f),new Vector2(.94f,.20f),cyan);
-            var scorePlate=Box("Волна и результат",hud.transform,new Vector2(.37f,.865f),new Vector2(.76f,.965f),new Color(.075f,.19f,.25f,.88f));
+            var scorePlate=Box("Волна и результат",hud.transform,new Vector2(.37f,.865f),new Vector2(.76f,.965f),new Color(.36f,.27f,.86f,.96f));
             stats=Label(scorePlate.transform,"",20,TextAnchor.MiddleCenter,new Vector2(.04f,.07f),new Vector2(.96f,.93f));
             Button(hud.transform,"II",new Vector2(.925f,.895f),new Vector2(.975f,.965f),()=>GameManager.Instance.Pause());
             notification=Label(hud.transform,"",30,TextAnchor.MiddleCenter,new Vector2(.15f,.68f),new Vector2(.85f,.81f)); notification.color=gold;
-            var controls=Box("Подсказки управления",hud.transform,new Vector2(.12f,.018f),new Vector2(.88f,.065f),new Color(.075f,.19f,.25f,.68f));
+            var controls=Box("Подсказки управления",hud.transform,new Vector2(.12f,.018f),new Vector2(.88f,.065f),new Color(.12f,.43f,.88f,.85f));
             Label(controls.transform,"WASD — движение  •  Мышь — камера  •  ЛКМ — удар; удержать и отпустить — сильный  •  Shift — бег  •  Пробел — рывок  •  V — фиксация",13,TextAnchor.MiddleCenter,new Vector2(.015f,0),new Vector2(.985f,1));
             aimHint=Label(hud.transform,"",16,TextAnchor.LowerCenter,new Vector2(.32f,.07f),new Vector2(.68f,.11f));
             Label(hud.transform,"+",18,TextAnchor.MiddleCenter,new Vector2(.49f,.49f),new Vector2(.51f,.53f)).color=new Color(1,1,1,.5f);
@@ -59,10 +59,10 @@ namespace Brainrot
             hitLabel=Label(hud.transform,"",17,TextAnchor.MiddleCenter,new Vector2(.4f,.41f),new Vector2(.6f,.46f));
 
             BuildAbilityIcons();
-            capturePanel=Box("Захват осьминога",hud.transform,new Vector2(.25f,.17f),new Vector2(.75f,.29f),new Color(.08f,.1f,.23f,.94f));
+            capturePanel=Box("Захват осьминога",hud.transform,new Vector2(.25f,.17f),new Vector2(.75f,.29f),new Color(.47f,.23f,.89f,.97f));
             Label(capturePanel.transform,"БЫСТРО НАЖИМАЙ ЛКМ, ЧТОБЫ ВЫБРАТЬСЯ!",20,TextAnchor.MiddleCenter,new Vector2(0,.4f),Vector2.one);
             escapeFill=Bar(capturePanel.transform,new Vector2(.06f,.13f),new Vector2(.94f,.35f),cyan);
-            overlay=Box("Screens",root.transform,Vector2.zero,Vector2.one,new Color(.035f,.10f,.16f,.87f));
+            overlay=Box("Screens",root.transform,Vector2.zero,Vector2.one,new Color(.17f,.29f,.72f,.91f));
             BuildMobile(root.transform);
             BuildFullMap(root.transform);
             Refresh();
@@ -116,13 +116,13 @@ namespace Brainrot
         }
         GameObject AbilityCard(string name,Vector2 min,Vector2 max,Sprite icon,Color accent,string title,string key){
             var card=Box(name,hud.transform,min,max,CartoonUI.Panel);
-            CartoonUI.Image("Мягкий акцент",card.transform,new Vector2(.07f,.28f),new Vector2(.93f,.94f),new Color(accent.r,accent.g,accent.b,.16f));
+            CartoonUI.Image("Мягкий акцент",card.transform,new Vector2(.07f,.28f),new Vector2(.93f,.94f),new Color(accent.r,accent.g,accent.b,.33f));
             CartoonUI.Image("Иконка",card.transform,new Vector2(.18f,.32f),new Vector2(.82f,.94f),Color.white,icon).preserveAspect=true;
             Label(card.transform,title,12,TextAnchor.MiddleCenter,new Vector2(.02f,.25f),new Vector2(.98f,.39f)).color=CartoonUI.Cream;
-            Label(card.transform,key,10,TextAnchor.MiddleCenter,new Vector2(.02f,.01f),new Vector2(.98f,.10f)).color=new Color(.68f,.83f,.86f);
+            Label(card.transform,key,10,TextAnchor.MiddleCenter,new Vector2(.02f,.01f),new Vector2(.98f,.10f)).color=new Color(.83f,.96f,1);
             return card;
         }
-        Image CooldownShade(Transform parent){var image=Box("Перезарядка",parent,new Vector2(.04f,.26f),new Vector2(.96f,.96f),new Color(.035f,.10f,.16f,.76f)).GetComponent<Image>();image.type=Image.Type.Filled;image.fillMethod=Image.FillMethod.Radial360;image.fillOrigin=2;image.fillClockwise=true;image.raycastTarget=false;return image;}
+        Image CooldownShade(Transform parent){var image=Box("Перезарядка",parent,new Vector2(.04f,.26f),new Vector2(.96f,.96f),new Color(.12f,.22f,.60f,.83f)).GetComponent<Image>();image.type=Image.Type.Filled;image.fillMethod=Image.FillMethod.Radial360;image.fillOrigin=2;image.fillClockwise=true;image.raycastTarget=false;return image;}
         static void UpdateAbility(Image shade,Text label,float remaining,float duration){shade.fillAmount=Mathf.Clamp01(remaining/Mathf.Max(.1f,duration));label.text=remaining>0?Mathf.CeilToInt(remaining).ToString():"ГОТОВ";label.color=remaining>0?Color.white:new Color(.65f,1,.79f);}
 
         void ClearScreen()
@@ -275,11 +275,11 @@ namespace Brainrot
         Button Button(Transform parent,string title,Vector2 min,Vector2 max,UnityEngine.Events.UnityAction action)
         {
             var obj=Box(title,parent,min,max,cyan);var button=obj.AddComponent<Button>();button.targetGraphic=obj.GetComponent<Image>();CartoonUI.StyleButton(button,title.Contains("ПРОДОЛЖИТЬ")||title.Contains("НОВАЯ")||title.Contains("ЕЩЁ"));button.onClick.AddListener(action);
-            var text=Label(obj.transform,title,21,TextAnchor.MiddleCenter,new Vector2(.04f,.04f),new Vector2(.96f,.96f));text.color=ink;text.fontStyle=FontStyle.Bold;return button;
+            var text=Label(obj.transform,title,21,TextAnchor.MiddleCenter,new Vector2(.04f,.04f),new Vector2(.96f,.96f));text.color=ink;text.fontStyle=FontStyle.Bold;text.GetComponent<Outline>().effectColor=new Color(1,1,1,.65f);text.GetComponent<Outline>().effectDistance=new Vector2(1,-1);return button;
         }
         Image Bar(Transform parent,Vector2 min,Vector2 max,Color color)
         {
-            var back=Box("Bar",parent,min,max,new Color(.025f,.085f,.12f));var fill=Box("Fill",back.transform,new Vector2(.006f,.10f),new Vector2(.994f,.90f),color).GetComponent<Image>();fill.type=Image.Type.Sliced;fill.raycastTarget=false;
+            var back=Box("Bar",parent,min,max,new Color(.06f,.17f,.45f));var fill=Box("Fill",back.transform,new Vector2(.006f,.10f),new Vector2(.994f,.90f),color).GetComponent<Image>();fill.type=Image.Type.Sliced;fill.raycastTarget=false;
             CartoonUI.Image("Блик полоски",fill.transform,new Vector2(.01f,.57f),new Vector2(.99f,.94f),new Color(1,1,1,.24f));
             fill.gameObject.AddComponent<CartoonBarFill>();return fill;
         }

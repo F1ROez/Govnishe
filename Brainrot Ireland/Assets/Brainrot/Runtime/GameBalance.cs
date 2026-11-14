@@ -23,6 +23,7 @@ namespace Brainrot
         public float PlayerModelScale=1;
         [Min(.1f),Tooltip("Общий размер моделей всех врагов. Умножается на размер выбранного типа врага.")]
         public float EnemyModelScale=1;
+        public ThirdPersonCameraTuning Camera = new ThirdPersonCameraTuning();
         public StaminaTuning Stamina = new StaminaTuning();
         public CombatTuning Combat = new CombatTuning();
         public WaveTuning Waves = new WaveTuning();
@@ -46,7 +47,7 @@ namespace Brainrot
         public EnemyTuning Crocodilo = new EnemyTuning {Health=210,Speed=2.6f,Damage=28,CanCharge=true,ChargeWindup=1.3f,ChargeSpeed=12,ChargeDuration=.65f,ChargeCooldown=7,AttackRange=2.5f,KnockbackResistance=2,Experience=40};
 
         void OnEnable(){EnsureExploration();}
-        public void EnsureExploration(){if(Stamina==null)Stamina=new StaminaTuning();if(Exploration==null)Exploration=new ExplorationTuning();if(Waves==null)Waves=new WaveTuning();if(Bodies==null)Bodies=new BodyTuning();if(Octopus==null)Octopus=new OctopusTuning();}
+        public void EnsureExploration(){if(Camera==null)Camera=new ThirdPersonCameraTuning();if(Stamina==null)Stamina=new StaminaTuning();if(Exploration==null)Exploration=new ExplorationTuning();if(Waves==null)Waves=new WaveTuning();if(Bodies==null)Bodies=new BodyTuning();if(Octopus==null)Octopus=new OctopusTuning();}
         public EnemyTuning Enemy(EnemyKind kind) {
             switch (kind) { case EnemyKind.BlueberrinniOctopusini:return BlueOctopus;case EnemyKind.LiriliLarila:return Lirili;case EnemyKind.BrrBrrPatapim:return Patapim;case EnemyKind.CappuccinoAssassino:return Cappuccino;case EnemyKind.BombardiroCrocodilo:return Crocodilo;case EnemyKind.Fast:return Fast;case EnemyKind.Tank:return Tank;case EnemyKind.MiniBoss:return MiniBoss;case EnemyKind.King:return King;default:return Normal; }
         }
@@ -58,6 +59,12 @@ namespace Brainrot
         }
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)] static void ResetCached(){fallback=null;}
     }
+    [Serializable] public sealed class ThirdPersonCameraTuning {
+        [Min(2),Tooltip("Расстояние камеры за правым плечом.")]public float Distance=4.5f;
+        [Range(-3,3),Tooltip("Смещение к правому плечу; отрицательное значение — слева.")]public float ShoulderOffset=.8f;
+        [Range(0,2),Tooltip("Высота точки камеры над головой с учётом размера модели.")]public float HeightAboveHead=.25f;
+        [Range(-179,179),Tooltip("Начальный наклон, вращение мышью остаётся свободным.")]public float InitialPitch=10;
+    }
     [Serializable] public sealed class PlayerTuning {
         [Header("Начальные характеристики")]
         [Min(1)]public float Damage=24;
@@ -68,8 +75,8 @@ namespace Brainrot
         [Range(0,1)]public float CritChance=.05f;
         [Header("Передвижение и камера")]
         public bool CameraLocked=true;
-        [Min(.1f)]public float CameraDistance=9.5f;
-        [Range(-179,179)]public float CameraPitch=38;
+        [HideInInspector,Min(.1f)]public float CameraDistance=9.5f;
+        [HideInInspector,Range(-179,179)]public float CameraPitch=38;
         [Min(.1f)]public float TurnSpeed=16;
         [Min(1)]public float SprintMultiplier=1.35f;
         [Min(.1f)]public float DashSpeed=20;

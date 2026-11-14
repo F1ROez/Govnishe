@@ -16,12 +16,15 @@ namespace Brainrot.Editor
         public static void GenerateAll(){if(Application.isPlaying)return;Build(false);Build(true);AssetDatabase.SaveAssets();}
         static void Build(bool octopus){
             string name=octopus?"Octopus":"Tralala",source=Art+name+"/"+name+".fbx",output=Out+name+"/";
+            bool toy=octopus&&File.Exists(Art+"OctopusToy/OctopusToy.fbx");
+            if(toy)source=Art+"OctopusToy/OctopusToy.fbx";
+            bool animated=octopus&&!toy;
             if(!File.Exists(source)){Debug.LogWarning("Модель врага отсутствует: "+source);return;}
             Directory.CreateDirectory(output);Directory.CreateDirectory("Assets/Brainrot/Generated/Resources");AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
             var importer=AssetImporter.GetAtPath(source) as ModelImporter;if(importer==null)return;
-            var animationType=octopus?ModelImporterAnimationType.Generic:ModelImporterAnimationType.None;
-            if(importer.animationType!=animationType||importer.optimizeGameObjects||importer.importAnimation!=octopus||!importer.isReadable||importer.materialImportMode!=ModelImporterMaterialImportMode.ImportStandard){
-                importer.animationType=animationType;importer.optimizeGameObjects=false;importer.importAnimation=octopus;importer.isReadable=true;importer.materialImportMode=ModelImporterMaterialImportMode.ImportStandard;importer.importCameras=false;importer.importLights=false;importer.SaveAndReimport();
+            var animationType=animated?ModelImporterAnimationType.Generic:ModelImporterAnimationType.None;
+            if(importer.animationType!=animationType||importer.optimizeGameObjects||importer.importAnimation!=animated||!importer.isReadable||importer.materialImportMode!=ModelImporterMaterialImportMode.ImportStandard){
+                importer.animationType=animationType;importer.optimizeGameObjects=false;importer.importAnimation=animated;importer.isReadable=true;importer.materialImportMode=ModelImporterMaterialImportMode.ImportStandard;importer.importCameras=false;importer.importLights=false;importer.SaveAndReimport();
             }
             var asset=AssetDatabase.LoadAssetAtPath<GameObject>(source);if(asset==null){Debug.LogWarning("Unity ещё импортирует модель врага: "+source);return;}
             var root=new GameObject(octopus?"Блюберринни Октопусини":"Тралалеро Тралала");
@@ -32,7 +35,10 @@ namespace Brainrot.Editor
                 foreach(var node in model.GetComponentsInChildren<Transform>(true)){node.gameObject.SetActive(true);node.gameObject.layer=0;}
                 foreach(var collider in model.GetComponentsInChildren<Collider>(true))UnityEngine.Object.DestroyImmediate(collider);
                 var bridge=root.AddComponent<ImportedEnemyVisual>();bridge.ModelRoot=model.transform;bridge.MotionRoot=motion;bridge.Normalization=normalization;bridge.IsOctopus=octopus;bridge.TargetHeight=octopus?1.45f:1.95f;
-                if(octopus){
+                if(toy){
+                    foreach(var animator in model.GetComponentsInChildren<Animator>(true))UnityEngine.Object.DestroyImmediate(animator);
+                    bridge.LegBones=Array.Empty<Transform>();
+                }else if(octopus){
                     var idle=Clip(source,"Idle",output);var walk=Clip(source,"Walk",output);
                     if(idle!=null)idle.SampleAnimation(model,0);
                     CombineOctopus(model,output);
@@ -42,13 +48,27 @@ namespace Brainrot.Editor
                     foreach(var animator in model.GetComponentsInChildren<Animator>(true))UnityEngine.Object.DestroyImmediate(animator);
                     bridge.LegBones=RigShark(model,output);
                 }
-                ApplyMaterials(model,octopus,output);
+                ApplyMaterials(model,octopus,output,toy);
                 foreach(var skin in model.GetComponentsInChildren<SkinnedMeshRenderer>(true)){skin.enabled=true;skin.forceRenderingOff=false;skin.updateWhenOffscreen=true;skin.shadowCastingMode=ShadowCastingMode.On;skin.receiveShadows=true;}
                 if(!bridge.CalibrateModel())throw new InvalidOperationException("Не удалось измерить модель врага "+name);
+                if(toy)AddToyEyes(bridge,output);
                 PrefabUtility.SaveAsPrefabAsset(root,"Assets/Brainrot/Generated/Resources/Imported"+name+".prefab");
-                Debug.Log("Модель врага обновлена: "+name+(octopus?" — оригинальные Idle/Walk, объединённая скелетная сетка.":" — созданный трёхногий риг и процедурная походка/укус."));
+                Debug.Log("Модель врага обновлена: "+name+(toy?" — новая яркая модель, глаза и покачивание.":octopus?" — оригинальные Idle/Walk, объединённая скелетная сетка.":" — созданный трёхногий риг и процедурная походка/укус."));
             }finally{UnityEngine.Object.DestroyImmediate(root);}
         }
+        static void AddToyEyes(ImportedEnemyVisual bridge,string output){
+            var eyes=new GameObject("Большие мультяшные глаза").transform;eyes.SetParent(bridge.MotionRoot,false);
+            float h=bridge.TargetHeight;
+            var white=EyeMaterial(output+"EyeWhite.mat",new Color(1,.99f,.96f));var ink=EyeMaterial(output+"EyePupil.mat",new Color(.025f,.04f,.13f));
+            for(int side=-1;side<=1;side+=2){
+                var center=new Vector3(side*h*.145f,h*.64f,h*.38f);
+                EyeSphere(eyes,"Белок",center,new Vector3(.245f,.32f,.14f)*h,white);
+                EyeSphere(eyes,"Зрачок",center+new Vector3(-side*.008f,.0f,.067f)*h,new Vector3(.12f,.19f,.065f)*h,ink);
+                EyeSphere(eyes,"Блик",center+new Vector3(-.024f,.05f,.099f)*h,new Vector3(.04f,.056f,.018f)*h,white);
+            }
+        }
+        static Material EyeMaterial(string path,Color color){var material=AssetDatabase.LoadAssetAtPath<Material>(path);if(material==null){material=new Material(Shader.Find("Brainrot/ToonCharacter"));AssetDatabase.CreateAsset(material,path);}material.shader=Shader.Find("Brainrot/ToonCharacter");material.SetColor("_BaseColor",color);material.SetFloat("_TextureSoftening",0);material.SetFloat("_Brightness",1);EditorUtility.SetDirty(material);return material;}
+        static void EyeSphere(Transform parent,string name,Vector3 position,Vector3 scale,Material material){var go=GameObject.CreatePrimitive(PrimitiveType.Sphere);go.name=name;go.transform.SetParent(parent,false);go.transform.localPosition=position;go.transform.localScale=scale;UnityEngine.Object.DestroyImmediate(go.GetComponent<Collider>());go.GetComponent<Renderer>().sharedMaterial=material;}
         static AnimationClip Clip(string source,string token,string output){
             var original=AssetDatabase.LoadAllAssetsAtPath(source).OfType<AnimationClip>().FirstOrDefault(c=>!c.name.StartsWith("__")&&c.name.IndexOf(token,StringComparison.OrdinalIgnoreCase)>=0);if(original==null)return null;
             string path=output+token+".anim";var clip=AssetDatabase.LoadAssetAtPath<AnimationClip>(path);
@@ -88,6 +108,12 @@ namespace Brainrot.Editor
             var filter=model.GetComponentInChildren<MeshFilter>();if(filter==null||filter.sharedMesh==null)throw new InvalidOperationException("Сетка Тралалеро отсутствует.");
             var renderer=filter.GetComponent<MeshRenderer>();var original=filter.sharedMesh;var matrix=model.transform.worldToLocalMatrix*filter.transform.localToWorldMatrix;
             var mesh=UnityEngine.Object.Instantiate(original);mesh.name="Тралалеро — скелетная сетка";mesh.vertices=original.vertices.Select(v=>matrix.MultiplyPoint3x4(v)).ToArray();if(original.normals.Length==original.vertexCount)mesh.normals=original.normals.Select(n=>matrix.inverse.transpose.MultiplyVector(n).normalized).ToArray();mesh.RecalculateBounds();var bounds=mesh.bounds;
+            // Slightly wider body and oversized shoes give the original silhouette toy-like proportions.
+            var toyVertices=mesh.vertices;for(int i=0;i<toyVertices.Length;i++){
+                var v=toyVertices[i];float upper=Mathf.SmoothStep(0,1,Mathf.InverseLerp(bounds.min.y+bounds.size.y*.40f,bounds.min.y+bounds.size.y*.65f,v.y));
+                float shoe=1-Mathf.SmoothStep(0,1,Mathf.InverseLerp(bounds.min.y+bounds.size.y*.12f,bounds.min.y+bounds.size.y*.27f,v.y));
+                v.x=bounds.center.x+(v.x-bounds.center.x)*(1+upper*.07f+shoe*.06f);toyVertices[i]=v;
+            }mesh.vertices=toyVertices;mesh.RecalculateNormals();mesh.RecalculateBounds();bounds=mesh.bounds;
             var body=new GameObject("Тело акулы").transform;body.SetParent(model.transform,false);body.localPosition=bounds.center;
             var legs=new Transform[3];Vector3[] pivots={new Vector3(bounds.center.x-bounds.size.x*.27f,bounds.min.y+bounds.size.y*.4f,bounds.center.z+bounds.size.z*.16f),new Vector3(bounds.center.x+bounds.size.x*.27f,bounds.min.y+bounds.size.y*.4f,bounds.center.z+bounds.size.z*.16f),new Vector3(bounds.center.x,bounds.min.y+bounds.size.y*.32f,bounds.center.z-bounds.size.z*.3f)};
             for(int i=0;i<3;i++){legs[i]=new GameObject("Нога "+(i+1)).transform;legs[i].SetParent(model.transform,false);legs[i].localPosition=pivots[i];}
@@ -102,14 +128,16 @@ namespace Brainrot.Editor
             var go=new GameObject("Скелетная модель акулы");go.transform.SetParent(model.transform,false);var skin=go.AddComponent<SkinnedMeshRenderer>();skin.sharedMesh=mesh;skin.bones=bones;skin.rootBone=model.transform;skin.localBounds=mesh.bounds;skin.sharedMaterials=materials;return legs;
         }
         static Mesh SaveMesh(Mesh mesh,string path){var existing=AssetDatabase.LoadAssetAtPath<Mesh>(path);if(existing==null){AssetDatabase.CreateAsset(mesh,path);return mesh;}EditorUtility.CopySerialized(mesh,existing);UnityEngine.Object.DestroyImmediate(mesh);EditorUtility.SetDirty(existing);return existing;}
-        static void ApplyMaterials(GameObject model,bool octopus,string output){
-            Texture2D texture=null;if(!octopus){string path=Art+"Tralala/shaded.png";var t=AssetImporter.GetAtPath(path) as TextureImporter;if(t!=null){if(SahurModelImporter.ConfigureTexture2D(t,false,true,2048))t.SaveAndReimport();texture=AssetDatabase.LoadAssetAtPath<Texture2D>(path);}}
+        static void ApplyMaterials(GameObject model,bool octopus,string output,bool toy){
+            Texture2D texture=null;if(!octopus||toy){string path=Art+(toy?"OctopusToy/OctopusAlbedo.jpg":"Tralala/shaded.png");var t=AssetImporter.GetAtPath(path) as TextureImporter;if(t!=null){if(SahurModelImporter.ConfigureTexture2D(t,false,true,2048))t.SaveAndReimport();texture=AssetDatabase.LoadAssetAtPath<Texture2D>(path);}}
             foreach(var renderer in model.GetComponentsInChildren<Renderer>(true)){
                 var slots=renderer.sharedMaterials;
                 for(int i=0;i<slots.Length;i++){
                     string sourceName=slots[i]!=null?slots[i].name:"Default";string safe=new string(sourceName.Select(c=>char.IsLetterOrDigit(c)||c=='_'?c:'_').ToArray());string path=output+safe+".mat";var material=AssetDatabase.LoadAssetAtPath<Material>(path);if(material==null){material=new Material(Shader.Find("Universal Render Pipeline/Lit")){name=sourceName};AssetDatabase.CreateAsset(material,path);}
-                    Color color=Color.white;if(octopus){string n=sourceName.ToLowerInvariant();color=n.Contains("black")?new Color(.018f,.035f,.065f):n.Contains("white")?new Color(.96f,.99f,1):n.Contains("sucker")?new Color(.97f,.52f,.44f):n.Contains("light")?new Color(.30f,.66f,.85f):n.Contains("gray")?new Color(.15f,.24f,.33f):new Color(.13f,.45f,.72f);}
-                    material.SetColor("_BaseColor",color);material.SetFloat("_Surface",0);material.SetFloat("_AlphaClip",0);material.SetFloat("_Metallic",0);material.SetFloat("_Smoothness",octopus?.30f:.36f);material.SetTexture("_BaseMap",texture);material.SetTexture("_MainTex",texture);material.renderQueue=2000;EditorUtility.SetDirty(material);slots[i]=material;
+                    Color color=toy?new Color(.40f,.82f,1):Color.white;if(octopus&&!toy){string n=sourceName.ToLowerInvariant();color=n.Contains("black")?new Color(.018f,.035f,.065f):n.Contains("white")?new Color(.96f,.99f,1):n.Contains("sucker")?new Color(.97f,.52f,.44f):n.Contains("light")?new Color(.30f,.66f,.85f):n.Contains("gray")?new Color(.15f,.24f,.33f):new Color(.13f,.45f,.72f);}
+                    material.shader=Shader.Find("Brainrot/ToonCharacter");
+                    material.SetFloat("_Brightness",toy?1.35f:1.25f);material.SetFloat("_Saturation",toy?1.65f:1.5f);material.SetFloat("_TextureSoftening",toy?.20f:.16f);
+                    material.SetColor("_BaseColor",color);material.SetTexture("_BaseMap",texture);if(material.HasProperty("_MainTex"))material.SetTexture("_MainTex",texture);material.renderQueue=2000;EditorUtility.SetDirty(material);slots[i]=material;
                 }
                 renderer.sharedMaterials=slots;
             }
@@ -117,6 +145,6 @@ namespace Brainrot.Editor
     }
     sealed class EnemyTexturePostprocessor:AssetPostprocessor
     {
-        void OnPreprocessTexture(){if(assetPath=="Assets/Brainrot/Art/Enemies/Tralala/shaded.png")SahurModelImporter.ConfigureTexture2D((TextureImporter)assetImporter,false,true,2048);}
+        void OnPreprocessTexture(){if(assetPath=="Assets/Brainrot/Art/Enemies/Tralala/shaded.png"||assetPath=="Assets/Brainrot/Art/Enemies/OctopusToy/OctopusAlbedo.jpg")SahurModelImporter.ConfigureTexture2D((TextureImporter)assetImporter,false,true,2048);}
     }
 }

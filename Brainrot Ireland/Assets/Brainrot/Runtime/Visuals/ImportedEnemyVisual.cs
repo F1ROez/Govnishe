@@ -49,7 +49,10 @@ namespace Brainrot
             if(physical)return;
             if(GameManager.Instance!=null&&!GameManager.Instance.IsPlaying)return;
             float dt=Time.deltaTime;if(dt<=0)return;
-            if(!IsOctopus){
+            if(IsOctopus&&Animator==null){
+                float gait=Mathf.Clamp01(speed/2f);phase+=dt*(gait>0?7.5f:1.7f);
+                if(MotionRoot!=null){MotionRoot.localPosition=restMotion+Vector3.up*Mathf.Abs(Mathf.Sin(phase))*.065f*gait;MotionRoot.localRotation=Quaternion.Euler(Mathf.Sin(phase*.5f)*2*gait,0,Mathf.Sin(phase)*(gait>0?7:1.5f));}
+            }else if(!IsOctopus){
                 float gait=Mathf.Clamp01(speed/2f);phase+=dt*Mathf.Lerp(0,9,gait);
                 if(legRest!=null)for(int i=0;i<legRest.Length;i++)if(LegBones[i]!=null)LegBones[i].localRotation=legRest[i]*Quaternion.Euler(Mathf.Sin(phase+(i==1?Mathf.PI:i==2?Mathf.PI*.5f:0))*26*gait,0,0);
                 float lunge=0;

@@ -42,7 +42,7 @@ namespace Brainrot {
    foreach(var ability in abilities)ability.Dispose();abilities.Clear();
    if(Character!=null&&Character.Abilities!=null)foreach(var definition in Character.Abilities)if(definition!=null){var runtime=definition.CreateRuntime(this);if(runtime!=null)abilities.Add(runtime);}
    motor.enabled=false;transform.position=IslandMap.StartPosition;transform.rotation=Quaternion.identity;motor.enabled=true;
-   yaw=0;pitch=Mathf.Repeat(settings.CameraPitch+180,360)-180;dashUntil=nextDash=invulnerableUntil=0;DashDirection=Vector3.zero;trauma=0;
+   yaw=0;pitch=Mathf.Repeat(GameBalance.Current.Camera.InitialPitch+180,360)-180;dashUntil=nextDash=invulnerableUntil=0;DashDirection=Vector3.zero;trauma=0;
    combat?.ResetRun();visual?.ResetFeedback();
   }
   public void ToggleCameraLock(){SetCameraLock(!CameraLocked);}
@@ -75,7 +75,14 @@ namespace Brainrot {
    if(!IsCaptured)combat.UpdateAttackInput(GameInput.Attack||MobileInput.Attack);
    visual.Animate(move.magnitude*3*(sprint?1.35f:1),combat.IsAttacking);Heal(Stats.Regen*Time.deltaTime);foreach(var ability in abilities)ability.Tick(Time.deltaTime);
   }
-  void LateUpdate(){if(visual!=null)visual.transform.localScale=Vector3.one*Mathf.Max(.1f,Character!=null?Character.VisualScale:1)*Mathf.Max(.1f,GameBalance.Current.PlayerModelScale);if(cam==null)return;Quaternion rot=Quaternion.Euler(pitch,yaw,0);Vector3 target=transform.position+Vector3.up*1.6f;cam.transform.position=target-rot*Vector3.forward*Mathf.Max(2,ActiveTuning.CameraDistance)+Random.insideUnitSphere*trauma;cam.transform.rotation=rot;trauma=Mathf.MoveTowards(trauma,0,Time.unscaledDeltaTime);}
+  void LateUpdate(){
+   float visualScale=Mathf.Max(.1f,Character!=null?Character.VisualScale:1)*Mathf.Max(.1f,GameBalance.Current.PlayerModelScale);
+   if(visual!=null)visual.transform.localScale=Vector3.one*visualScale;
+   if(cam==null)return;var settings=GameBalance.Current.Camera;Quaternion rot=Quaternion.Euler(pitch,yaw,0);
+   Vector3 target=transform.position+Vector3.up*(1.9f*visualScale+Mathf.Max(0,settings.HeightAboveHead));
+   cam.transform.position=target+rot*Vector3.right*settings.ShoulderOffset-rot*Vector3.forward*Mathf.Max(2,settings.Distance)+Random.insideUnitSphere*trauma;
+   cam.transform.rotation=rot;trauma=Mathf.MoveTowards(trauma,0,Time.unscaledDeltaTime);
+  }
   public void Heal(float amount){Health=Mathf.Min(Stats.MaxHealth,Health+Mathf.Max(0,amount));}
   public void TakeDamage(float amount,Vector3 source){if(!GameManager.Instance.IsPlaying||Time.time<invulnerableUntil||amount<=0)return;Health=Mathf.Max(0,Health-amount);foreach(var ability in abilities)ability.OnDamageTaken(amount);invulnerableUntil=Time.time+.5f;trauma=.18f;HitEffects.Burst(transform.position+Vector3.up,new Color(1,.2f,.1f));GameAudio.Play(130,.1f,.15f);if(Health<=0)GameManager.Instance.Die();}
   public void CancelAttacks(){combat?.CancelPendingSwings();}

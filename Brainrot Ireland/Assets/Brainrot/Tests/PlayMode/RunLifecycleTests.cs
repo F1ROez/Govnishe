@@ -11,6 +11,12 @@ namespace Brainrot.Tests {
    game=new GameObject("Игра").AddComponent<GameManager>();profile=ScriptableObject.CreateInstance<GameBalance>();profile.Waves.InitialDelay=600;profile.Normal.Health=200;profile.Normal.Damage=0;game.Balance=profile;
    character=ScriptableObject.CreateInstance<PlayerCharacterDefinition>();game.Player.Character=character;yield return null;game.StartRun();game.Player.Stats.CritChance=0;
   }
+  [UnityTest]public IEnumerator ShoulderCameraIsAboveHeadAndRightOfPlayer(){
+   game.Player.ResetRun();yield return null;yield return null;
+   Camera camera=null;foreach(var candidate in Camera.allCameras)if(candidate.name=="Arena Camera")camera=candidate;
+   Assert.IsNotNull(camera);Vector3 offset=camera.transform.position-game.Player.transform.position;
+   Assert.Greater(Vector3.Dot(offset,camera.transform.right),.5f);Assert.Greater(offset.y,1.9f);
+  }
   [UnityTearDown]public IEnumerator Cleanup(){
    Time.timeScale=1;if(previous.IsValid()&&previous.isLoaded)SceneManager.SetActiveScene(previous);if(scene.IsValid()&&scene.isLoaded)yield return SceneManager.UnloadSceneAsync(scene);
    if(profile!=null)Object.Destroy(profile);if(character!=null)Object.Destroy(character);Cursor.lockState=CursorLockMode.None;Cursor.visible=true;yield return null;

@@ -14,3 +14,7 @@ Unity packages распространяются Unity по своим лицен
 ## Округлый шрифт
 
 `Art/Fonts/Resources/IslandRounded.ttf` — статическая производная Nunito (вес800), кириллица проверена по таблице cmap. Исходник: https://github.com/google/fonts/tree/main/ofl/nunito, Copyright2014 The Nunito Project Authors. Лицензия SIL Open Font License1.1 сохранена в `Art/Fonts/OFL.txt`. Производная переименована в Island Rounded/IslandRounded-ExtraBold. Текстуры кнопок, иконки биты/рывка/сердца/молнии оригинальные и создаются CartoonUI во время запуска; внешние изображения не использованы.
+
+## 2026-11-14 — яркий стиль и плечевая камера
+
+Новая модель OctopusToy получена из предоставленного владельцем blue-berryni-octopusini-ai-no-rig/source/tripo_pbr_model_2bb15eb5-b692-4bf2-84e7-08c55352ab80 (1).glb. Оригинальный GLB в репозитории не изменяется. Blender экспортировал облегчённую производную FBX (19022 вершины/23999 треугольников вместо500000 исходных треугольников); OctopusAlbedo.jpg — исходная встроенная baseColor JPEG из GLB. Глаза созданы из Unity primitives, материалы/ToonCharacter.shader оригинальные. Старый animated Octopus сохранён в Art/Enemies/Octopus как резервный источник; новая копия OctopusToy имеет приоритет.
