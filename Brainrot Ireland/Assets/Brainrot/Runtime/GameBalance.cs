@@ -19,6 +19,10 @@ namespace Brainrot
         }
         [Tooltip("Параметры нового забега. Спавн теперь зависит от текущей зоны острова.")]
         public PlayerTuning Player = new PlayerTuning();
+        [Min(.1f),Tooltip("Размер модели игрока. 1 — базовый размер; применяется сразу. Не меняет дальность ударов.")]
+        public float PlayerModelScale=1;
+        [Min(.1f),Tooltip("Общий размер моделей всех врагов. Умножается на размер выбранного типа врага.")]
+        public float EnemyModelScale=1;
         public StaminaTuning Stamina = new StaminaTuning();
         public CombatTuning Combat = new CombatTuning();
         public WaveTuning Waves = new WaveTuning();
@@ -152,6 +156,8 @@ namespace Brainrot
         [Min(0)]public float DifficultyPerZone=.35f;
     }
     [Serializable] public sealed class EnemyTuning {
+        [Min(.1f),Tooltip("Размер модели этого вида врага; применяется вместе с общим размером врагов.")]
+        public float ModelScale=1;
         [Min(1)]public float Health=48;
         [Min(.1f)]public float Speed=3.1f;
         [Min(0)]public float Damage=8;

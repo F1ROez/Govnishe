@@ -46,6 +46,7 @@ namespace Brainrot
             speed = Mathf.Max(.1f, tuning.Speed);
             damage = Mathf.Max(0, tuning.Damage) * Mathf.Sqrt(Mathf.Max(1, difficulty));
             if (visual == null) visual = CharacterVisual.CreateEnemy(transform, kind, Skin(kind), Size(kind));
+            visual.transform.localScale=Vector3.one*Size(kind)*Mathf.Max(.1f,GameBalance.Current.EnemyModelScale)*Mathf.Max(.1f,tuning.ModelScale);
             if (telegraph == null) telegraph = new EnemyTelegraph(transform);
             committedDirection = transform.forward;
             knockVelocity = Vector3.zero;
@@ -68,6 +69,7 @@ namespace Brainrot
                 default: return new Color(.23f,.65f,.95f);
             }
         }
+        void LateUpdate(){if(visual!=null&&tuning!=null)visual.transform.localScale=Vector3.one*Size(kind)*Mathf.Max(.1f,GameBalance.Current.EnemyModelScale)*Mathf.Max(.1f,tuning.ModelScale);}
         static float Size(EnemyKind kind)
         {
             return kind == EnemyKind.LiriliLarila ? 1.25f : kind == EnemyKind.BrrBrrPatapim ? 1.45f : kind == EnemyKind.BombardiroCrocodilo ? 1.25f : kind == EnemyKind.CappuccinoAssassino ? .95f : 1;
