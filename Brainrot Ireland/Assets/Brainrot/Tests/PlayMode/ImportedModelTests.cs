@@ -25,17 +25,24 @@ namespace Brainrot.Tests {
   [UnityTest]public IEnumerator ImportedRigCalibrationUsesActorLocalSpace(){
    var prefab=Resources.Load<GameObject>("ImportedSahur");if(prefab==null)Assert.Ignore("Сначала выполните Создать или обновить игру.");
    actor=Object.Instantiate(prefab,new Vector3(23,2,-19),Quaternion.Euler(0,70,0));yield return null;
+   var bridge=actor.GetComponent<ImportedSahurVisual>();
+   bridge.Normalization.localScale=Vector3.one*.00009492202f; // Scale recorded in owner's invisible rig report.
+   bridge.Normalization.localPosition=new Vector3(0,.01f,.003f);
+   Assert.IsTrue(bridge.CalibrateModel());var firstScale=bridge.Normalization.localScale;
+   Assert.IsTrue(bridge.CalibrateModel());Assert.Less((bridge.Normalization.localScale-firstScale).magnitude,.00001f,"Повторная подгонка не должна уменьшать модель.");
    var bounds=GeometryBounds(actor);Assert.That(bounds.size.y,Is.InRange(1.4f,2.6f));Assert.That(bounds.min.y,Is.InRange(-.35f,.35f));
    Assert.Less(new Vector2(bounds.center.x,bounds.center.z).magnitude,1.5f);
   }
   static Bounds GeometryBounds(GameObject root){
    bool any=false;Bounds bounds=new Bounds();
    foreach(var skin in root.GetComponentsInChildren<SkinnedMeshRenderer>()){
-    var mesh=new Mesh();skin.BakeMesh(mesh,false);
-    foreach(var vertex in mesh.vertices){var point=root.transform.InverseTransformPoint(skin.transform.TransformPoint(vertex));if(!any){bounds=new Bounds(point,Vector3.zero);any=true;}else bounds.Encapsulate(point);}
-    Object.Destroy(mesh);
+    var world=skin.bounds;
+    for(int corner=0;corner<8;corner++){
+     var vertex=world.center+Vector3.Scale(world.extents,new Vector3((corner&1)==0?-1:1,(corner&2)==0?-1:1,(corner&4)==0?-1:1));
+     var point=root.transform.InverseTransformPoint(vertex);if(!any){bounds=new Bounds(point,Vector3.zero);any=true;}else bounds.Encapsulate(point);
+    }
    }
-   Assert.IsTrue(any,"Импортированная модель должна содержать вершины.");return bounds;
+   Assert.IsTrue(any,"Импортированная модель должна иметь границы отображения.");return bounds;
   }
  }
 }

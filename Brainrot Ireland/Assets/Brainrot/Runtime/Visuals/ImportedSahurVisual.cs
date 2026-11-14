@@ -32,33 +32,36 @@ namespace Brainrot
             ResetAttack();
         }
         void Start(){CalibrateModel();}
-        /// <summary>Measure the evaluated skin, not renderer bounds or an editor-only sampled pose.</summary>
+        /// <summary>Fit renderer bounds after evaluating the live Animator, in the actor's local space.</summary>
         public bool CalibrateModel()
         {
             if(ModelRoot==null)return false;
             if(Normalization==null&&ModelRoot.parent!=null&&ModelRoot.parent!=transform)Normalization=ModelRoot.parent;
             if(Normalization==null)return false;
-            Normalization.localPosition=Vector3.zero;Normalization.localRotation=Quaternion.identity;Normalization.localScale=Vector3.one;
             var skins=ModelRoot.GetComponentsInChildren<SkinnedMeshRenderer>(true);
             foreach(var skin in skins){skin.enabled=true;skin.forceRenderingOff=false;skin.updateWhenOffscreen=true;}
             if(Animator!=null&&Animator.runtimeAnimatorController!=null){Animator.cullingMode=AnimatorCullingMode.AlwaysAnimate;Animator.Rebind();Animator.Update(0);}
-            bool any=false;Bounds bounds=new Bounds();var baked=new Mesh();
-            try{
-                foreach(var skin in skins){
-                    if(skin.sharedMesh==null)continue;
-                    baked.Clear();skin.BakeMesh(baked,false);
-                    foreach(var vertex in baked.vertices){
-                        var point=transform.InverseTransformPoint(skin.transform.TransformPoint(vertex));
-                        if(float.IsNaN(point.x)||float.IsInfinity(point.x)||float.IsNaN(point.y)||float.IsInfinity(point.y)||float.IsNaN(point.z)||float.IsInfinity(point.z))continue;
-                        if(!any){bounds=new Bounds(point,Vector3.zero);any=true;}else bounds.Encapsulate(point);
-                    }
+            // The live Unity report exposed inconsistent BakeMesh scale with the FBX's 100x transforms.
+            // Use the live WORLD bounds that Unity actually culls/renders. Skin bounds may follow rootBone,
+            // so transforming localBounds through the mesh transform is not reliable for every imported rig.
+            bool any=false;Bounds bounds=new Bounds();
+            foreach(var skin in skins){
+                if(skin.sharedMesh==null)continue;
+                var world=skin.bounds;
+                for(int corner=0;corner<8;corner++){
+                    var vertex=world.center+Vector3.Scale(world.extents,new Vector3((corner&1)==0?-1:1,(corner&2)==0?-1:1,(corner&4)==0?-1:1));
+                    var point=transform.InverseTransformPoint(vertex);
+                    if(float.IsNaN(point.x)||float.IsInfinity(point.x)||float.IsNaN(point.y)||float.IsInfinity(point.y)||float.IsNaN(point.z)||float.IsInfinity(point.z))continue;
+                    if(!any){bounds=new Bounds(point,Vector3.zero);any=true;}else bounds.Encapsulate(point);
                 }
-            }finally{if(Application.isPlaying)Destroy(baked);else DestroyImmediate(baked);}
+            }
             if(!any||bounds.size.y<.0001f){Debug.LogError("Не удалось измерить скелетную сетку Сахура. Повторите создание модели.",this);return false;}
             float scale=1.9f/bounds.size.y;
             var hips=Find(ModelRoot,"spine");var center=hips!=null?transform.InverseTransformPoint(hips.position):bounds.center;
-            Normalization.localScale=Vector3.one*scale;
-            Normalization.localPosition=new Vector3(-center.x*scale,-bounds.min.y*scale,-center.z*scale);
+            var anchor=new Vector3(center.x,bounds.min.y,center.z);
+            // Resize about the normalization origin, then move the measured anchor to the actor origin.
+            Normalization.localPosition=(Normalization.localPosition-anchor)*scale;
+            Normalization.localScale*=scale;
             if(RightUpperArm!=null)upperRest=RightUpperArm.localRotation;
             if(RightForearm!=null)foreRest=RightForearm.localRotation;
             return true;
