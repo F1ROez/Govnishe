@@ -5,6 +5,7 @@ namespace Brainrot
     public sealed class ImportedSahurVisual : MonoBehaviour
     {
         public Transform ModelRoot;
+        public Transform Normalization;
         public Animator Animator;
         public Transform Weapon;
         public Transform WeaponTip;
@@ -29,6 +30,38 @@ namespace Brainrot
             if(WeaponTip!=null)batLength=Mathf.Max(.01f,WeaponTip.localPosition.magnitude);
             if(Animator!=null){Animator.applyRootMotion=false;Animator.cullingMode=AnimatorCullingMode.AlwaysAnimate;}
             ResetAttack();
+        }
+        void Start(){CalibrateModel();}
+        /// <summary>Measure the evaluated skin, not renderer bounds or an editor-only sampled pose.</summary>
+        public bool CalibrateModel()
+        {
+            if(ModelRoot==null)return false;
+            if(Normalization==null&&ModelRoot.parent!=null&&ModelRoot.parent!=transform)Normalization=ModelRoot.parent;
+            if(Normalization==null)return false;
+            Normalization.localPosition=Vector3.zero;Normalization.localRotation=Quaternion.identity;Normalization.localScale=Vector3.one;
+            var skins=ModelRoot.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+            foreach(var skin in skins){skin.enabled=true;skin.forceRenderingOff=false;skin.updateWhenOffscreen=true;}
+            if(Animator!=null&&Animator.runtimeAnimatorController!=null){Animator.cullingMode=AnimatorCullingMode.AlwaysAnimate;Animator.Rebind();Animator.Update(0);}
+            bool any=false;Bounds bounds=new Bounds();var baked=new Mesh();
+            try{
+                foreach(var skin in skins){
+                    if(skin.sharedMesh==null)continue;
+                    baked.Clear();skin.BakeMesh(baked,false);
+                    foreach(var vertex in baked.vertices){
+                        var point=transform.InverseTransformPoint(skin.transform.TransformPoint(vertex));
+                        if(float.IsNaN(point.x)||float.IsInfinity(point.x)||float.IsNaN(point.y)||float.IsInfinity(point.y)||float.IsNaN(point.z)||float.IsInfinity(point.z))continue;
+                        if(!any){bounds=new Bounds(point,Vector3.zero);any=true;}else bounds.Encapsulate(point);
+                    }
+                }
+            }finally{if(Application.isPlaying)Destroy(baked);else DestroyImmediate(baked);}
+            if(!any||bounds.size.y<.0001f){Debug.LogError("Не удалось измерить скелетную сетку Сахура. Повторите создание модели.",this);return false;}
+            float scale=1.9f/bounds.size.y;
+            var hips=Find(ModelRoot,"spine");var center=hips!=null?transform.InverseTransformPoint(hips.position):bounds.center;
+            Normalization.localScale=Vector3.one*scale;
+            Normalization.localPosition=new Vector3(-center.x*scale,-bounds.min.y*scale,-center.z*scale);
+            if(RightUpperArm!=null)upperRest=RightUpperArm.localRotation;
+            if(RightForearm!=null)foreRest=RightForearm.localRotation;
+            return true;
         }
         public static Transform Find(Transform root,string name){
             if(root.name==name)return root;

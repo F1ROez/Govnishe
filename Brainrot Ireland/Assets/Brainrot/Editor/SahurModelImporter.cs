@@ -38,17 +38,18 @@ namespace Brainrot.Editor
             try
             {
                 var normalization=new GameObject("Нормализация масштаба").transform;normalization.SetParent(root.transform,false);
-                var model=(GameObject)PrefabUtility.InstantiatePrefab(asset);model.transform.SetParent(normalization,false);
+                var model=(GameObject)PrefabUtility.InstantiatePrefab(asset);
+                // Save a standalone rig hierarchy: sampled transforms must not revert to nested FBX defaults.
+                PrefabUtility.UnpackPrefabInstance(model,PrefabUnpackMode.Completely,InteractionMode.AutomatedAction);
+                model.transform.SetParent(normalization,false);
+                foreach(var child in model.GetComponentsInChildren<Transform>(true)){child.gameObject.layer=0;child.gameObject.SetActive(true);}
                 foreach(var collider in model.GetComponentsInChildren<Collider>(true))UnityEngine.Object.DestroyImmediate(collider);
                 foreach(var renderer in model.GetComponentsInChildren<Renderer>(true)){renderer.sharedMaterials=Enumerable.Repeat(material,Mathf.Max(1,renderer.sharedMaterials.Length)).ToArray();}
                 AnimationClip idle=AssetDatabase.LoadAllAssetsAtPath(modelPath).OfType<AnimationClip>().FirstOrDefault(c=>c.name.IndexOf("Idle",StringComparison.OrdinalIgnoreCase)>=0&&!c.name.StartsWith("__"));
                 if(idle!=null)idle=LoopingIdle(idle);
                 // The supplied Idle animates metarig scale from .229 to1. Sample before measuring and normalize OUTSIDE animated hierarchy.
                 if(idle!=null)idle.SampleAnimation(model,0);
-                Bounds bounds=Measure(model);float scale=1.9f/Mathf.Max(.01f,bounds.size.y);
-                var hips=ImportedSahurVisual.Find(model.transform,"spine");Vector3 center=hips!=null?hips.position:bounds.center;
-                normalization.localScale=Vector3.one*scale;normalization.localPosition=new Vector3(-center.x*scale,-bounds.min.y*scale,-center.z*scale);
-                var bridge=root.AddComponent<ImportedSahurVisual>();bridge.ModelRoot=model.transform;
+                var bridge=root.AddComponent<ImportedSahurVisual>();bridge.ModelRoot=model.transform;bridge.Normalization=normalization;
                 bridge.Weapon=ImportedSahurVisual.Find(model.transform,"Bat");bridge.Grip=ImportedSahurVisual.Find(model.transform,"hand.R");bridge.RightUpperArm=ImportedSahurVisual.Find(model.transform,"upper_arm.R");bridge.RightForearm=ImportedSahurVisual.Find(model.transform,"forearm.R");
                 if(bridge.Weapon!=null){
                     var end=ImportedSahurVisual.Find(bridge.Weapon,"Bat_end");float length=end!=null?Mathf.Max(.1f,end.localPosition.magnitude):.8877f;
@@ -56,9 +57,11 @@ namespace Brainrot.Editor
                     var trail=tip.gameObject.AddComponent<TrailRenderer>();trail.sharedMaterial=TrailMaterial();trail.time=.18f;trail.minVertexDistance=.025f;trail.emitting=false;trail.widthCurve=AnimationCurve.Linear(0,.22f,1,0);
                     var gradient=new Gradient();gradient.SetKeys(new[]{new GradientColorKey(Color.white,0),new GradientColorKey(Color.white,1)},new[]{new GradientAlphaKey(.9f,0),new GradientAlphaKey(0,1)});trail.colorGradient=gradient;trail.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;trail.receiveShadows=false;bridge.Trail=trail;
                 }
-                foreach(var skin in model.GetComponentsInChildren<SkinnedMeshRenderer>()){var b=skin.localBounds;b.Expand(4);skin.localBounds=b;}
+                foreach(var skin in model.GetComponentsInChildren<SkinnedMeshRenderer>()){skin.enabled=true;skin.forceRenderingOff=false;skin.updateWhenOffscreen=true;}
                 var animator=model.GetComponent<Animator>();if(animator==null)animator=model.AddComponent<Animator>();animator.applyRootMotion=false;bridge.Animator=animator;
                 animator.runtimeAnimatorController=Controller(model.transform,idle);
+                animator.cullingMode=AnimatorCullingMode.AlwaysAnimate;
+                if(!bridge.CalibrateModel())throw new InvalidOperationException("Сетка Сахура недоступна после запуска Animator; prefab не обновлён.");
                 PrefabUtility.SaveAsPrefabAsset(root,PrefabPath);AssetDatabase.SaveAssets();
                 Debug.Log("Модель Сахура обновлена: оригинальная сетка/текстуры, Idle из FBX, созданные костные ходьба и бег, взмах импортированной битой.");
             }
@@ -131,15 +134,6 @@ namespace Brainrot.Editor
             material=new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit")){name="Белый шлейф",color=Color.white,renderQueue=3000};
             material.SetFloat("_Surface",1);material.SetInt("_SrcBlend",(int)UnityEngine.Rendering.BlendMode.SrcAlpha);material.SetInt("_DstBlend",(int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);material.SetInt("_ZWrite",0);material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");material.SetOverrideTag("RenderType","Transparent");AssetDatabase.CreateAsset(material,path);return material;
         }
-        static Bounds Measure(GameObject model)
-        {
-            bool any=false;Bounds bounds=new Bounds();
-            foreach(var skin in model.GetComponentsInChildren<SkinnedMeshRenderer>()){
-                var baked=new Mesh();skin.BakeMesh(baked);foreach(var vertex in baked.vertices){var world=skin.transform.TransformPoint(vertex);if(!any){bounds=new Bounds(world,Vector3.zero);any=true;}else bounds.Encapsulate(world);}UnityEngine.Object.DestroyImmediate(baked);
-            }
-            if(!any)foreach(var renderer in model.GetComponentsInChildren<Renderer>()){if(!any){bounds=renderer.bounds;any=true;}else bounds.Encapsulate(renderer.bounds);}
-            return bounds;
-        }
         static AnimationClip LoopingIdle(AnimationClip source){
             string path=Output+"OriginalIdle.anim";var clip=AssetDatabase.LoadAssetAtPath<AnimationClip>(path);if(clip!=null)return clip;
             clip=UnityEngine.Object.Instantiate(source);clip.name="Ожидание из FBX";clip.hideFlags=HideFlags.None;
@@ -148,8 +142,8 @@ namespace Brainrot.Editor
         static RuntimeAnimatorController Controller(Transform model,AnimationClip idle)
         {
             string path=Output+"Sahur.controller";var controller=AssetDatabase.LoadAssetAtPath<AnimatorController>(path);
-            if(controller!=null)return controller;
-            controller=AnimatorController.CreateAnimatorControllerAtPath(path);controller.AddParameter("Speed",AnimatorControllerParameterType.Float);
+            if(controller==null)controller=AnimatorController.CreateAnimatorControllerAtPath(path);
+            if(!controller.parameters.Any(p=>p.name=="Speed"))controller.AddParameter("Speed",AnimatorControllerParameterType.Float);
             var machine=controller.layers[0].stateMachine;
             foreach(var state in machine.states)machine.RemoveState(state.state);
             var idleState=machine.AddState("Ожидание");idleState.motion=idle!=null?idle:Gait(model,"Idle",2,0);machine.defaultState=idleState;
@@ -162,8 +156,8 @@ namespace Brainrot.Editor
         static void Transition(AnimatorState from,AnimatorState to,AnimatorConditionMode mode,float value){var t=from.AddTransition(to);t.hasExitTime=false;t.duration=.12f;t.AddCondition(mode,value,"Speed");}
         static AnimationClip Gait(Transform model,string name,float length,float amplitude)
         {
-            string path=Output+name+".anim";var clip=AssetDatabase.LoadAssetAtPath<AnimationClip>(path);if(clip!=null)return clip;
-            clip=new AnimationClip{name=name,frameRate=30};
+            string path=Output+name+".anim";var clip=AssetDatabase.LoadAssetAtPath<AnimationClip>(path);bool create=clip==null;
+            if(create)clip=new AnimationClip{name=name,frameRate=30};else clip.ClearCurves();
             foreach(string boneName in new[]{"thigh.L","thigh.R","shin.L","shin.R","upper_arm.L","upper_arm.R"}){
                 var bone=ImportedSahurVisual.Find(model,boneName);if(bone==null)continue;
                 var curves=new[]{new AnimationCurve(),new AnimationCurve(),new AnimationCurve(),new AnimationCurve()};Quaternion rest=bone.localRotation;
@@ -179,11 +173,11 @@ namespace Brainrot.Editor
             }
             // Hold the sampled Idle baseline scale in EVERY locomotion clip; supplied FBX animates metarig scale .229 ->1.
             foreach(var transform in model.GetComponentsInChildren<Transform>(true)){
-                string relative=AnimationUtility.CalculateTransformPath(transform,model);Vector3 s=transform.localScale;
-                foreach(var component in new[]{new {Name="m_LocalScale.x",Value=s.x},new {Name="m_LocalScale.y",Value=s.y},new {Name="m_LocalScale.z",Value=s.z}})
+                string relative=AnimationUtility.CalculateTransformPath(transform,model);Vector3 s=transform.localScale,p=transform.localPosition;
+                foreach(var component in new[]{new {Name="m_LocalScale.x",Value=s.x},new {Name="m_LocalScale.y",Value=s.y},new {Name="m_LocalScale.z",Value=s.z},new {Name="m_LocalPosition.x",Value=p.x},new {Name="m_LocalPosition.y",Value=p.y},new {Name="m_LocalPosition.z",Value=p.z}})
                     AnimationUtility.SetEditorCurve(clip,EditorCurveBinding.FloatCurve(relative,typeof(Transform),component.Name),AnimationCurve.Constant(0,length,component.Value));
             }
-            clip.EnsureQuaternionContinuity();var settings=AnimationUtility.GetAnimationClipSettings(clip);settings.loopTime=true;AnimationUtility.SetAnimationClipSettings(clip,settings);AssetDatabase.CreateAsset(clip,path);return clip;
+            clip.EnsureQuaternionContinuity();var settings=AnimationUtility.GetAnimationClipSettings(clip);settings.loopTime=true;AnimationUtility.SetAnimationClipSettings(clip,settings);if(create)AssetDatabase.CreateAsset(clip,path);else EditorUtility.SetDirty(clip);return clip;
         }
     }
     sealed class SahurTexturePostprocessor : AssetPostprocessor
