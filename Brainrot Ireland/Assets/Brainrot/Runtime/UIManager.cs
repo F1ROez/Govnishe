@@ -58,12 +58,12 @@ namespace Brainrot
             stats=Label(hud.transform,"",24,TextAnchor.UpperCenter,new Vector2(.35f,.84f),new Vector2(.8f,.96f));
             Button(hud.transform,"II",new Vector2(.92f,.935f),new Vector2(.975f,.99f),()=>GameManager.Instance.Pause());
             notification=Label(hud.transform,"",30,TextAnchor.MiddleCenter,new Vector2(.15f,.68f),new Vector2(.85f,.81f)); notification.color=gold;
-            Label(hud.transform,"WASD — движение  •  Мышь — камера  •  ЛКМ — удар  •  Shift — бег  •  Пробел — рывок  •  V — фиксация  •  M — карта",16,TextAnchor.LowerCenter,new Vector2(.08f,.02f),new Vector2(.92f,.07f));
+            Label(hud.transform,"WASD — движение  •  Мышь — камера  •  ЛКМ — удар  •  Shift — бег  •  Пробел — рывок  •  V — фиксация",16,TextAnchor.LowerCenter,new Vector2(.08f,.02f),new Vector2(.92f,.07f));
             aimHint=Label(hud.transform,"",16,TextAnchor.LowerCenter,new Vector2(.32f,.07f),new Vector2(.68f,.11f));
             Label(hud.transform,"+",18,TextAnchor.MiddleCenter,new Vector2(.49f,.49f),new Vector2(.51f,.53f)).color=new Color(1,1,1,.5f);
             hitMarker=Label(hud.transform,"",36,TextAnchor.MiddleCenter,new Vector2(.47f,.46f),new Vector2(.53f,.56f));
             hitLabel=Label(hud.transform,"",17,TextAnchor.MiddleCenter,new Vector2(.4f,.41f),new Vector2(.6f,.46f));
-            BuildMinimap(root.transform);
+
             overlay=Box("Screens",root.transform,Vector2.zero,Vector2.one,new Color(.015f,.055f,.1f,.91f));
             BuildMobile(root.transform);
             BuildFullMap(root.transform);
@@ -84,7 +84,8 @@ namespace Brainrot
                 xpText.text=$"УРОВЕНЬ {gm.Upgrades.Level}   ·   {gm.Upgrades.Experience} / {gm.Upgrades.RequiredExperience} ОПЫТА";
                 xpFill.fillAmount=Mathf.Clamp01((float)gm.Upgrades.Experience/Mathf.Max(1,gm.Upgrades.RequiredExperience));
             }
-            stats.text=$"{TimeLabel(gm.Elapsed)}   |   Побеждено: {gm.Kills}\n<size=17>{IslandMap.Name(gm.CurrentZone)}</size>\n<size=14>{ZoneHint(gm.CurrentZone)}</size>";
+            xpText.transform.parent.gameObject.SetActive(true);xpText.gameObject.SetActive(false);xpFill.transform.parent.gameObject.SetActive(false);
+            stats.text=$"{TimeLabel(gm.Elapsed)}   |   Побеждено: {gm.Kills}\n<size=17>{IslandMap.Name(gm.CurrentZone)}</size>\n<size=14>Обычные акулы выходят из воды</size>";
             notification.text=gm.Notification ?? "";
             aimHint.text=gm.Player!=null && gm.Player.CameraLocked ? "ВЗГЛЯД ПО КАМЕРЕ  ·  V" : "СВОБОДНЫЙ ПОВОРОТ  ·  V";
             if(Time.unscaledTime>=hitUntil) {hitMarker.text="";hitLabel.text="";}
@@ -93,7 +94,7 @@ namespace Brainrot
                 Color feedback=lastHitCritical?gold:Color.white;feedback.a=alpha;
                 hitMarker.color=feedback;hitLabel.color=feedback;
             }
-            if((gm.State==GameState.Playing||gm.State==GameState.Map)&&GameInput.MapToggle)ToggleMap();
+            
             mapExpanded=gm.State==GameState.Map;
             fullMap.SetActive(mapExpanded);
             int level=gm.Upgrades!=null?gm.Upgrades.Level:0;
@@ -206,7 +207,7 @@ namespace Brainrot
             var attack=Button(mobile.transform,"УДАР",new Vector2(.82f,.11f),new Vector2(.97f,.29f),()=>{});attack.gameObject.AddComponent<MobileHoldButton>().Action=0;
             var sprint=Button(mobile.transform,"БЕГ",new Vector2(.27f,.12f),new Vector2(.38f,.23f),()=>{});sprint.gameObject.AddComponent<MobileHoldButton>().Action=1;
             Button(mobile.transform,"РЫВОК",new Vector2(.68f,.12f),new Vector2(.8f,.23f),()=>MobileInput.Dash=true);
-            Button(mobile.transform,"КАРТА",new Vector2(.69f,.87f),new Vector2(.8f,.95f),ToggleMap);
+            
         }
         static string ZoneHint(IslandZone zone)
         {

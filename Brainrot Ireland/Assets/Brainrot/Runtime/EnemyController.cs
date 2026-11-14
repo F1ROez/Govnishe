@@ -37,7 +37,7 @@ namespace Brainrot
             this.owner = owner; Kind = kind;
             tuning = GameBalance.Current.Enemy(kind);
             HomeZone = IslandMap.GetZone(position);
-            HomePosition = IslandMap.ClampToZone(position, HomeZone);
+            HomePosition = position;
             HomePosition = new Vector3(HomePosition.x, 0, HomePosition.z);
             transform.position = HomePosition;
             transform.rotation = Quaternion.Euler(0, Random.Range(0, 360), 0);
@@ -86,20 +86,8 @@ namespace Brainrot
             Vector3 delta = Flat(playerPosition - transform.position);
             float distance = delta.magnitude;
             var settings = GameBalance.Current.Exploration;
-            bool sameZone = IslandMap.GetZone(playerPosition) == HomeZone;
-            float detection = Mathf.Max(1, settings.DetectionRadius);
-            float lose = Mathf.Max(detection + 1, settings.LoseInterestRadius);
-            float leash = Mathf.Max(2, settings.LeashDistance);
-            bool insideHomeLeash = Flat(playerPosition - HomePosition).sqrMagnitude <= leash * leash;
-
-            if (IsAlerted && (!sameZone || !insideHomeLeash || distance > lose)) LoseInterest();
-            if (!IsAlerted && sameZone && insideHomeLeash && distance <= detection)
-            {
-                IsAlerted = true;
-                if (Action != EnemyAction.Staggered) Action = EnemyAction.Chasing;
-                telegraph.Hide();
-            }
-            if (!IsAlerted) { TickAmbient(dt); return; }
+            IsAlerted=true;
+            if(Action==EnemyAction.Idle||Action==EnemyAction.Wandering)Action=EnemyAction.Chasing;
 
             Vector3 direction = distance > .001f ? delta / distance : transform.forward;
             switch (Action)
@@ -197,7 +185,7 @@ namespace Brainrot
         }
         void MoveWithinZone(Vector3 displacement)
         {
-            Vector3 next = IslandMap.ClampToZone(transform.position + displacement, HomeZone);
+            Vector3 next = transform.position + displacement;
             next.y = 0;transform.position = next;
         }
         void Face(Vector3 direction, float dt)

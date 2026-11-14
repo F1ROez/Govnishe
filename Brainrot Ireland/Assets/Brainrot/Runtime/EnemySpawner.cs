@@ -42,7 +42,7 @@ namespace Brainrot
         {
             if (kind == EnemyKind.MiniBoss || kind == EnemyKind.King || Active.Count >= MaxEnemies) return null;
             IslandZone zone = CurrentZone;
-            if (!IslandMap.IsWalkable(position) || IslandMap.GetZone(position) != zone || kind != IslandMap.EnemyForZone(zone)) return null;
+            if (IslandMap.GetZone(position) != zone || kind != IslandMap.EnemyForZone(zone)) return null;
             if (CountInZone(zone) >= CurrentAliveLimit) return null;
             position.y = 0;
             var enemy = Pool(kind).Get();
@@ -62,7 +62,7 @@ namespace Brainrot
                 zoneInitialized = true;
                 lastZone = zone;
                 TrimInactiveZones(zone);
-                int missing = Mathf.Min(CurrentAliveLimit, Mathf.Max(0, settings.ZoneEntryPopulation)) - CountInZone(zone);
+                int missing = Mathf.Min(CurrentAliveLimit, Mathf.Max(0, 0)) - CountInZone(zone);
                 for (int i = 0; i < missing; i++) TrySpawnLocal(zone);
                 spawnClock = NextInterval();
             }
@@ -87,10 +87,11 @@ namespace Brainrot
             var settings = GameBalance.Current.Exploration;
             float min = Mathf.Max(3, settings.SpawnMinDistance);
             float max = Mathf.Max(min, settings.SpawnMaxDistance);
-            if (!IslandMap.TrySpawnPoint(zone, game.Player.transform.position, min, max, out var point)) return false;
-            float difficulty = 1 + (int)zone * Mathf.Max(0, settings.DifficultyPerZone);
-            return Spawn(IslandMap.EnemyForZone(zone), point, difficulty) != null;
+            float angle=Random.Range(0,Mathf.PI*2);
+            Vector3 point=new Vector3(Mathf.Cos(angle),0,Mathf.Sin(angle))*28;
+            return Spawn(EnemyKind.Normal,point,1)!=null;
         }
+
         float NextInterval()
         {
             var settings = GameBalance.Current.Exploration;

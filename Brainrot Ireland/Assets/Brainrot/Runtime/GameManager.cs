@@ -21,13 +21,13 @@ namespace Brainrot {
    if(Time.unscaledTime>noticeUntil) Notification=""; ui.Refresh();
   }
   void SetState(GameState value){ if(value!=GameState.Playing&&Player!=null)Player.CancelAttacks();State=value;Time.timeScale=IsPlaying?1:0; bool lockMouse=IsPlaying&&!Application.isMobilePlatform;Cursor.lockState=lockMouse?CursorLockMode.Locked:CursorLockMode.None;Cursor.visible=!lockMouse; MobileInput.Move=Vector2.zero;MobileInput.Look=Vector2.zero;MobileInput.Attack=false;MobileInput.Sprint=false;MobileInput.Dash=false; }
-  public void StartRun(){Spawner.ResetRun();Elapsed=0;Kills=0;Notification="";Player.ResetRun();Upgrades.ResetRun();SetState(GameState.Playing);Notify("Исследуйте остров. Далёкие враги не замечают вас.",5);}
+  public void StartRun(){Spawner.ResetRun();Elapsed=0;Kills=0;Notification="";Player.ResetRun();Upgrades.ResetRun();SetState(GameState.Playing);Notify("Акулы выходят из океана. Продержитесь как можно дольше.",5);}
   public void OpenMap(){if(IsPlaying)SetState(GameState.Map);}
   public void CloseMap(){if(State==GameState.Map)SetState(GameState.Playing);}
   public void Pause(){if(IsPlaying)SetState(GameState.Paused);} public void Resume(){if(State==GameState.Paused)SetState(GameState.Playing);}
   public void ShowUpgrades(){if(State!=GameState.Dead)SetState(GameState.Upgrade);} public void ResumeAfterUpgrade(){if(State==GameState.Upgrade)SetState(GameState.Playing);}
   public void MainMenu(){Spawner.ResetRun();SetState(GameState.Menu);}
-  public void Reward(int xp,int kills){if(!IsPlaying)return;Kills+=kills;Upgrades.AddExperience(xp);}
+  public void Reward(int xp,int kills){if(!IsPlaying)return;Kills+=kills;}
   public void Die(){if(!IsPlaying)return;SaveSystem.Record(Elapsed,Kills,Upgrades.Level);SetState(GameState.Dead);}
   public void Notify(string message,float seconds=3){Notification=message;noticeUntil=Time.unscaledTime+seconds;}
   public void ReportHit(bool critical,int count=1){ui.ShowHit(critical,count);}

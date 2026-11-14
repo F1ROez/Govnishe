@@ -6,8 +6,8 @@ namespace Brainrot
     /// <summary>The same deterministic map is used by scenery, movement, AI, spawning and the map UI.</summary>
     public static class IslandMap
     {
-        public const float Radius = 100f;
-        public static Vector3 StartPosition => new Vector3(0, .15f, -75);
+        public const float Radius = 22f;
+        public static Vector3 StartPosition => new Vector3(0, .15f, 0);
         public static Vector3 Center(IslandZone zone)
         {
             switch (zone)
@@ -21,20 +21,13 @@ namespace Brainrot
         }
         public static IslandZone GetZone(Vector3 position)
         {
-            IslandZone result = IslandZone.Beach;
-            float nearest = float.PositiveInfinity;
-            for (int i = 0; i < 5; i++)
-            {
-                Vector3 delta = position - Center((IslandZone)i); delta.y = 0;
-                if (delta.sqrMagnitude < nearest) { nearest = delta.sqrMagnitude; result = (IslandZone)i; }
-            }
-            return result;
+            return IslandZone.Beach;
         }
         public static string Name(IslandZone zone)
         {
             switch (zone)
             {
-                case IslandZone.Beach: return "Стартовый пляж";
+                case IslandZone.Beach: return "Остров";
                 case IslandZone.Meadows: return "Луга";
                 case IslandZone.Forest: return "Лес Патапима";
                 case IslandZone.Ruins: return "Макаронные руины";
@@ -65,7 +58,7 @@ namespace Brainrot
         }
         public static float CoastRadius(float angleRadians)
         {
-            return Radius + Mathf.Sin(angleRadians * 3 + .4f) * 5 + Mathf.Sin(angleRadians * 5 - .8f) * 3 + Mathf.Cos(angleRadians * 9) * 1.5f;
+            return Radius;
         }
         public static bool IsWalkable(Vector3 position, float margin = 2)
         {
