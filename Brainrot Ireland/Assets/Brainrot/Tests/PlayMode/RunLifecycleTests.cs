@@ -18,7 +18,7 @@ namespace Brainrot.Tests {
    Assert.Greater(Vector3.Dot(offset,camera.transform.right),.5f);Assert.Greater(offset.y,1.9f);
   }
   [UnityTearDown]public IEnumerator Cleanup(){
-   Time.timeScale=1;if(previous.IsValid()&&previous.isLoaded)SceneManager.SetActiveScene(previous);if(scene.IsValid()&&scene.isLoaded)yield return SceneManager.UnloadSceneAsync(scene);
+   if(GameMusic.Instance!=null)Object.Destroy(GameMusic.Instance.gameObject);Time.timeScale=1;if(previous.IsValid()&&previous.isLoaded)SceneManager.SetActiveScene(previous);if(scene.IsValid()&&scene.isLoaded)yield return SceneManager.UnloadSceneAsync(scene);
    if(profile!=null)Object.Destroy(profile);if(character!=null)Object.Destroy(character);Cursor.lockState=CursorLockMode.None;Cursor.visible=true;yield return null;
   }
   EnemyController Spawn(float distance=2)=>game.Spawner.Spawn(EnemyKind.Normal,game.Player.transform.position+Vector3.forward*distance);

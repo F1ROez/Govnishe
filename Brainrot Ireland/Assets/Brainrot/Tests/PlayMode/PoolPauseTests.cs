@@ -12,7 +12,7 @@ namespace Brainrot.Tests {
    Assert.IsNull(GameManager.Instance,"Запускайте тесты из Edit mode.");previous=SceneManager.GetActiveScene();scene=SceneManager.CreateScene("Проверка пула "+System.Guid.NewGuid());SceneManager.SetActiveScene(scene);
    game=new GameObject("Игра").AddComponent<GameManager>();profile=ScriptableObject.CreateInstance<GameBalance>();profile.Waves.InitialDelay=600;game.Balance=profile;yield return null;game.StartRun();
   }
-  [UnityTearDown]public IEnumerator Cleanup(){Time.timeScale=1;if(previous.IsValid()&&previous.isLoaded)SceneManager.SetActiveScene(previous);if(scene.IsValid()&&scene.isLoaded)yield return SceneManager.UnloadSceneAsync(scene);if(profile!=null)Object.Destroy(profile);yield return null;}
+  [UnityTearDown]public IEnumerator Cleanup(){if(GameMusic.Instance!=null)Object.Destroy(GameMusic.Instance.gameObject);Time.timeScale=1;if(previous.IsValid()&&previous.isLoaded)SceneManager.SetActiveScene(previous);if(scene.IsValid()&&scene.isLoaded)yield return SceneManager.UnloadSceneAsync(scene);if(profile!=null)Object.Destroy(profile);yield return null;}
   [UnityTest]public IEnumerator ReusedPhysicalCorpseSpawnsAtOceanPoseNotOldIslandPose(){
    var first=game.Spawner.Spawn(EnemyKind.Normal,EnemySpawner.OceanSpawnPoint(0));first.TakeDamage(9999,Vector3.right*10);
    first.PhysicsBody.Rigidbody.position=Vector3.right*2;first.PhysicsBody.Rigidbody.linearVelocity=Vector3.left*7;

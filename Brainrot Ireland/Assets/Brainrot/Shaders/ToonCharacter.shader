@@ -2,8 +2,8 @@ Shader "Brainrot/ToonCharacter"
 {
  Properties
  {
-  _BaseMap("Текстура",2D)="white"{}
-  _BaseColor("Цвет",Color)=(1,1,1,1)
+  [MainTexture] _BaseMap("Текстура",2D)="white"{}
+  [MainColor] _BaseColor("Цвет",Color)=(1,1,1,1)
   _Brightness("Яркость",Range(.5,2))=1.18
   _Saturation("Насыщенность",Range(0,2))=1.4
   _TextureSoftening("Мягкость текстуры",Range(0,1))=.16

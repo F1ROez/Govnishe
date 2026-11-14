@@ -8,20 +8,19 @@ namespace Brainrot {
  public sealed class MenuBootstrap:MonoBehaviour {
   Texture2D backdropTexture;Font font;Transform canvas;GameObject panel;Button continueButton,newButton;
   void Awake(){
-   SaveSystem.Load();Time.timeScale=0;Cursor.lockState=CursorLockMode.None;Cursor.visible=true;
-   var camera=new GameObject("Камера меню").AddComponent<Camera>();camera.transform.SetParent(transform);camera.cullingMask=0;camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=new Color(.24f,.64f,.73f);
+   SaveSystem.Load();GameMusic.ApplyVolume();GameMusic.SetMenu();Time.timeScale=0;Cursor.lockState=CursorLockMode.None;Cursor.visible=true;
+   var camera=new GameObject("Камера меню").AddComponent<Camera>();camera.transform.SetParent(transform);camera.gameObject.AddComponent<AudioListener>();camera.cullingMask=0;camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=new Color(.24f,.64f,.73f);
    var root=new GameObject("Главное меню",typeof(RectTransform),typeof(Canvas),typeof(CanvasScaler),typeof(GraphicRaycaster));root.transform.SetParent(transform,false);var c=root.GetComponent<Canvas>();c.renderMode=RenderMode.ScreenSpaceOverlay;c.sortingOrder=100;canvas=root.transform;
    var scale=root.GetComponent<CanvasScaler>();scale.uiScaleMode=CanvasScaler.ScaleMode.ScaleWithScreenSize;scale.referenceResolution=new Vector2(1280,720);scale.matchWidthOrHeight=.5f;
    font=CartoonUI.Font;
-   var image=Resources.Load<Texture2D>("MenuBackground");if(image!=null){var bg=new GameObject("Фон",typeof(RectTransform),typeof(RawImage),typeof(AspectRatioFitter));bg.transform.SetParent(canvas,false);bg.GetComponent<RawImage>().texture=image;bg.GetComponent<RawImage>().raycastTarget=false;var fitter=bg.GetComponent<AspectRatioFitter>();fitter.aspectMode=AspectRatioFitter.AspectMode.EnvelopeParent;fitter.aspectRatio=(float)image.width/image.height;}
+   var image=Resources.Load<Texture2D>("MenuBackground")??Resources.Load<Texture2D>("TropicalMenuBackdrop");if(image!=null){var bg=new GameObject("Фон",typeof(RectTransform),typeof(RawImage),typeof(AspectRatioFitter));bg.transform.SetParent(canvas,false);bg.GetComponent<RawImage>().texture=image;bg.GetComponent<RawImage>().raycastTarget=false;var fitter=bg.GetComponent<AspectRatioFitter>();fitter.aspectMode=AspectRatioFitter.AspectMode.EnvelopeParent;fitter.aspectRatio=(float)image.width/image.height;}
    if(image==null)BuildBackdrop();
-   var tint=CartoonUI.Image("Мягкое затемнение",canvas,Vector2.zero,Vector2.one,new Color(.12f,.38f,.82f,.08f));
-   var logo=Box(canvas,new Vector2(.045f,.64f),new Vector2(.57f,.94f),new Color(.28f,.27f,.83f,.95f));
-   Text(logo.transform,"БРЕЙНРОТ\nИРЛАНДИЯ",56,.22f,.94f).color=CartoonUI.Cream;
-   Text(logo.transform,"МАЛЕНЬКИЙ ОСТРОВ. БОЛЬШИЕ НЕПРИЯТНОСТИ.",15,.03f,.20f).color=CartoonUI.Aqua;
-   var caption=Box(canvas,new Vector2(.05f,.065f),new Vector2(.56f,.18f),new Color(.10f,.48f,.86f,.94f));
-   Text(caption.transform,"Солнце, океан и очень голодные акулы.\nДержи биту крепче — остров ждёт!",22,.08f,.92f).color=CartoonUI.Cream;
-   panel=Box(canvas,new Vector2(.63f,.075f),new Vector2(.96f,.925f),CartoonUI.Panel);
+   var logo=TropicalUIArt.Place("Логотип на дереве",canvas,new Vector2(.025f,.715f),new Vector2(.48f,.985f),"LogoPlaque").gameObject;
+   var topTitle=Text(logo.transform,"БРЕЙНРОТ",47,.48f,.92f);topTitle.color=Color.white;var titleRect=(RectTransform)topTitle.transform;titleRect.anchorMin=new Vector2(.13f,.48f);
+   Text(logo.transform,"ИРЛАНДИЯ",45,.13f,.55f).color=new Color(1,.82f,.25f);
+   var caption=TropicalUIArt.Place("Подпись острова",canvas,new Vector2(.035f,.045f),new Vector2(.55f,.18f),"WoodButton").gameObject;
+   Text(caption.transform,"Маленький остров. Бесконечные волны.\nДержи биту крепче и побей свой рекорд!",21,.14f,.88f).color=CartoonUI.Cream;
+   panel=Box(canvas,new Vector2(.63f,.095f),new Vector2(.96f,.86f),Color.clear);
    var events=new GameObject("Управление меню",typeof(EventSystem));events.transform.SetParent(transform,false);
 #if ENABLE_INPUT_SYSTEM
    events.AddComponent<InputSystemUIInputModule>().AssignDefaultActions();
@@ -32,18 +31,19 @@ namespace Brainrot {
   }
   void Start(){UIInputRouter.EnsureForScene(gameObject.scene);}
   void Update(){if(continueButton!=null)continueButton.interactable=!SceneFlow.Instance.Busy&&GameManager.Instance!=null&&GameManager.Instance.HasRun;if(newButton!=null)newButton.interactable=!SceneFlow.Instance.Busy;}
-  void Clear(){foreach(Transform child in panel.transform){child.gameObject.SetActive(false);Destroy(child.gameObject);}continueButton=newButton=null;}
-  void Main(){Clear();Text(panel.transform,"ОСТРОВ ЖДЁТ!",32,.79f,.96f);Text(panel.transform,"ТВОЙ СЛЕДУЮЩИЙ РЕКОРД — ВПЕРЕДИ",13,.735f,.80f).color=CartoonUI.Aqua;continueButton=Button("ПРОДОЛЖИТЬ ИГРУ",.60f,()=>SceneFlow.Instance.Play(false));newButton=Button("НОВАЯ ИГРА",.47f,()=>SceneFlow.Instance.Play(true));Button("НАСТРОЙКИ",.34f,Settings);Button("РЕКОРДЫ",.21f,Records);Button("ВЫХОД",.08f,()=>Application.Quit());}
-  void Records(){Clear();Text(panel.transform,"РЕКОРДЫ",32,.79f,.95f);var d=SaveSystem.Data;Text(panel.transform,$"Лучшее время\n{Mathf.FloorToInt(d.BestTime/60):00}:{Mathf.FloorToInt(d.BestTime%60):00}\n\nПобеждено врагов\n{d.BestKills}",25,.28f,.77f);Button("НАЗАД",.08f,Main);}
+  bool mainPage;
+  void Clear(){mainPage=false;foreach(Transform child in panel.transform){child.gameObject.SetActive(false);Destroy(child.gameObject);}continueButton=newButton=null;}
+  void Main(){Clear();mainPage=true;panel.GetComponent<Image>().color=Color.clear;continueButton=Button("ПРОДОЛЖИТЬ ИГРУ",.79f,()=>SceneFlow.Instance.Play(false));newButton=Button("НОВАЯ ИГРА",.61f,()=>SceneFlow.Instance.Play(true));Button("РЕКОРДЫ",.43f,Records);Button("НАСТРОЙКИ",.25f,Settings);Button("ВЫХОД",.07f,()=>Application.Quit());}
+  void Records(){Clear();Frame();Text(panel.transform,"РЕКОРДЫ",32,.79f,.95f);var d=SaveSystem.Data;Text(panel.transform,$"Лучшее время\n{Mathf.FloorToInt(d.BestTime/60):00}:{Mathf.FloorToInt(d.BestTime%60):00}\n\nПобеждено врагов\n{d.BestKills}",25,.28f,.77f);Button("НАЗАД",.08f,Main);}
   void Settings(){
-   Clear();Text(panel.transform,"НАСТРОЙКИ",32,.79f,.95f);
-   Button("ГРОМКОСТЬ: "+Mathf.RoundToInt(SaveSystem.Data.Volume*100)+"%",.62f,()=>{SaveSystem.Data.Volume=SaveSystem.Data.Volume>=.99f?0:Mathf.Min(1,SaveSystem.Data.Volume+.1f);AudioListener.volume=SaveSystem.Data.Volume;SaveSystem.Save();Settings();});
+   Clear();Frame();Text(panel.transform,"НАСТРОЙКИ",32,.79f,.95f);
+   Button("ГРОМКОСТЬ: "+Mathf.RoundToInt(SaveSystem.Data.Volume*100)+"%",.62f,()=>{SaveSystem.Data.Volume=SaveSystem.Data.Volume>=.99f?0:Mathf.Min(1,SaveSystem.Data.Volume+.1f);GameMusic.ApplyVolume();SaveSystem.Save();Settings();});
    Button("ЧУВСТВИТЕЛЬНОСТЬ: "+SaveSystem.Data.Sensitivity.ToString("0.#"),.49f,()=>{SaveSystem.Data.Sensitivity=SaveSystem.Data.Sensitivity>=3?.5f:Mathf.Min(3,SaveSystem.Data.Sensitivity+.5f);SaveSystem.Save();Settings();});
    Button("ФИКСАЦИЯ КАМЕРЫ: "+(SaveSystem.Data.CameraLocked?"ВКЛ":"ВЫКЛ"),.36f,()=>{if(GameManager.Instance!=null&&GameManager.Instance.Player!=null)GameManager.Instance.Player.SetCameraLock(!GameManager.Instance.Player.CameraLocked);else{SaveSystem.Data.CameraLocked=!SaveSystem.Data.CameraLocked;SaveSystem.Data.HasCameraPreference=true;SaveSystem.Save();}Settings();});
    Button("КАЧЕСТВО: "+(SaveSystem.Data.Quality+1),.23f,()=>{int levels=Mathf.Clamp(QualitySettings.names.Length,1,3);SaveSystem.Data.Quality=(SaveSystem.Data.Quality+1)%levels;QualitySettings.SetQualityLevel(SaveSystem.Data.Quality);SaveSystem.Save();Settings();});
    Button("НАЗАД",.08f,Main);
   }
-  Button Button(string title,float y,UnityEngine.Events.UnityAction action){var go=Box(panel.transform,new Vector2(.075f,y),new Vector2(.925f,y+.095f),CartoonUI.Aqua);go.name=title;var button=go.AddComponent<Button>();button.targetGraphic=go.GetComponent<Image>();CartoonUI.StyleButton(button,title.Contains("НОВАЯ")||title.Contains("ПРОДОЛЖИТЬ"));button.onClick.AddListener(action);var label=Text(go.transform,title,20,.04f,.96f);label.color=CartoonUI.Ink;label.fontStyle=FontStyle.Bold;label.GetComponent<Outline>().effectColor=new Color(1,1,1,.65f);label.GetComponent<Outline>().effectDistance=new Vector2(1,-1);return button;}
+  Button Button(string title,float y,UnityEngine.Events.UnityAction action){var go=Box(panel.transform,new Vector2(.015f,y),new Vector2(.985f,y+(mainPage ? .15f : .10f)),CartoonUI.Aqua);go.name=title;var button=go.AddComponent<Button>();button.targetGraphic=go.GetComponent<Image>();CartoonUI.StyleButton(button,title.Contains("ПРОДОЛЖИТЬ"));button.onClick.AddListener(action);var label=Text(go.transform,title,28,.12f,.88f);label.color=CartoonUI.Cream;label.fontStyle=FontStyle.Bold;return button;}
   Text Text(Transform parent,string value,int size,float bottom,float top){var go=new GameObject("Надпись",typeof(RectTransform),typeof(Text));go.transform.SetParent(parent,false);Rect(go,new Vector2(.04f,bottom),new Vector2(.96f,top));var label=go.GetComponent<Text>();label.font=font;label.text=value;label.fontSize=size;label.alignment=TextAnchor.MiddleCenter;label.color=CartoonUI.Gold;label.raycastTarget=false;CartoonUI.Typography(label,size>=20);return label;}
   static GameObject Box(Transform parent,Vector2 min,Vector2 max,Color color){return CartoonUI.Image("Панель",parent,min,max,color).gameObject;}
   void BuildBackdrop(){
@@ -61,6 +61,7 @@ namespace Brainrot {
     for(int k=0;k<5;k++){var leaf=CartoonUI.Image("Пальма — лист",canvas,new Vector2(x-.07f,.55f-j*.08f),new Vector2(x+.09f,.585f-j*.08f),new Color(.29f,.62f,.39f));leaf.transform.localRotation=Quaternion.Euler(0,0,(k-2)*26);}
    }
   }
+  void Frame(){var image=panel.GetComponent<Image>();image.sprite=TropicalUIArt.Get("WoodPanel");image.type=image.sprite.border.sqrMagnitude>.01f?Image.Type.Sliced:Image.Type.Simple;image.color=Color.white;}
   void OnDestroy(){if(backdropTexture!=null)Destroy(backdropTexture);}
   static void Rect(GameObject go,Vector2 min,Vector2 max){var r=go.GetComponent<RectTransform>();r.anchorMin=min;r.anchorMax=max;r.offsetMin=r.offsetMax=Vector2.zero;}
  }

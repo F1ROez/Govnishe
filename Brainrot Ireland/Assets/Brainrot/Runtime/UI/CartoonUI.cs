@@ -7,8 +7,8 @@ namespace Brainrot
     /// <summary>Original runtime UI art. All textures are generated once and shared across scenes.</summary>
     public static class CartoonUI
     {
-        public static readonly Color Ink=new Color(.07f,.16f,.38f);
-        public static readonly Color Cream=new Color(1,1,1);
+        public static readonly Color Ink=new Color(.24f,.12f,.045f);
+        public static readonly Color Cream=new Color(1,.96f,.82f);
         public static readonly Color Panel=new Color(.12f,.43f,.88f,.96f);
         public static readonly Color Aqua=new Color(.08f,.94f,.91f);
         public static readonly Color Gold=new Color(1,.84f,.12f);
@@ -72,13 +72,12 @@ namespace Brainrot
             var go=new GameObject(name,typeof(RectTransform),typeof(Image));go.transform.SetParent(parent,false);var rect=go.GetComponent<RectTransform>();rect.anchorMin=min;rect.anchorMax=max;rect.offsetMin=rect.offsetMax=Vector2.zero;
             var image=go.GetComponent<Image>();image.sprite=sprite!=null?sprite:Rounded;image.type=sprite==null?UnityEngine.UI.Image.Type.Sliced:UnityEngine.UI.Image.Type.Simple;image.color=color;image.raycastTarget=false;return image;
         }
-        public static void Typography(Text text,bool heading=false){text.font=Font;text.fontStyle=heading?FontStyle.Bold:FontStyle.Normal;text.color=Cream;text.resizeTextForBestFit=true;text.resizeTextMinSize=Mathf.Max(11,text.fontSize-5);text.resizeTextMaxSize=text.fontSize;text.verticalOverflow=VerticalWrapMode.Truncate;var outline=text.gameObject.AddComponent<Outline>();outline.effectColor=new Color(.04f,.12f,.40f,.92f);outline.effectDistance=new Vector2(1.5f,-1.5f);var shadow=text.gameObject.AddComponent<Shadow>();shadow.effectColor=new Color(.02f,.07f,.28f,.5f);shadow.effectDistance=new Vector2(0,-3);}
+        public static void Typography(Text text,bool heading=false){text.font=Font;text.fontStyle=heading?FontStyle.Bold:FontStyle.Normal;text.color=Cream;text.resizeTextForBestFit=true;text.resizeTextMinSize=Mathf.Max(11,text.fontSize-5);text.resizeTextMaxSize=text.fontSize;text.verticalOverflow=VerticalWrapMode.Truncate;var outline=text.gameObject.AddComponent<Outline>();outline.effectColor=new Color(.19f,.095f,.035f,.95f);outline.effectDistance=new Vector2(1.5f,-1.5f);var shadow=text.gameObject.AddComponent<Shadow>();shadow.effectColor=new Color(.09f,.07f,.04f,.6f);shadow.effectDistance=new Vector2(0,-3);}
         public static void StyleButton(Button button,bool primary=false){
-            var image=button.GetComponent<Image>();image.sprite=Rounded;image.type=UnityEngine.UI.Image.Type.Sliced;image.color=primary?Gold:Aqua;image.raycastTarget=true;
-            var border=button.gameObject.AddComponent<Outline>();border.effectColor=new Color(.035f,.13f,.43f,1);border.effectDistance=new Vector2(2.5f,-2.5f);
-            var shadow=button.gameObject.AddComponent<Shadow>();shadow.effectDistance=new Vector2(0,-6);shadow.effectColor=primary?new Color(.74f,.36f,.04f,1):new Color(.02f,.34f,.63f,1);
-            var colors=button.colors;colors.normalColor=Color.white;colors.highlightedColor=new Color(1,1,.86f);colors.pressedColor=new Color(.84f,.9f,.86f);colors.disabledColor=new Color(.50f,.64f,.80f,.9f);colors.fadeDuration=.1f;button.colors=colors;
-            Image("Блик",button.transform,new Vector2(.035f,.58f),new Vector2(.965f,.93f),new Color(1,1,1,.31f));
+            var image=button.GetComponent<Image>();image.sprite=TropicalUIArt.Get(primary?"WoodButtonGold":"WoodButton");image.type=image.sprite.border.sqrMagnitude>.01f?UnityEngine.UI.Image.Type.Sliced:UnityEngine.UI.Image.Type.Simple;image.color=Color.white;image.raycastTarget=true;
+            var shadow=button.gameObject.AddComponent<Shadow>();shadow.effectDistance=new Vector2(0,-4);shadow.effectColor=new Color(.11f,.065f,.02f,.45f);
+            var colors=button.colors;colors.normalColor=Color.white;colors.highlightedColor=new Color(1,1,.86f);colors.pressedColor=new Color(.82f,.76f,.66f);colors.disabledColor=new Color(.48f,.47f,.43f,.86f);colors.fadeDuration=.1f;button.colors=colors;
+            button.onClick.AddListener(GameMusic.PlayButtonClick);
             button.gameObject.AddComponent<CartoonButtonMotion>();
         }
     }

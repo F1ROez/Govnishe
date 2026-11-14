@@ -13,7 +13,7 @@ namespace Brainrot {
   public float Elapsed {get;private set;} public int Kills {get;private set;} public int Wave=>Spawner!=null?Spawner.Waves.Number:1; public IslandZone CurrentZone=>Player!=null?IslandMap.GetZone(Player.transform.position):IslandZone.Beach;
   public string Notification {get;private set;}=""; float noticeUntil; UIManager ui;
   void Awake(){ if(Instance!=null&&Instance!=this){Destroy(gameObject);return;} Instance=this;if(!SceneFlow.LoadingGame)InitializeWorld();}
-  public void InitializeWorld(){if(initialized)return;initialized=true;Balance=Balance!=null?Balance:GameBalance.Current;Balance.EnsureExploration(); Time.timeScale=1; SaveSystem.Load();AudioListener.volume=SaveSystem.Data.Volume; Application.targetFrameRate=60;
+  public void InitializeWorld(){if(initialized)return;initialized=true;Balance=Balance!=null?Balance:GameBalance.Current;Balance.EnsureExploration(); Time.timeScale=1; SaveSystem.Load();GameMusic.ApplyVolume(); Application.targetFrameRate=60;
    QualitySettings.SetQualityLevel(Mathf.Clamp(SaveSystem.Data.Quality,0,QualitySettings.names.Length-1));
    WorldBuilder.Build(); var go=new GameObject("Игрок");go.SetActive(false);Player=go.AddComponent<PlayerController>();Player.Character=PlayerCharacter!=null?PlayerCharacter:PlayerCharacterDefinition.Default;go.SetActive(true);
    Spawner=gameObject.AddComponent<EnemySpawner>(); Upgrades=gameObject.AddComponent<UpgradeSystem>();
@@ -24,8 +24,8 @@ namespace Brainrot {
    if(IsPlaying){Elapsed+=Time.deltaTime;Spawner.Tick(Time.deltaTime);}
    if(Time.unscaledTime>noticeUntil) Notification=""; ui.Refresh();
   }
-  void SetState(GameState value){ if(value!=GameState.Playing&&Player!=null)Player.CancelAttacks();State=value;if(value==GameState.Paused||value==GameState.Dead)UIInputRouter.EnsureForScene(gameObject.scene);Time.timeScale=IsPlaying?1:0; bool lockMouse=IsPlaying&&!Application.isMobilePlatform;Cursor.lockState=lockMouse?CursorLockMode.Locked:CursorLockMode.None;Cursor.visible=!lockMouse; MobileInput.Move=Vector2.zero;MobileInput.Look=Vector2.zero;MobileInput.Attack=false;MobileInput.Sprint=false;MobileInput.Dash=false; }
-  public void StartRun(){HasRun=true;Spawner.ResetRun();Elapsed=0;Kills=0;Notification="";Player.ResetRun();Upgrades.ResetRun();SetState(GameState.Playing);Notify("Акулы выходят из океана. Продержитесь как можно дольше.",5);}
+  void SetState(GameState value){ if(value!=GameState.Playing&&Player!=null)Player.CancelAttacks();State=value;if(value==GameState.Playing)GameMusic.SetGameplay();else if(value==GameState.Menu)GameMusic.SetMenu();else GameMusic.SetPaused(true);if(value==GameState.Paused||value==GameState.Dead)UIInputRouter.EnsureForScene(gameObject.scene);Time.timeScale=IsPlaying?1:0; bool lockMouse=IsPlaying&&!Application.isMobilePlatform;Cursor.lockState=lockMouse?CursorLockMode.Locked:CursorLockMode.None;Cursor.visible=!lockMouse; MobileInput.Move=Vector2.zero;MobileInput.Look=Vector2.zero;MobileInput.Attack=false;MobileInput.Sprint=false;MobileInput.Dash=false; }
+  public void StartRun(){HasRun=true;Spawner.ResetRun();Elapsed=0;Kills=0;Notification="";Player.ResetRun();Upgrades.ResetRun();GameMusic.RestartGameplay();SetState(GameState.Playing);Notify("Акулы выходят из океана. Продержитесь как можно дольше.",5);}
   public void OpenMap(){if(IsPlaying)SetState(GameState.Map);}
   public void CloseMap(){if(State==GameState.Map)SetState(GameState.Playing);}
   public void Pause(){if(IsPlaying)SetState(GameState.Paused);} public void Resume(){if(State==GameState.Paused)SetState(GameState.Playing);}

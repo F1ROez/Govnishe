@@ -25,3 +25,9 @@ SahurModelImporter настраивает Generic FBX, создаёт URP мат
 ## Оформление и импорт врагов
 `EnemyModelImporter.GenerateAll` копии FBX не изменяет: генерирует риг Tralala (body+3legs), объединяет595 частей Octopus в skin с сохранённой иерархией анимационных костей и original Idle/Walk. `ImportedEnemyVisual` управляет только дочерними MotionRoot/Normalization, а не физическим актором. CharacterVisual делегирует Animate/PlayBite и применяет отдельные property blocks по слотам материалов для короткого красного попадания. Физический враг/труп не продолжает идти в анимации.
 `CartoonUI` кэширует оригинальные rounded/icon sprites и лицензированный шрифт; декорации не перехватывают raycast. `CartoonButtonMotion` использует unscaledDeltaTime. `WorldAtmosphere` создаёт личные копии profile/components и освобождает их, не уничтожая ресурсы из asset; профиль в Resources также сохраняет варианты postprocessing при сборке. URP17.3 переключатели с internal setter задаются Editor через SerializedObject, runtime API не выдумываются.
+
+## Аудио и иллюстрированный UI
+
+GameMusic — единственный DontDestroyOnLoad координатор трёх AudioSource (menu/game/UI). MusicShuffleBag даёт полный случайный цикл без немедленного повтора между циклами. GameManager.SetState и MenuBootstrap управляют режимом; SceneFlow отключает menu AudioListener перед созданием/восстановлением игровой камеры. UI click не зависит от lifetime нажатой кнопки. Mute отдельный sessionflag, громкость применяется ровно через AudioListener.
+
+TropicalUIArt создаёт sprites из общего Texture2D по JSON, текст/полосы остаются uGUI. TropicalUIImporter фиксирует Texture2D/NPOT None/max4096/no mip/no compression для atlas. Все декоративные images raycastTarget=false, сам Button остаётся raycastTarget=true; существующий тест паузы сохранён. Без PNG/JSON предусмотрен процедурный fallback.

@@ -26,7 +26,7 @@ namespace Brainrot {
    if(!Application.CanStreamedLevelBeLoaded(GamePath)){Debug.LogError("Игровая сцена не найдена. Выполните Tools → TungTung → Создать или обновить игру.");yield break;}
    Busy=true;var scene=SceneManager.GetSceneByPath(GamePath);if(!scene.isLoaded){LoadingGame=true;yield return SceneManager.LoadSceneAsync(GamePath,LoadSceneMode.Additive);LoadingGame=false;}
    scene=SceneManager.GetSceneByPath(GamePath);var menu=SceneManager.GetSceneByPath(MenuPath);
-   if(menu.IsValid()&&menu.isLoaded)foreach(var root in menu.GetRootGameObjects())foreach(var events in root.GetComponentsInChildren<EventSystem>())events.enabled=false;
+   if(menu.IsValid()&&menu.isLoaded)foreach(var root in menu.GetRootGameObjects()){foreach(var events in root.GetComponentsInChildren<EventSystem>())events.enabled=false;foreach(var listener in root.GetComponentsInChildren<AudioListener>(true))listener.enabled=false;}
    SceneManager.SetActiveScene(scene);GameManager.Instance.InitializeWorld();foreach(var b in hidden)if(b!=null)b.enabled=true;hidden.Clear();
    UIInputRouter.EnsureForScene(scene);
    if(fresh||!GameManager.Instance.HasRun)GameManager.Instance.StartRun();else GameManager.Instance.ResumeRun();

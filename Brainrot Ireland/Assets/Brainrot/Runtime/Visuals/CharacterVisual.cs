@@ -281,7 +281,12 @@ namespace Brainrot
             for(int i=0;i<feedbackRenderers.Length;i++)
             {
                 var materials=feedbackRenderers[i].sharedMaterials;feedbackBaseColors[i]=new Color[materials.Length];
-                for(int slot=0;slot<materials.Length;slot++)feedbackBaseColors[i][slot]=materials[slot]!=null?materials[slot].color:Color.white;
+                for(int slot=0;slot<materials.Length;slot++){
+                    var material=materials[slot];
+                    feedbackBaseColors[i][slot]=material==null?Color.white:
+                        material.HasProperty(BaseColorId)?material.GetColor(BaseColorId):
+                        material.HasProperty(ColorId)?material.GetColor(ColorId):Color.white;
+                }
             }
         }
         /// <summary>Short red tint without cloning or changing shared skin materials.</summary>

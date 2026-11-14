@@ -11,7 +11,7 @@ namespace Brainrot.Tests {
    Assert.IsNull(GameManager.Instance,"Запускайте из Edit mode.");before=SceneManager.GetActiveScene();yield return null;
   }
   [UnityTearDown]public IEnumerator Cleanup(){
-   Time.timeScale=1;if(before.IsValid()&&before.isLoaded)SceneManager.SetActiveScene(before);
+   if(GameMusic.Instance!=null)Object.Destroy(GameMusic.Instance.gameObject);Time.timeScale=1;if(before.IsValid()&&before.isLoaded)SceneManager.SetActiveScene(before);
    foreach(string path in new[]{SceneFlow.MenuPath,SceneFlow.GamePath}){var s=SceneManager.GetSceneByPath(path);if(s.IsValid()&&s.isLoaded)yield return SceneManager.UnloadSceneAsync(s);}
    var flow=Object.FindFirstObjectByType<SceneFlow>();if(flow!=null)Object.Destroy(flow.gameObject);Cursor.lockState=CursorLockMode.None;Cursor.visible=true;yield return null;
   }
@@ -19,14 +19,15 @@ namespace Brainrot.Tests {
    yield return SceneManager.LoadSceneAsync(SceneFlow.MenuPath,LoadSceneMode.Additive);
    var flow=SceneFlow.Instance;flow.Play(true);while(flow.Busy)yield return null;
    var game=GameManager.Instance;Assert.IsTrue(game.HasRun);Assert.IsTrue(game.IsPlaying);
+   Assert.IsNotNull(GameMusic.Instance);Assert.AreEqual(GameMusic.PlaybackMode.Gameplay,GameMusic.Instance.Mode);var initialTrack=GameMusic.Instance.CurrentGameplayTrack;
    Assert.AreEqual(SceneFlow.GamePath,game.Player.gameObject.scene.path);
    var enemy=game.Spawner.Spawn(EnemyKind.Normal,Vector3.forward*8);enemy.Tumble(Vector3.right*5);
    flow.ShowMenu();while(flow.Busy)yield return null;
-   Assert.IsFalse(game.IsPlaying);Assert.IsTrue(enemy.gameObject.activeSelf);Assert.IsTrue(enemy.PhysicsBody.IsPhysical);
+   Assert.IsFalse(game.IsPlaying);Assert.AreEqual(GameMusic.PlaybackMode.Menu,GameMusic.Instance.Mode);Assert.IsTrue(enemy.gameObject.activeSelf);Assert.IsTrue(enemy.PhysicsBody.IsPhysical);
    float elapsed=game.Elapsed;Vector3 position=enemy.transform.position;yield return new WaitForSecondsRealtime(.15f);
    Assert.AreEqual(elapsed,game.Elapsed);Assert.AreEqual(position,enemy.transform.position);
    flow.Play(false);while(flow.Busy)yield return null;
-   Assert.AreSame(game,GameManager.Instance);Assert.IsTrue(game.IsPlaying);Assert.Contains(enemy,game.Spawner.Active);
+   Assert.AreSame(game,GameManager.Instance);Assert.IsTrue(game.IsPlaying);Assert.AreEqual(GameMusic.PlaybackMode.Gameplay,GameMusic.Instance.Mode);if(initialTrack!=null)Assert.AreSame(initialTrack,GameMusic.Instance.CurrentGameplayTrack);Assert.Contains(enemy,game.Spawner.Active);
    Assert.IsFalse(SceneManager.GetSceneByPath(SceneFlow.MenuPath).isLoaded);
    flow.ShowMenu();while(flow.Busy)yield return null;flow.Play(true);while(flow.Busy)yield return null;
    Assert.AreEqual(1,game.Wave);Assert.AreEqual(0,game.Kills);Assert.AreEqual(game.Player.Stamina.Maximum,game.Player.Stamina.Value);
