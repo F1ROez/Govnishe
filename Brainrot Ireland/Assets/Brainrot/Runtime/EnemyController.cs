@@ -69,7 +69,7 @@ namespace Brainrot
                 default: return new Color(.23f,.65f,.95f);
             }
         }
-        void LateUpdate(){if(visual!=null&&tuning!=null)visual.transform.localScale=Vector3.one*Size(kind)*Mathf.Max(.1f,GameBalance.Current.EnemyModelScale)*Mathf.Max(.1f,tuning.ModelScale);}
+        void LateUpdate(){if(visual!=null&&tuning!=null)visual.transform.localScale=Vector3.one*Size(Kind)*Mathf.Max(.1f,GameBalance.Current.EnemyModelScale)*Mathf.Max(.1f,tuning.ModelScale);}
         static float Size(EnemyKind kind)
         {
             return kind == EnemyKind.LiriliLarila ? 1.25f : kind == EnemyKind.BrrBrrPatapim ? 1.45f : kind == EnemyKind.BombardiroCrocodilo ? 1.25f : kind == EnemyKind.CappuccinoAssassino ? .95f : 1;
