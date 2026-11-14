@@ -22,7 +22,6 @@ namespace Brainrot
         Image heavyShade,dashShade,escapeFill;Text heavyTime,dashTime;GameObject capturePanel;
         GameState shownState = (GameState)(-1);
         int shownLevel = -1;
-        string page = "";
         readonly Color ink = new Color(.07f, .14f, .2f);
         readonly Color gold = new Color(1f, .8f, .26f);
         readonly Color cyan = new Color(.17f, .84f, .85f);
@@ -110,7 +109,7 @@ namespace Brainrot
             int level=gm.Upgrades!=null?gm.Upgrades.Level:0;
             if(shownState!=gm.State || (gm.State==GameState.Upgrade && shownLevel!=level))
             {
-                shownState=gm.State;shownLevel=level;page="";
+                shownState=gm.State;shownLevel=level;
                 MobileInput.Clear();
                 if(gm.State!=GameState.Playing) BuildScreen();
             }
@@ -178,12 +177,12 @@ namespace Brainrot
         void MenuButton(string title,float y,UnityEngine.Events.UnityAction action) {Button(overlay.transform,title,new Vector2(.35f,y),new Vector2(.65f,y+.08f),action);}
         void ShowRecords()
         {
-            page="records";ClearScreen();Title("ЛЕГЕНДЫ ОСТРОВА");var d=SaveSystem.Data;
+            ClearScreen();Title("ЛЕГЕНДЫ ОСТРОВА");var d=SaveSystem.Data;
             Label(overlay.transform,$"ВРЕМЯ ВЫЖИВАНИЯ    {TimeLabel(d.BestTime)}\n\nПОБЕЖДЕНО ВРАГОВ    {d.BestKills}",29,TextAnchor.MiddleCenter,new Vector2(.1f,.33f),new Vector2(.9f,.7f));MenuButton("НАЗАД",.16f,BuildScreen);
         }
         void ShowSettings()
         {
-            page="settings";ClearScreen();Title("НАСТРОЙКИ");
+            ClearScreen();Title("НАСТРОЙКИ");
             SettingSlider("ГРОМКОСТЬ",.63f,0,1,SaveSystem.Data.Volume,v=>{SaveSystem.Data.Volume=v;AudioListener.volume=v;SaveSystem.Save();});
             SettingSlider("ЧУВСТВИТЕЛЬНОСТЬ МЫШИ",.49f,.2f,3,SaveSystem.Data.Sensitivity,v=>{SaveSystem.Data.Sensitivity=v;SaveSystem.Save();});
             bool locked=GameManager.Instance.Player!=null?GameManager.Instance.Player.CameraLocked:SaveSystem.Data.CameraLocked;

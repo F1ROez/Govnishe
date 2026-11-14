@@ -19,6 +19,16 @@ try:
     for c in n.children:walk(c)
    walk(tree.root_node)
 except ImportError:errors.append('Install tree-sitter and tree-sitter-c-sharp for syntax validation.')
+# Syntax parsing cannot detect C# collection Add overload errors. Check string dictionaries too.
+for f in root.glob('Assets/**/*.cs'):
+ source=f.read_text()
+ for block in re.finditer(r'Dictionary<string,\s*string>\s+\w+\s*=\s*new Dictionary<string,\s*string>\s*\{(.*?)\};',source,re.S):
+  keys=set()
+  for entry in re.finditer(r'\{([^{}]*)\}',block.group(1)):
+   values=re.findall(r'"(?:\\.|[^"\\])*"',entry.group(1))
+   if len(values)!=2:errors.append(f'{f.relative_to(root)}: dictionary entry has {len(values)} strings, expected key/value pair')
+   elif values[0] in keys:errors.append(f'{f.relative_to(root)}: duplicate dictionary key {values[0]}')
+   else:keys.add(values[0])
 required=['GameManager','PlayerController','EnemyController','EnemySpawner','CombatSystem','UpgradeSystem','BossSystem','UIManager','SaveSystem','ObjectPool']
 for name in required:
  if not list(root.glob(f'Assets/**/{name}.cs')):errors.append('Missing '+name)

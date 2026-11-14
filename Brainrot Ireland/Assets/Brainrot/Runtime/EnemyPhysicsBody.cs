@@ -3,7 +3,7 @@ namespace Brainrot {
  /// <summary>A pooled whole-body tumble, with solid collisions and bounded corpse lifetime.</summary>
  public sealed class EnemyPhysicsBody:MonoBehaviour {
   Rigidbody body;CapsuleCollider capsule;EnemyController enemy;Object surface;
-  float remaining,nextTransfer;
+  float remaining;
   public bool IsPhysical {get;private set;}
   public Rigidbody Rigidbody=>body;
   void Awake(){
@@ -15,7 +15,7 @@ namespace Brainrot {
   public void ResetBody(){
    if(body==null)return;if(!body.isKinematic){body.linearVelocity=Vector3.zero;body.angularVelocity=Vector3.zero;}
    body.collisionDetectionMode=CollisionDetectionMode.Discrete;body.isKinematic=true;body.constraints=RigidbodyConstraints.FreezeRotation;
-   capsule.enabled=true;IsPhysical=false;remaining=0;nextTransfer=0;
+   capsule.enabled=true;IsPhysical=false;remaining=0;
   }
   public void Launch(Vector3 velocity,bool dead){
    var t=GameBalance.Current.Bodies;remaining=dead?Mathf.Max(1,t.CorpseSeconds):Mathf.Max(.3f,t.TumbleSeconds);
