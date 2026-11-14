@@ -80,7 +80,7 @@ namespace Brainrot
             var game = GameManager.Instance;
             if (!Alive || game == null || !game.IsPlaying || game.Player == null || game.Player.Health <= 0 || dt <= 0) return;
             if(PhysicsBody!=null&&PhysicsBody.IsPhysical)return;
-            if(Kind==EnemyKind.BlueberrinniOctopusini){octopus.Tick(dt);return;}
+            if(Kind==EnemyKind.BlueberrinniOctopusini){octopus.Tick(dt);visual.Animate(octopus.Phase==OctopusPhase.Approach||octopus.Phase==OctopusPhase.Retreat?speed:0,false);return;}
             attackClock -= dt; chargeClock -= dt;
             // Integrate damped knockback analytically so the distance is stable at low frame rates.
             float decay = Mathf.Exp(-6 * dt);

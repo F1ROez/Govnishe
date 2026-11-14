@@ -8,6 +8,7 @@ namespace Brainrot
         public Transform Weapon;
         public Transform WeaponTip;
         ImportedSahurVisual imported;
+        ImportedEnemyVisual importedEnemy;
         public bool AttackActive => imported!=null?imported.AttackActive:attackRemaining > 0;
         TrailRenderer batTrail;
         float attackRemaining, attackDuration = .32f;
@@ -18,7 +19,7 @@ namespace Brainrot
         Vector3 bodyPosition; bool isShark;
         float phase,attackBlend;
         Renderer[] feedbackRenderers;
-        Color[] feedbackBaseColors;
+        Color[][] feedbackBaseColors;
         MaterialPropertyBlock feedbackBlock;
         float flashRemaining, flashDuration, flashStrength;
         bool feedbackApplied;
@@ -50,6 +51,16 @@ namespace Brainrot
         }
         public static CharacterVisual CreateEnemy(Transform parent,EnemyKind kind,Color color,float size=1)
         {
+            string resource=kind==EnemyKind.BlueberrinniOctopusini?"ImportedOctopus":kind==EnemyKind.Normal?"ImportedTralala":null;
+            if(resource!=null){
+                var prefab=Resources.Load<GameObject>(resource);
+                if(prefab!=null){
+                    var go=Object.Instantiate(prefab,parent,false);go.transform.localScale=Vector3.one*size;
+                    var c=go.AddComponent<CharacterVisual>();c.importedEnemy=go.GetComponent<ImportedEnemyVisual>();
+                    if(c.importedEnemy!=null){c.CacheFeedbackRenderers();return c;}
+                    Object.Destroy(go);
+                }
+            }
             int species=kind==EnemyKind.BlueberrinniOctopusini?5:kind==EnemyKind.LiriliLarila?1:kind==EnemyKind.BrrBrrPatapim?2:kind==EnemyKind.CappuccinoAssassino?3:kind==EnemyKind.BombardiroCrocodilo?4:0;
             return CreateInternal(parent,species,color,size);
         }
@@ -265,12 +276,12 @@ namespace Brainrot
             var renderers=GetComponentsInChildren<Renderer>(true);
             var eligible=new List<Renderer>();foreach(var renderer in renderers)if(!(renderer is TrailRenderer))eligible.Add(renderer);
             feedbackRenderers=eligible.ToArray();
-            feedbackBaseColors=new Color[feedbackRenderers.Length];
+            feedbackBaseColors=new Color[feedbackRenderers.Length][];
             feedbackBlock=new MaterialPropertyBlock();
             for(int i=0;i<feedbackRenderers.Length;i++)
             {
-                var material=feedbackRenderers[i].sharedMaterial;
-                feedbackBaseColors[i]=material!=null?material.color:Color.white;
+                var materials=feedbackRenderers[i].sharedMaterials;feedbackBaseColors[i]=new Color[materials.Length];
+                for(int slot=0;slot<materials.Length;slot++)feedbackBaseColors[i][slot]=materials[slot]!=null?materials[slot].color:Color.white;
             }
         }
         /// <summary>Short red tint without cloning or changing shared skin materials.</summary>
@@ -288,9 +299,11 @@ namespace Brainrot
             for(int i=0;i<feedbackRenderers.Length;i++)
             {
                 var renderer=feedbackRenderers[i];if(renderer==null)continue;
-                Color color=Color.Lerp(feedbackBaseColors[i],new Color(1,.16f,.14f,feedbackBaseColors[i].a),strength);
-                feedbackBlock.Clear();feedbackBlock.SetColor(BaseColorId,color);feedbackBlock.SetColor(ColorId,color);
-                renderer.SetPropertyBlock(feedbackBlock);
+                for(int slot=0;slot<feedbackBaseColors[i].Length;slot++){
+                    Color baseColor=feedbackBaseColors[i][slot];Color color=Color.Lerp(baseColor,new Color(1,.16f,.14f,baseColor.a),strength);
+                    feedbackBlock.Clear();feedbackBlock.SetColor(BaseColorId,color);feedbackBlock.SetColor(ColorId,color);
+                    renderer.SetPropertyBlock(feedbackBlock,slot);
+                }
             }
             feedbackApplied=true;
         }
@@ -329,7 +342,7 @@ namespace Brainrot
         }
         void Update()
         {
-            if(imported!=null){
+            if(imported!=null||importedEnemy!=null){
                 if(flashRemaining>0){flashRemaining=Mathf.Max(0,flashRemaining-Time.deltaTime);if(flashRemaining<=0)ResetFeedback();else ApplyFeedback(flashStrength*flashRemaining/flashDuration);}
                 return;
             }
@@ -350,7 +363,7 @@ namespace Brainrot
         {
             flashRemaining=0;
             if(!feedbackApplied||feedbackRenderers==null)return;
-            foreach(var renderer in feedbackRenderers)if(renderer!=null)renderer.SetPropertyBlock(null);
+            for(int i=0;i<feedbackRenderers.Length;i++)if(feedbackRenderers[i]!=null){feedbackRenderers[i].SetPropertyBlock(null);for(int slot=0;slot<feedbackBaseColors[i].Length;slot++)feedbackRenderers[i].SetPropertyBlock(null,slot);}
             feedbackApplied=false;
         }
         public void ResetAttack()
@@ -362,12 +375,13 @@ namespace Brainrot
         }
         void OnDisable(){ResetFeedback();ResetAttack();ResetBite();}
         float biteRemaining,biteDuration;
-        public void PlayBite(float duration=.32f){if(!isShark)return;biteDuration=Mathf.Max(.15f,duration);biteRemaining=biteDuration;}
+        public void PlayBite(float duration=.32f){if(importedEnemy!=null){importedEnemy.PlayBite(duration);return;}if(!isShark)return;biteDuration=Mathf.Max(.15f,duration);biteRemaining=biteDuration;}
         public float BiteProgress=>biteRemaining>0?1-biteRemaining/biteDuration:1;
-        public void ResetBite(){biteRemaining=0;if(body!=null){body.localPosition=bodyPosition;body.localRotation=Quaternion.identity;}}
+        public void ResetBite(){if(importedEnemy!=null)importedEnemy.ResetVisual();biteRemaining=0;if(body!=null){body.localPosition=bodyPosition;body.localRotation=Quaternion.identity;}}
         public void Animate(float speed,bool attacking)
         {
             if(imported!=null){imported.Animate(speed,attacking);return;}
+            if(importedEnemy!=null){importedEnemy.Animate(speed,attacking);return;}
             float intensity=Mathf.Clamp01(speed/3);
             phase+=Time.deltaTime*(3+Mathf.Abs(speed)*2.5f);
             float swing=Mathf.Sin(phase)*32*intensity;

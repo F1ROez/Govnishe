@@ -2,6 +2,8 @@
   "name": "Brainrot.Runtime",
   "references": [
     "UnityEngine.UI",
-    "Unity.InputSystem"
+    "Unity.InputSystem",
+    "Unity.RenderPipelines.Universal.Runtime",
+    "Unity.RenderPipelines.Core.Runtime"
   ]
 }

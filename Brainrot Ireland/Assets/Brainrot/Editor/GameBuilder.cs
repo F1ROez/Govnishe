@@ -31,16 +31,30 @@ namespace Brainrot.Editor {
   public static void Configure(){Folder(Root);AssetDatabase.Refresh();EnsureBalance();EnsureCharacter();
    string rendererPath=Root+"/ArenaRenderer.asset";var renderer=AssetDatabase.LoadAssetAtPath<UniversalRendererData>(rendererPath);
    if(renderer==null){renderer=ScriptableObject.CreateInstance<UniversalRendererData>();AssetDatabase.CreateAsset(renderer,rendererPath);}
+   if(renderer.postProcessData==null){renderer.postProcessData=AssetDatabase.LoadAssetAtPath<PostProcessData>("Packages/com.unity.render-pipelines.universal/Runtime/Data/PostProcessData.asset");EditorUtility.SetDirty(renderer);}
    string pipelinePath=Root+"/ArenaURP.asset";var pipeline=AssetDatabase.LoadAssetAtPath<UniversalRenderPipelineAsset>(pipelinePath);
    if(pipeline==null){pipeline=UniversalRenderPipelineAsset.Create(renderer);pipeline.name="Brainrot URP";AssetDatabase.CreateAsset(pipeline,pipelinePath);}
-   pipeline.renderScale=1;pipeline.msaaSampleCount=2;pipeline.shadowDistance=65;pipeline.supportsHDR=true;
+   pipeline.renderScale=1;pipeline.msaaSampleCount=2;pipeline.shadowDistance=58;pipeline.supportsHDR=true;
+   pipeline.mainLightShadowmapResolution=2048;pipeline.shadowCascadeCount=2;pipeline.cascade2Split=.32f;
+   // URP exposes these switches with internal setters; configure owned pipeline through serialization.
+   var lighting=new SerializedObject(pipeline);
+   foreach(string property in new[]{"m_MainLightShadowsSupported","m_SoftShadowsSupported","m_AnyShadowsSupported"}){var field=lighting.FindProperty(property);if(field!=null)field.boolValue=true;}
+   var extra=lighting.FindProperty("m_AdditionalLightsRenderingMode");if(extra!=null)extra.intValue=(int)LightRenderingMode.PerPixel;
+   lighting.ApplyModifiedPropertiesWithoutUndo();EditorUtility.SetDirty(pipeline);
    GraphicsSettings.defaultRenderPipeline=pipeline;QualitySettings.renderPipeline=pipeline;
    PlayerSettings.companyName="Brainrot Ireland";PlayerSettings.productName="Brainrot Ireland";PlayerSettings.defaultScreenWidth=1280;PlayerSettings.defaultScreenHeight=720;
    PlayerSettings.defaultInterfaceOrientation=UIOrientation.LandscapeLeft;PlayerSettings.allowedAutorotateToLandscapeLeft=true;PlayerSettings.allowedAutorotateToLandscapeRight=true;
    PlayerSettings.allowedAutorotateToPortrait=false;PlayerSettings.allowedAutorotateToPortraitUpsideDown=false;PlayerSettings.SetApplicationIdentifier(UnityEditor.Build.NamedBuildTarget.Android,"com.brainrotireland.arena");
    // Preserve the existing input backend; GameInput and UI support Input System and Legacy.
    var graphics=new SerializedObject(AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/GraphicsSettings.asset")[0]);var included=graphics.FindProperty("m_AlwaysIncludedShaders");foreach(string shaderName in new[]{"Brainrot/TropicalWater","Brainrot/TropicalSky","Universal Render Pipeline/Lit","Universal Render Pipeline/Unlit","Universal Render Pipeline/Particles/Unlit"}){var shader=Shader.Find(shaderName);if(shader==null)continue;bool found=false;for(int i=0;i<included.arraySize;i++)if(included.GetArrayElementAtIndex(i).objectReferenceValue==shader)found=true;if(!found){int i=included.arraySize;included.InsertArrayElementAtIndex(i);included.GetArrayElementAtIndex(i).objectReferenceValue=shader;}}graphics.ApplyModifiedPropertiesWithoutUndo();
-   EditorBuildSettings.scenes=new[]{new EditorBuildSettingsScene(SceneFlow.MenuPath,true),new EditorBuildSettingsScene(ScenePath,true)};SahurModelImporter.BuildPrefab();AssetDatabase.SaveAssets();
+   EditorBuildSettings.scenes=new[]{new EditorBuildSettingsScene(SceneFlow.MenuPath,true),new EditorBuildSettingsScene(ScenePath,true)};EnsureAtmosphere();SahurModelImporter.BuildPrefab();EnemyModelImporter.GenerateAll();AssetDatabase.SaveAssets();
+  }
+  static void EnsureAtmosphere(){
+   const string path=Root+"/Resources/IslandAtmosphere.asset";
+   if(AssetDatabase.LoadAssetAtPath<VolumeProfile>(path)!=null)return;
+   var profile=WorldAtmosphere.CreateProfile(true);AssetDatabase.CreateAsset(profile,path);
+   foreach(var component in profile.components)AssetDatabase.AddObjectToAsset(component,profile);
+   EditorUtility.SetDirty(profile);AssetDatabase.SaveAssets();
   }
   [MenuItem("Tools/TungTung/Создать или обновить игру")]
   [MenuItem("Tools/TungTung/Build Game")] public static void BuildGame(){
@@ -65,7 +79,7 @@ namespace Brainrot.Editor {
    Folder(Root+"/Resources");string extension=Path.GetExtension(source).ToLowerInvariant();string destination=Root+"/Resources/MenuBackground"+extension;
    foreach(string ext in new[]{".png",".jpg",".jpeg"}){string alternate=Root+"/Resources/MenuBackground"+ext;if(alternate!=destination&&File.Exists(alternate))AssetDatabase.DeleteAsset(alternate);}
    if(!string.Equals(Path.GetFullPath(source),Path.GetFullPath(destination),StringComparison.OrdinalIgnoreCase))File.Copy(source,destination,true);AssetDatabase.ImportAsset(destination);
-   var importer=AssetImporter.GetAtPath(destination) as TextureImporter;if(importer!=null){importer.textureType=TextureImporterType.Default;importer.maxTextureSize=2048;importer.SaveAndReimport();}
+   var importer=AssetImporter.GetAtPath(destination) as TextureImporter;if(importer!=null){importer.textureType=TextureImporterType.Default;importer.textureShape=TextureImporterShape.Texture2D;importer.maxTextureSize=2048;importer.SaveAndReimport();}
    Debug.Log("Фон главного меню установлен.");
   }
   [MenuItem("Tools/TungTung/Собрать для Windows")]
