@@ -42,13 +42,13 @@ namespace Brainrot
         }
         public static CharacterVisual CreateEnemy(Transform parent,EnemyKind kind,Color color,float size=1)
         {
-            int species=kind==EnemyKind.LiriliLarila?1:kind==EnemyKind.BrrBrrPatapim?2:kind==EnemyKind.CappuccinoAssassino?3:kind==EnemyKind.BombardiroCrocodilo?4:0;
+            int species=kind==EnemyKind.BlueberrinniOctopusini?5:kind==EnemyKind.LiriliLarila?1:kind==EnemyKind.BrrBrrPatapim?2:kind==EnemyKind.CappuccinoAssassino?3:kind==EnemyKind.BombardiroCrocodilo?4:0;
             return CreateInternal(parent,species,color,size);
         }
         static CharacterVisual CreateInternal(Transform parent,int species,Color color,float size)
         {
             Materials();
-            string[] names={"Тралалеро Тралала","Лирили Ларила","Брр Брр Патапим","Капучино Ассассино","Бомбардиро Крокодило"};
+            string[] names={"Тралалеро Тралала","Лирили Ларила","Брр Брр Патапим","Капучино Ассассино","Бомбардиро Крокодило","Блюберринни Октопусини"};
             var go=new GameObject(species<0?"Тун Тун Сахур":names[species]);go.transform.SetParent(parent,false);go.transform.localScale=Vector3.one*size;
             var c=go.AddComponent<CharacterVisual>();c.isShark=species==0;
             var skin=Skin(color);
@@ -60,6 +60,7 @@ namespace Brainrot
                 case 2:c.BuildPatapim(skin);break;
                 case 3:c.BuildAssassin(skin);break;
                 case 4:c.BuildCrocodile(skin);break;
+                case 5:c.BuildOctopus();break;
                 default:c.BuildSahur(skin);break;
             }
             c.bodyPosition=c.body.localPosition;c.CacheFeedbackRenderers();return c;
@@ -203,6 +204,18 @@ namespace Brainrot
                 Part("Короткий клинок",PrimitiveType.Cube,arm,new Vector3(0,-.4f,.47f),new Vector3(.035f,.1f,.45f),white).transform.localRotation=Quaternion.Euler(0,0,15);
             }
             leftLeg=Limb("Левая нога",new Vector3(-.19f,.54f,0),ninja);rightLeg=Limb("Правая нога",new Vector3(.19f,.54f,0),ninja);
+        }
+        void BuildOctopus(){
+            var blue=Skin(new Color(.10f,.38f,.9f));var pale=Skin(new Color(.4f,.72f,1));
+            Part("Синяя голова",PrimitiveType.Sphere,body,new Vector3(0,1,0),new Vector3(1.2f,1.25f,1.1f),blue);
+            Face(body,new Vector3(0,1.05f,.49f),.25f);
+            for(int i=0;i<8;i++){
+                float a=i*Mathf.PI/4;var dir=new Vector3(Mathf.Sin(a),0,Mathf.Cos(a));
+                var arm=new GameObject("Щупальце").transform;arm.SetParent(body,false);arm.localPosition=dir*.37f+Vector3.up*.53f;arm.localRotation=Quaternion.LookRotation(dir);
+                Part("Щупальце",PrimitiveType.Capsule,arm,new Vector3(0,-.14f,.28f),new Vector3(.22f,.38f,.22f),blue).transform.localRotation=Quaternion.Euler(48,0,0);
+                Part("Кончик",PrimitiveType.Sphere,arm,new Vector3(0,-.27f,.53f),new Vector3(.3f,.23f,.3f),pale);
+            }
+            Part("Макушка",PrimitiveType.Sphere,body,new Vector3(0,1.61f,0),new Vector3(.65f,.18f,.6f),pale);
         }
         void BuildCrocodile(Material skin)
         {

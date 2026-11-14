@@ -19,7 +19,7 @@ namespace Brainrot
         float hitUntil;
         bool lastHitCritical;
         Image healthFill, xpFill;
-        Image heavyShade,dashShade;Text heavyTime,dashTime;
+        Image heavyShade,dashShade,escapeFill;Text heavyTime,dashTime;GameObject capturePanel;
         GameState shownState = (GameState)(-1);
         int shownLevel = -1;
         string page = "";
@@ -67,6 +67,9 @@ namespace Brainrot
             hitLabel=Label(hud.transform,"",17,TextAnchor.MiddleCenter,new Vector2(.4f,.41f),new Vector2(.6f,.46f));
 
             BuildAbilityIcons();
+            capturePanel=Box("Захват осьминога",hud.transform,new Vector2(.25f,.17f),new Vector2(.75f,.29f),new Color(.08f,.1f,.23f,.94f));
+            Label(capturePanel.transform,"БЫСТРО НАЖИМАЙ ЛКМ, ЧТОБЫ ВЫБРАТЬСЯ!",20,TextAnchor.MiddleCenter,new Vector2(0,.4f),Vector2.one);
+            escapeFill=Bar(capturePanel.transform,new Vector2(.06f,.13f),new Vector2(.94f,.35f),cyan);
             overlay=Box("Screens",root.transform,Vector2.zero,Vector2.one,new Color(.015f,.055f,.1f,.91f));
             BuildMobile(root.transform);
             BuildFullMap(root.transform);
@@ -89,6 +92,7 @@ namespace Brainrot
             }
             xpText.transform.parent.gameObject.SetActive(true);xpText.gameObject.SetActive(false);xpFill.transform.parent.gameObject.SetActive(false);
             stats.text=$"ВОЛНА {gm.Wave} · {gm.Spawner.Waves.Stage} · {Mathf.CeilToInt(gm.Spawner.Waves.Remaining)} с\n{TimeLabel(gm.Elapsed)}  |  Побеждено: {gm.Kills}";
+            capturePanel.SetActive(gm.Player!=null&&gm.Player.IsCaptured);if(gm.Player!=null)escapeFill.fillAmount=gm.Player.EscapeProgress;
             notification.text=gm.Notification ?? "";
             if(gm.Player!=null){UpdateAbility(heavyShade,heavyTime,gm.Player.Combat.HeavyCooldownRemaining,gm.Player.Combat.HeavyCooldownDuration);UpdateAbility(dashShade,dashTime,gm.Player.DashCooldownRemaining,gm.Player.DashCooldownDuration);}
             var combat=gm.Player!=null?gm.Player.Combat:null;

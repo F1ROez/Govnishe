@@ -44,9 +44,9 @@ namespace Brainrot.Tests {
    var before=enemy.transform.position;Teleport(Vector3.right*12);float hp=game.Player.Health;enemy.Tick(.66f);enemy.Tick(.33f);
    Assert.Greater((enemy.transform.position-before).magnitude,.1f);Assert.AreEqual(EnemyAction.Recovery,enemy.Action);Assert.AreEqual(hp,game.Player.Health);yield return null;
   }
-  [UnityTest]public IEnumerator BodiesCollideAndTransferPush(){
+  [UnityTest]public IEnumerator BodiesCollideWithoutTransferringTumble(){
    var first=Spawn(4);var second=game.Spawner.Spawn(EnemyKind.Normal,game.Player.transform.position+Vector3.forward*7);
-   first.Tumble(Vector3.forward*11);yield return new WaitForSeconds(.45f);Assert.IsTrue(second.PhysicsBody.IsPhysical,"Кувыркающееся тело должно толкнуть вторую акулу.");
+   first.Tumble(Vector3.forward*11);yield return new WaitForSeconds(.45f);Assert.IsFalse(second.PhysicsBody.IsPhysical,"Столкновение не должно включать кувырок другой акулы.");
   }
   [UnityTest]public IEnumerator PauseCancelsChargedAndPendingHits(){
    var enemy=Spawn();float hp=enemy.Health;game.Player.Combat.ExecuteAttack(true);game.Pause();Assert.AreEqual(0,Time.timeScale);game.Resume();yield return new WaitForSeconds(.2f);Assert.AreEqual(hp,enemy.Health);
@@ -68,6 +68,17 @@ namespace Brainrot.Tests {
    var enemy=Spawn(4);var visual=enemy.GetComponentInChildren<CharacterVisual>();var body=visual.transform.GetChild(0);var rest=body.localPosition;
    visual.PlayBite(.32f);yield return new WaitForSeconds(.12f);Assert.Greater(body.localPosition.z,rest.z+.2f);
    yield return new WaitForSeconds(.28f);Assert.That(body.localPosition.z,Is.EqualTo(rest.z).Within(.05f));
+  }
+  [UnityTest]public IEnumerator OctopusLocksTargetAndStrongHitInterrupts(){
+   var oct=game.Spawner.Spawn(EnemyKind.BlueberrinniOctopusini,Vector3.forward*10);var attack=oct.GetComponent<OctopusAttack>();
+   attack.Tick(.01f);Assert.AreEqual(OctopusPhase.Aiming,attack.Phase);var target=attack.Target;
+   Teleport(Vector3.right*4);attack.Tick(.2f);Assert.AreEqual(target,attack.Target);
+   oct.TakeDamage(1,Vector3.forward*10);Assert.IsTrue(oct.PhysicsBody.IsPhysical);Assert.AreEqual(OctopusPhase.Retreat,attack.Phase);yield return null;
+  }
+  [UnityTest]public IEnumerator CaptureBlocksAttackAndTapsReleasePlayer(){
+   var oct=game.Spawner.Spawn(EnemyKind.BlueberrinniOctopusini,Vector3.forward*8);var attack=oct.GetComponent<OctopusAttack>();
+   Assert.IsTrue(game.Player.BeginCapture(attack));Assert.IsFalse(game.Player.Combat.ExecuteAttack(false));Assert.IsFalse(game.Player.TryDash(Vector3.forward));
+   for(int i=0;i<profile.Octopus.EscapeClicks;i++)game.Player.EscapeTap();Assert.IsFalse(game.Player.IsCaptured);Assert.AreEqual(OctopusPhase.Dropping,attack.Phase);yield return null;
   }
   [Test]public void WaveHasQuietEdgesAndMiddlePeak(){Assert.That(WaveDirector.Envelope(0),Is.EqualTo(0).Within(.00001));Assert.That(WaveDirector.Envelope(1),Is.EqualTo(0).Within(.00001));Assert.That(WaveDirector.Envelope(.5f),Is.EqualTo(1).Within(.00001));Assert.Greater(EnemySpawner.Interval(profile.Waves,0),EnemySpawner.Interval(profile.Waves,1));}
   [Test]public void RestAndNextWaveAreDeterministic(){var wave=new WaveDirector();wave.Reset();wave.Advance(60);Assert.IsTrue(wave.Resting);Assert.AreEqual(1,wave.Number);wave.Advance(8);Assert.IsFalse(wave.Resting);Assert.AreEqual(2,wave.Number);}

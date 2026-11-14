@@ -8,6 +8,13 @@ namespace Brainrot {
   [SerializeField] public PlayerCharacterDefinition Character;
   readonly System.Collections.Generic.List<IPlayerAbilityRuntime> abilities=new System.Collections.Generic.List<IPlayerAbilityRuntime>();
   public PlayerStats Stats=new PlayerStats(); public float Health{get;private set;}
+  OctopusAttack captor;bool captureHeld;
+  public bool IsCaptured=>captor!=null;
+  public float EscapeProgress{get;private set;}
+  public bool IsCapturedBy(OctopusAttack source)=>captor==source;
+  public bool BeginCapture(OctopusAttack source){if(IsCaptured||Health<=0)return false;captor=source;EscapeProgress=0;captureHeld=GameInput.Attack||MobileInput.Attack;CancelAttacks();dashUntil=0;return true;}
+  public void EndCapture(OctopusAttack source){if(captor==source){captor=null;EscapeProgress=0;CancelAttacks();}}
+  public void EscapeTap(){if(!IsCaptured)return;EscapeProgress=Mathf.Clamp01(EscapeProgress+1f/Mathf.Max(1,GameBalance.Current.Octopus.EscapeClicks));if(EscapeProgress>=.999f)captor.Escape();}
   public CombatSystem Combat=>combat;
   public PlayerTuning ActiveTuning=>Character!=null&&Character.UseCustomStats&&Character.StartingStats!=null?Character.StartingStats:GameBalance.Current.Player;
   public bool CameraLocked => SaveSystem.Data.HasCameraPreference ? SaveSystem.Data.CameraLocked : ActiveTuning.CameraLocked;
@@ -28,7 +35,7 @@ namespace Brainrot {
    ResetRun();
   }
   public void ResetRun(){
-   var settings=ActiveTuning;Stats=PlayerStats.From(settings);
+   captor=null;EscapeProgress=0;captureHeld=false;var settings=ActiveTuning;Stats=PlayerStats.From(settings);
    var weapon=Character!=null?Character.Weapon:null;if(weapon!=null){Stats.Damage*=Mathf.Max(.1f,weapon.DamageMultiplier);Stats.Range*=Mathf.Max(.1f,weapon.RangeMultiplier);Stats.AttackInterval*=Mathf.Max(.1f,weapon.AttackIntervalMultiplier);}
    Health=Stats.MaxHealth;
    foreach(var ability in abilities)ability.Dispose();abilities.Clear();
@@ -42,12 +49,13 @@ namespace Brainrot {
   // All callers provide a world-space movement vector; a stationary dash does not consume cooldown.
   public bool TryDash(Vector3 movement){
    movement.y=0;
-   if(GameManager.Instance==null||!GameManager.Instance.IsPlaying||Time.time<nextDash||movement.sqrMagnitude<.001f)return false;
+   if(GameManager.Instance==null||!GameManager.Instance.IsPlaying||IsCaptured||Time.time<nextDash||movement.sqrMagnitude<.001f)return false;
    var settings=ActiveTuning;DashDirection=movement.normalized;dashUntil=Time.time+Mathf.Max(.05f,settings.DashDuration);nextDash=Time.time+Mathf.Max(.1f,Stats.DashCooldown);invulnerableUntil=dashUntil;
    HitEffects.Burst(transform.position+Vector3.up,Color.cyan);return true;
   }
   void Update(){
    var gm=GameManager.Instance;if(gm==null||!gm.IsPlaying)return;
+   if(IsCaptured){bool held=GameInput.Attack||MobileInput.Attack;if(held&&!captureHeld)EscapeTap();captureHeld=held;EscapeProgress=Mathf.Max(0,EscapeProgress-Time.deltaTime*.025f);return;}
    if(GameInput.CameraToggle)ToggleCameraLock();
    Vector2 look=Application.isMobilePlatform?MobileInput.Look:GameInput.Look;MobileInput.Look=Vector2.zero;
    yaw+=look.x*2.3f*SaveSystem.Data.Sensitivity;pitch=CameraLocked?Mathf.Repeat(pitch-look.y*1.8f*SaveSystem.Data.Sensitivity+180,360)-180:Mathf.Clamp(pitch-look.y*1.8f*SaveSystem.Data.Sensitivity,15,70);

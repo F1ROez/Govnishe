@@ -22,6 +22,7 @@ namespace Brainrot
         public CombatTuning Combat = new CombatTuning();
         public WaveTuning Waves = new WaveTuning();
         public BodyTuning Bodies = new BodyTuning();
+        public OctopusTuning Octopus = new OctopusTuning();
         public SpawnTuning Spawning = new SpawnTuning();
         public ExplorationTuning Exploration = new ExplorationTuning();
         public ProgressionTuning Progression = new ProgressionTuning();
@@ -33,15 +34,16 @@ namespace Brainrot
         public EnemyTuning MiniBoss = new EnemyTuning { Health=500,Speed=2.8f,Damage=22,AttackRange=2.5f,MeleeWindup=.9f,Recovery=1.4f,KnockbackResistance=4,HitStagger=0,Experience=100 };
         public EnemyTuning King = new EnemyTuning { Health=2000,Speed=2.6f,Damage=30,AttackRange=3.2f,MeleeWindup=1.1f,Recovery=1.6f,KnockbackResistance=6,HitStagger=0,Experience=300 };
 
+        public EnemyTuning BlueOctopus=new EnemyTuning {Health=75,Speed=3,Damage=0,Experience=0};
         public EnemyTuning Lirili = new EnemyTuning {Health=100,Speed=2.4f,Damage=16,CanCharge=true,ChargeWindup=1.2f,ChargeSpeed=11,ChargeDuration=.7f,ChargeCooldown=7,KnockbackResistance=1.6f,Experience=18};
         public EnemyTuning Patapim = new EnemyTuning {Health=150,Speed=1.9f,Damage=23,AttackRange=3,MeleeWindup=1.1f,Recovery=1.6f,KnockbackResistance=1.8f,Experience=25};
         public EnemyTuning Cappuccino = new EnemyTuning {Health=85,Speed=3.7f,Damage=19,CanCharge=true,ChargeWindup=.7f,ChargeSpeed=14,ChargeDuration=.3f,ChargeCooldown=4,Recovery=.8f,Experience=30};
         public EnemyTuning Crocodilo = new EnemyTuning {Health=210,Speed=2.6f,Damage=28,CanCharge=true,ChargeWindup=1.3f,ChargeSpeed=12,ChargeDuration=.65f,ChargeCooldown=7,AttackRange=2.5f,KnockbackResistance=2,Experience=40};
 
         void OnEnable(){EnsureExploration();}
-        public void EnsureExploration(){if(Exploration==null)Exploration=new ExplorationTuning();if(Waves==null)Waves=new WaveTuning();if(Bodies==null)Bodies=new BodyTuning();}
+        public void EnsureExploration(){if(Exploration==null)Exploration=new ExplorationTuning();if(Waves==null)Waves=new WaveTuning();if(Bodies==null)Bodies=new BodyTuning();if(Octopus==null)Octopus=new OctopusTuning();}
         public EnemyTuning Enemy(EnemyKind kind) {
-            switch (kind) { case EnemyKind.LiriliLarila:return Lirili;case EnemyKind.BrrBrrPatapim:return Patapim;case EnemyKind.CappuccinoAssassino:return Cappuccino;case EnemyKind.BombardiroCrocodilo:return Crocodilo;case EnemyKind.Fast:return Fast;case EnemyKind.Tank:return Tank;case EnemyKind.MiniBoss:return MiniBoss;case EnemyKind.King:return King;default:return Normal; }
+            switch (kind) { case EnemyKind.BlueberrinniOctopusini:return BlueOctopus;case EnemyKind.LiriliLarila:return Lirili;case EnemyKind.BrrBrrPatapim:return Patapim;case EnemyKind.CappuccinoAssassino:return Cappuccino;case EnemyKind.BombardiroCrocodilo:return Crocodilo;case EnemyKind.Fast:return Fast;case EnemyKind.Tank:return Tank;case EnemyKind.MiniBoss:return MiniBoss;case EnemyKind.King:return King;default:return Normal; }
         }
         public int RequiredXp(int level) {
             double n=Math.Max(0,(double)level-1);
@@ -84,6 +86,17 @@ namespace Brainrot
         [Range(.03f,.5f)]public float HitFlashDuration=.16f;
         [Range(0,.65f)]public float HitFlashStrength=.25f;
         public bool ShowAttackRange=true;
+    }
+    [Serializable]public sealed class OctopusTuning {
+        [Range(0,.5f)]public float SpawnChance=.18f;
+        [Min(1)]public int FirstWave=2;
+        [Min(4)]public float AimDistance=15;
+        [Min(.3f)]public float AimSeconds=1.1f;
+        [Min(.4f)]public float JumpSeconds=1.2f;
+        [Min(1)]public float JumpHeight=7;
+        [Min(.5f)]public float LandingRadius=1.3f;
+        [Min(1)]public int EscapeClicks=12;
+        [Min(1)]public float RetreatSpeed=6;
     }
     [Serializable] public sealed class WaveTuning {
         [Min(10)]public float Duration=60;

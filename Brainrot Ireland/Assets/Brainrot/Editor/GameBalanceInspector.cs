@@ -11,16 +11,17 @@ namespace Brainrot.Editor
     public class GameBalanceInspector : UnityEditor.Editor
     {
         static readonly HashSet<string> Hidden = new HashSet<string> {
-            "m_Script", "Spawning", "Bosses", "Fast", "Tank", "MiniBoss", "King", "Exploration", "Progression", "HeavyDamageMultiplier", "HeavyCooldownMultiplier", "Lirili", "Patapim", "Cappuccino", "Crocodilo"
+            "m_Script", "Spawning", "Bosses", "Fast", "Tank", "MiniBoss", "King", "Exploration", "Progression", "ChainPush", "HeavyDamageMultiplier", "HeavyCooldownMultiplier", "Lirili", "Patapim", "Cappuccino", "Crocodilo"
         };
         static readonly Dictionary<string, string> Labels = new Dictionary<string, string> {
             {"Id","Идентификатор"},{"DisplayName","Название"},{"VisualStyle","Внешний вид"},{"BodyColor","Цвет модели"},{"VisualScale","Масштаб модели"},
             {"UseCustomStats","Собственные характеристики"},{"StartingStats","Характеристики персонажа"},{"Weapon","Оружие"},{"Abilities","Особые способности"},
             {"UseCustomTiming","Собственные настройки взмаха"},{"DamageMultiplier","Множитель урона"},{"RangeMultiplier","Множитель дальности"},{"AttackIntervalMultiplier","Множитель интервала атак"},
             {"Kind","Вид улучшения"},{"Title","Название"},{"Description","Описание"},{"Rarity","Редкость"},{"MaxRank","Максимальный ранг"},{"Amount","Базовая величина"},
+            {"Octopus","Синий осьминог: прыжок и захват"},{"BlueOctopus","Характеристики синего осьминога"},{"SpawnChance","Доля осьминогов среди появлений"},{"FirstWave","Первая волна появления"},{"AimDistance","Дистанция начала прицеливания"},{"AimSeconds","Длительность прицеливания, с"},{"JumpSeconds","Длительность прыжка, с"},{"JumpHeight","Высота прыжка"},{"LandingRadius","Радиус попадания при приземлении"},{"EscapeClicks","Нажатий для освобождения"},{"RetreatSpeed","Скорость возвращения в воду"},
             {"Waves","Волны врагов"},{"Bodies","Физика и тела"},
             {"StrongDamageMultiplier","Множитель урона сильного удара"},{"StrongCooldownSeconds","Перезарядка сильного удара, с"},
-            {"HeavyChargeSeconds","Заряд сильной атаки, с"},{"HeavyDamageMultiplier","Множитель урона сильной атаки"},{"HeavyCooldownMultiplier","Перезарядка сильной атаки"},
+            {"HeavyChargeSeconds","Заряд сильной атаки, с"},{"ChainPush", "HeavyDamageMultiplier","Множитель урона сильной атаки"},{"HeavyCooldownMultiplier","Перезарядка сильной атаки"},
             {"Duration","Длительность волны, с"},{"Rest","Передышка между волнами, с"},{"SlowInterval","Интервал появления по краям волны, с"},{"PeakInterval","Интервал на пике волны, с"},{"InitialDelay","Задержка первого появления, с"},
             {"EdgeAliveLimit","Лимит живых врагов по краям"},{"PeakAliveLimit","Лимит на пике"},{"ExtraAlivePerWave","Прибавка лимита каждой волны"},
             {"TumbleSeconds","Время кувырка живого врага, с"},{"CorpseSeconds","Время сохранения тела, с"},{"LaunchSpeed","Скорость отбрасывания"},{"UpSpeed","Подброс вверх"},{"Spin","Сила вращения"},{"ChainPush","Передача толчка другим врагам"},{"MaxCorpsesPC","Максимум тел на ПК"},{"MaxCorpsesMobile","Максимум тел на телефоне"},

@@ -15,7 +15,7 @@ namespace Brainrot {
   public void ResetBody(){
    if(body==null)return;if(!body.isKinematic){body.linearVelocity=Vector3.zero;body.angularVelocity=Vector3.zero;}
    body.collisionDetectionMode=CollisionDetectionMode.Discrete;body.isKinematic=true;body.constraints=RigidbodyConstraints.FreezeRotation;
-   IsPhysical=false;remaining=0;nextTransfer=0;
+   capsule.enabled=true;IsPhysical=false;remaining=0;nextTransfer=0;
   }
   public void Launch(Vector3 velocity,bool dead){
    var t=GameBalance.Current.Bodies;remaining=dead?Mathf.Max(1,t.CorpseSeconds):Mathf.Max(.3f,t.TumbleSeconds);
@@ -31,13 +31,7 @@ namespace Brainrot {
    if(enemy.Alive){var pos=transform.position;pos.y=0;float yaw=transform.eulerAngles.y;ResetBody();transform.position=pos;transform.rotation=Quaternion.Euler(0,yaw,0);enemy.OnRecovered();}
    else GameManager.Instance.Spawner.ReleaseCorpse(enemy);
   }
-  void OnCollisionEnter(Collision collision){
-   if(!IsPhysical||Time.time<nextTransfer)return;
-   var other=collision.collider.GetComponentInParent<EnemyController>();if(other==null||other==enemy||!other.Alive||other.PhysicsBody.IsPhysical)return;
-   float speed=collision.relativeVelocity.magnitude;if(speed<2)return;
-   Vector3 direction=other.transform.position-transform.position;direction.y=0;if(direction.sqrMagnitude<.001f)direction=transform.forward;
-   nextTransfer=Time.time+.2f;other.Tumble(direction.normalized*Mathf.Min(10,speed*Mathf.Clamp01(GameBalance.Current.Bodies.ChainPush)));
-  }
+  public void SetColliderEnabled(bool enabled){if(capsule!=null)capsule.enabled=enabled;}
   void OnDisable(){ResetBody();}
   void OnDestroy(){if(surface!=null)Destroy(surface);}
  }

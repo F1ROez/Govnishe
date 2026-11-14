@@ -23,7 +23,7 @@ namespace Brainrot {
   }
   public void TryAttack(){ExecuteAttack(false);}
   public bool ExecuteAttack(bool heavy){
-   var game=GameManager.Instance;if(game==null||!game.IsPlaying||Time.time<nextAttack)return false;
+   var game=GameManager.Instance;if(game==null||!game.IsPlaying||player.IsCaptured||Time.time<nextAttack)return false;
    if(heavy&&!HeavyReady)return false;
    nextAttack=Time.time+Mathf.Max(.12f,player.Stats.AttackInterval);
    if(heavy)nextHeavyAttack=Time.time+HeavyCooldownDuration;
@@ -53,7 +53,7 @@ namespace Brainrot {
    float push=tuning.Knockback*Mathf.Max(0,tuning.KnockbackMultiplier)*(weapon!=null?Mathf.Max(0,weapon.KnockbackMultiplier):1);
    int hits=0;bool anyCritical=false;
    for(int i=enemies.Count-1;i>=0;i--){
-    if(i>=enemies.Count)continue;var e=enemies[i];if(!e.Alive)continue;
+    if(i>=enemies.Count)continue;var e=enemies[i];if(!e.Alive)continue;if(Mathf.Abs(e.transform.position.y-transform.position.y)>3)continue;
     Vector3 delta=e.transform.position-transform.position;delta.y=0;
     bool melee=InMeleeSector(transform.position,transform.forward,e.transform.position,stats.Range,tuning.ArcDegrees,tuning.InnerOmniRadius);
     bool radial=stats.Shockwave>0&&delta.magnitude<=stats.Range+2.5f;if(!melee&&!radial)continue;

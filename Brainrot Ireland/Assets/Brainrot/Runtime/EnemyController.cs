@@ -23,7 +23,7 @@ namespace Brainrot
         public bool IsPreparingAttack => Action == EnemyAction.MeleeWindup || Action == EnemyAction.ChargeWindup;
 
         public EnemyPhysicsBody PhysicsBody {get;private set;}
-        EnemySpawner owner;
+        EnemySpawner owner;OctopusAttack octopus;
         CharacterVisual visual;
         EnemyTelegraph telegraph;
         EnemyTuning tuning;
@@ -56,6 +56,7 @@ namespace Brainrot
             Alive = true;
             EnterIdle();
             visual.ResetFeedback();visual.ResetBite();
+            if(kind==EnemyKind.BlueberrinniOctopusini){if(octopus==null)octopus=gameObject.AddComponent<OctopusAttack>();octopus.Initialize(this,owner);}
         }
         static Color Skin(EnemyKind kind)
         {
@@ -78,6 +79,7 @@ namespace Brainrot
             var game = GameManager.Instance;
             if (!Alive || game == null || !game.IsPlaying || game.Player == null || game.Player.Health <= 0 || dt <= 0) return;
             if(PhysicsBody!=null&&PhysicsBody.IsPhysical)return;
+            if(Kind==EnemyKind.BlueberrinniOctopusini){octopus.Tick(dt);return;}
             attackClock -= dt; chargeClock -= dt;
             // Integrate damped knockback analytically so the distance is stable at low frame rates.
             float decay = Mathf.Exp(-6 * dt);
@@ -241,6 +243,7 @@ namespace Brainrot
         public void TakeDamage(float amount, Vector3 knockback)
         {
             if (!Alive || amount <= 0) return;
+            if(octopus!=null&&(knockback.sqrMagnitude>.01f||amount>=Health))octopus.Interrupt();
             Health = Mathf.Max(0, Health - amount);knockback.y = 0;
             var feedback = GameBalance.Current.Combat;
             visual.FlashHit(Mathf.Max(0, feedback.HitFlashDuration), Mathf.Clamp01(feedback.HitFlashStrength));
@@ -264,7 +267,7 @@ namespace Brainrot
             Vector3 launch=knockback.sqrMagnitude>.01f?knockback:(transform.position-GameManager.Instance.Player.transform.position).normalized*3;
             PhysicsBody.Launch(launch,true);owner.Killed(this);
         }
-        public void Tumble(Vector3 velocity){if(!Alive)return;visual.ResetBite();telegraph.Hide();Action=EnemyAction.Staggered;PhysicsBody.Launch(velocity,false);}
+        public void Tumble(Vector3 velocity){if(!Alive)return;if(octopus!=null)octopus.Interrupt();visual.ResetBite();telegraph.Hide();Action=EnemyAction.Staggered;PhysicsBody.Launch(velocity,false);}
         public void OnRecovered(){if(!Alive)return;Action=EnemyAction.Chasing;attackClock=.5f;visual.ResetFeedback();}
         void OnDisable() { IsAlerted = false;if (telegraph != null) telegraph.Hide();if (visual != null) visual.ResetFeedback(); }
     }

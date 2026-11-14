@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 namespace Brainrot {
- public enum EnemyKind {Normal=0,Fast=1,Tank=2,MiniBoss=3,King=4,LiriliLarila=5,BrrBrrPatapim=6,CappuccinoAssassino=7,BombardiroCrocodilo=8}
+ public enum EnemyKind {Normal=0,Fast=1,Tank=2,MiniBoss=3,King=4,LiriliLarila=5,BrrBrrPatapim=6,CappuccinoAssassino=7,BombardiroCrocodilo=8,BlueberrinniOctopusini=9}
  public sealed class EnemySpawner:MonoBehaviour {
   public readonly List<EnemyController> Active=new List<EnemyController>(64);
   public readonly List<EnemyController> Corpses=new List<EnemyController>(24);
@@ -15,7 +15,7 @@ namespace Brainrot {
    if(!pools.TryGetValue(kind,out var pool)){pool=new ObjectPool<EnemyController>(()=>{var go=new GameObject("Тралалеро Тралала");go.transform.SetParent(transform,false);return go.AddComponent<EnemyController>();},MaxEnemies);pools.Add(kind,pool);}return pool;
   }
   public EnemyController Spawn(EnemyKind kind,Vector3 position,float difficulty=1){
-   if(kind!=EnemyKind.Normal||Active.Count>=CurrentAliveLimit)return null;
+   if((kind!=EnemyKind.Normal&&kind!=EnemyKind.BlueberrinniOctopusini)||Active.Count>=CurrentAliveLimit)return null;
    var enemy=Pool(kind).Get();position.y=0;enemy.Initialize(this,kind,1,position);Active.Add(enemy);return enemy;
   }
   public void Tick(float dt){
@@ -26,7 +26,7 @@ namespace Brainrot {
     spawnClock-=dt;
     if(spawnClock<=0){
      var t=GameBalance.Current.Waves;spawnClock=Interval(t,Waves.Intensity);
-     if(Active.Count<CurrentAliveLimit){float a=Random.Range(0,Mathf.PI*2);Spawn(EnemyKind.Normal,new Vector3(Mathf.Cos(a),0,Mathf.Sin(a))*28);}
+     if(Active.Count<CurrentAliveLimit){float a=Random.Range(0,Mathf.PI*2);Spawn(Waves.Number>=GameBalance.Current.Octopus.FirstWave&&Random.value<GameBalance.Current.Octopus.SpawnChance?EnemyKind.BlueberrinniOctopusini:EnemyKind.Normal,new Vector3(Mathf.Cos(a),0,Mathf.Sin(a))*28);}
     }
    }
    for(int i=Active.Count-1;i>=0&&game.IsPlaying;i--)if(i<Active.Count)Active[i].Tick(dt);
