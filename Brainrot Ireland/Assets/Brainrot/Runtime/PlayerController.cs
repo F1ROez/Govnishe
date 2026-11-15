@@ -42,7 +42,7 @@ namespace Brainrot {
    foreach(var ability in abilities)ability.Dispose();abilities.Clear();
    if(Character!=null&&Character.Abilities!=null)foreach(var definition in Character.Abilities)if(definition!=null){var runtime=definition.CreateRuntime(this);if(runtime!=null)abilities.Add(runtime);}
    motor.enabled=false;transform.position=IslandMap.StartPosition;transform.rotation=Quaternion.identity;motor.enabled=true;
-   yaw=0;pitch=Mathf.Repeat(GameBalance.Current.Camera.InitialPitch+180,360)-180;dashUntil=nextDash=invulnerableUntil=0;DashDirection=Vector3.zero;trauma=0;
+   yaw=0;pitch=GameBalance.Current.Camera.ClampPitch(GameBalance.Current.Camera.InitialPitch);dashUntil=nextDash=invulnerableUntil=0;DashDirection=Vector3.zero;trauma=0;
    combat?.ResetRun();visual?.ResetFeedback();
   }
   public void ToggleCameraLock(){SetCameraLock(!CameraLocked);}
@@ -59,7 +59,7 @@ namespace Brainrot {
    if(IsCaptured){bool held=GameInput.Attack||MobileInput.Attack;if(held&&!captureHeld)EscapeTap();captureHeld=held;EscapeProgress=Mathf.Max(0,EscapeProgress-Time.deltaTime*.025f);}
    if(GameInput.CameraToggle)ToggleCameraLock();
    Vector2 look=Application.isMobilePlatform?MobileInput.Look:GameInput.Look;MobileInput.Look=Vector2.zero;
-   yaw+=look.x*2.3f*SaveSystem.Data.Sensitivity;pitch=Mathf.Repeat(pitch-look.y*1.8f*SaveSystem.Data.Sensitivity+180,360)-180;
+   yaw+=look.x*2.3f*SaveSystem.Data.Sensitivity;pitch=GameBalance.Current.Camera.ClampPitch(pitch-look.y*1.8f*SaveSystem.Data.Sensitivity);
    Vector2 input=Application.isMobilePlatform?MobileInput.Move:GameInput.Move;input=Vector2.ClampMagnitude(input,1);
    Vector3 move=Quaternion.Euler(0,yaw,0)*new Vector3(input.x,0,input.y);bool sprint=GameInput.Sprint||MobileInput.Sprint;
    var settings=ActiveTuning;
@@ -78,7 +78,7 @@ namespace Brainrot {
   void LateUpdate(){
    float visualScale=Mathf.Max(.1f,Character!=null?Character.VisualScale:1)*Mathf.Max(.1f,GameBalance.Current.PlayerModelScale);
    if(visual!=null)visual.transform.localScale=Vector3.one*visualScale;
-   if(cam==null)return;var settings=GameBalance.Current.Camera;Quaternion rot=Quaternion.Euler(pitch,yaw,0);
+   if(cam==null)return;var settings=GameBalance.Current.Camera;pitch=settings.ClampPitch(pitch);Quaternion rot=Quaternion.Euler(pitch,yaw,0);
    Vector3 target=transform.position+Vector3.up*(1.9f*visualScale+Mathf.Max(0,settings.HeightAboveHead));
    cam.transform.position=target+rot*Vector3.right*settings.ShoulderOffset-rot*Vector3.forward*Mathf.Max(2,settings.Distance)+Random.insideUnitSphere*trauma;
    cam.transform.rotation=rot;trauma=Mathf.MoveTowards(trauma,0,Time.unscaledDeltaTime);

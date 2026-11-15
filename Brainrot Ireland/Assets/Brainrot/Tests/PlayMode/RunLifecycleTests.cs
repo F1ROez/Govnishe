@@ -17,6 +17,16 @@ namespace Brainrot.Tests {
    Assert.IsNotNull(camera);Vector3 offset=camera.transform.position-game.Player.transform.position;
    Assert.Greater(Vector3.Dot(offset,camera.transform.right),.5f);Assert.Greater(offset.y,1.9f);
   }
+  [UnityTest]public IEnumerator CameraPitchStopsAtConfiguredLimitsInBothModes(){
+   Camera camera=null;foreach(var candidate in Camera.allCameras)if(candidate.name=="Arena Camera")camera=candidate;Assert.IsNotNull(camera);
+   bool previous=SaveSystem.Data.CameraLocked,hadPreference=SaveSystem.Data.HasCameraPreference;
+   try{foreach(bool locked in new[]{true,false}){
+    SaveSystem.Data.HasCameraPreference=true;SaveSystem.Data.CameraLocked=locked;profile.Camera.InitialPitch=300;game.Player.ResetRun();yield return null;
+    Assert.That(Mathf.DeltaAngle(0,camera.transform.eulerAngles.x),Is.EqualTo(profile.Camera.MaxPitch).Within(.1f));
+    profile.Camera.InitialPitch=-300;game.Player.ResetRun();yield return null;
+    Assert.That(Mathf.DeltaAngle(0,camera.transform.eulerAngles.x),Is.EqualTo(profile.Camera.MinPitch).Within(.1f));
+   }}finally{SaveSystem.Data.CameraLocked=previous;SaveSystem.Data.HasCameraPreference=hadPreference;}
+  }
   [UnityTearDown]public IEnumerator Cleanup(){
    if(GameMusic.Instance!=null)Object.Destroy(GameMusic.Instance.gameObject);Time.timeScale=1;if(previous.IsValid()&&previous.isLoaded)SceneManager.SetActiveScene(previous);if(scene.IsValid()&&scene.isLoaded)yield return SceneManager.UnloadSceneAsync(scene);
    if(profile!=null)Object.Destroy(profile);if(character!=null)Object.Destroy(character);Cursor.lockState=CursorLockMode.None;Cursor.visible=true;yield return null;
