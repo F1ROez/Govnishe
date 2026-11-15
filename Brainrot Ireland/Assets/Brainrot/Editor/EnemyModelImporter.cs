@@ -13,7 +13,44 @@ namespace Brainrot.Editor
     {
         const string Art="Assets/Brainrot/Art/Enemies/",Out="Assets/Brainrot/Generated/Enemies/";
         [MenuItem("Tools/TungTung/Обновить модели врагов")]
-        public static void GenerateAll(){if(Application.isPlaying)return;Build(false);Build(true);AssetDatabase.SaveAssets();}
+        public static void GenerateAll(){if(Application.isPlaying)return;Build(false);Build(true);BuildOrcaladon();AssetDatabase.SaveAssets();}
+        static void BuildOrcaladon(){
+            const string source=Art+"Orcaladon/Orcaladon.fbx",output=Out+"Orcaladon/";
+            if(!File.Exists(source)){Debug.LogWarning("Модель Оркаладона отсутствует: "+source);return;}
+            Directory.CreateDirectory(output);Directory.CreateDirectory("Assets/Brainrot/Generated/Resources");AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
+            var importer=AssetImporter.GetAtPath(source) as ModelImporter;if(importer==null)return;
+            if(importer.animationType!=ModelImporterAnimationType.Generic||importer.importAnimation||importer.optimizeGameObjects||importer.materialImportMode!=ModelImporterMaterialImportMode.None){
+                importer.animationType=ModelImporterAnimationType.Generic;importer.importAnimation=false;importer.optimizeGameObjects=false;importer.materialImportMode=ModelImporterMaterialImportMode.None;importer.importCameras=false;importer.importLights=false;importer.SaveAndReimport();
+            }
+            var asset=AssetDatabase.LoadAssetAtPath<GameObject>(source);if(asset==null){Debug.LogWarning("Unity ещё импортирует Оркаладона.");return;}
+            var root=new GameObject("Оркаладон — большой океанский громила");
+            try{
+                var motion=new GameObject("Движение модели").transform;motion.SetParent(root.transform,false);
+                var normalization=new GameObject("Нормализация").transform;normalization.SetParent(motion,false);
+                var model=(GameObject)PrefabUtility.InstantiatePrefab(asset);PrefabUtility.UnpackPrefabInstance(model,PrefabUnpackMode.Completely,InteractionMode.AutomatedAction);model.transform.SetParent(normalization,false);
+                foreach(var node in model.GetComponentsInChildren<Transform>(true)){node.gameObject.SetActive(true);node.gameObject.layer=0;}
+                foreach(var collider in model.GetComponentsInChildren<Collider>(true))UnityEngine.Object.DestroyImmediate(collider);
+                foreach(var animator in model.GetComponentsInChildren<Animator>(true))UnityEngine.Object.DestroyImmediate(animator);
+                var bridge=root.AddComponent<ImportedEnemyVisual>();bridge.ModelRoot=model.transform;bridge.MotionRoot=motion;bridge.Normalization=normalization;bridge.IsOrcaladon=true;bridge.TargetHeight=3.4f;bridge.LegBones=Array.Empty<Transform>();
+                var visual=root.AddComponent<OrcaladonVisual>();visual.ModelRoot=model.transform;visual.MotionRoot=motion;
+                visual.Body=FindOrcaBone(model,"Body");visual.UpperLeft=FindOrcaBone(model,"UpperArm.L");visual.UpperRight=FindOrcaBone(model,"UpperArm.R");
+                visual.ForeLeft=FindOrcaBone(model,"Forearm.L");visual.ForeRight=FindOrcaBone(model,"Forearm.R");
+                visual.ThighLeft=FindOrcaBone(model,"Thigh.L");visual.ThighRight=FindOrcaBone(model,"Thigh.R");visual.ShinLeft=FindOrcaBone(model,"Shin.L");visual.ShinRight=FindOrcaBone(model,"Shin.R");bridge.Orcaladon=visual;
+                string texturePath=Art+"Orcaladon/OrcaladonAlbedo.jpg";var textureImporter=AssetImporter.GetAtPath(texturePath) as TextureImporter;
+                if(textureImporter!=null&&SahurModelImporter.ConfigureTexture2D(textureImporter,false,true,2048))textureImporter.SaveAndReimport();
+                var texture=AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
+                string materialPath=output+"OrcaladonToon.mat";var material=AssetDatabase.LoadAssetAtPath<Material>(materialPath);
+                var shader=Shader.Find("Brainrot/ToonCharacter");if(material==null){material=new Material(shader);AssetDatabase.CreateAsset(material,materialPath);}else material.shader=shader;
+                material.name="Оркаладон — мягкий морской мультяшный";material.SetTexture("_BaseMap",texture);material.SetColor("_BaseColor",new Color(.91f,.97f,1));
+                material.SetFloat("_Brightness",1.4f);material.SetFloat("_Saturation",1.25f);material.SetFloat("_TextureSoftening",.19f);material.renderQueue=2000;EditorUtility.SetDirty(material);
+                foreach(var renderer in model.GetComponentsInChildren<Renderer>(true)){renderer.sharedMaterials=Enumerable.Repeat(material,Mathf.Max(1,renderer.sharedMaterials.Length)).ToArray();renderer.shadowCastingMode=ShadowCastingMode.On;renderer.receiveShadows=true;
+                    if(renderer is SkinnedMeshRenderer skin){skin.enabled=true;skin.forceRenderingOff=false;skin.updateWhenOffscreen=true;}}
+                if(!bridge.CalibrateModel())throw new InvalidOperationException("Не удалось измерить скелетную модель Оркаладона.");
+                PrefabUtility.SaveAsPrefabAsset(root,"Assets/Brainrot/Generated/Resources/ImportedOrcaladon.prefab");
+                Debug.Log("Оркаладон обновлён: исправленная поза руки, облегчённая сетка, девять костей и анимации ходьбы/разгона/двуручного удара.");
+            }finally{UnityEngine.Object.DestroyImmediate(root);}
+        }
+        static Transform FindOrcaBone(GameObject model,string name){var bone=ImportedSahurVisual.Find(model.transform,"Orca_"+name);if(bone==null)throw new InvalidOperationException("В модели Оркаладона отсутствует кость Orca_"+name);return bone;}
         static void Build(bool octopus){
             string name=octopus?"Octopus":"Tralala",source=Art+name+"/"+name+".fbx",output=Out+name+"/";
             bool toy=octopus&&File.Exists(Art+"OctopusToy/OctopusToy.fbx");
@@ -145,6 +182,6 @@ namespace Brainrot.Editor
     }
     sealed class EnemyTexturePostprocessor:AssetPostprocessor
     {
-        void OnPreprocessTexture(){if(assetPath=="Assets/Brainrot/Art/Enemies/Tralala/shaded.png"||assetPath=="Assets/Brainrot/Art/Enemies/OctopusToy/OctopusAlbedo.jpg")SahurModelImporter.ConfigureTexture2D((TextureImporter)assetImporter,false,true,2048);}
+        void OnPreprocessTexture(){if(assetPath=="Assets/Brainrot/Art/Enemies/Tralala/shaded.png"||assetPath=="Assets/Brainrot/Art/Enemies/OctopusToy/OctopusAlbedo.jpg"||assetPath=="Assets/Brainrot/Art/Enemies/Orcaladon/OrcaladonAlbedo.jpg")SahurModelImporter.ConfigureTexture2D((TextureImporter)assetImporter,false,true,2048);}
     }
 }

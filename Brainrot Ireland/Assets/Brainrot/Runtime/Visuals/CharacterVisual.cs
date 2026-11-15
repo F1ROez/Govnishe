@@ -11,7 +11,9 @@ namespace Brainrot
         ImportedEnemyVisual importedEnemy;
         public bool AttackActive => imported!=null?imported.AttackActive:attackRemaining > 0;
         TrailRenderer batTrail;
-        float attackRemaining, attackDuration = .32f;
+        float attackRemaining, attackDuration = .32f,attackContact=.09f;
+        float chargePose;
+        bool chargeActive,heavySwing;
         Vector3 weaponRestPosition;
         Quaternion weaponRestRotation;
         static Material trailMaterial;
@@ -51,7 +53,7 @@ namespace Brainrot
         }
         public static CharacterVisual CreateEnemy(Transform parent,EnemyKind kind,Color color,float size=1)
         {
-            string resource=kind==EnemyKind.BlueberrinniOctopusini?"ImportedOctopus":kind==EnemyKind.Normal?"ImportedTralala":null;
+            string resource=kind==EnemyKind.Orcaladon?"ImportedOrcaladon":kind==EnemyKind.BlueberrinniOctopusini?"ImportedOctopus":kind==EnemyKind.Normal?"ImportedTralala":null;
             if(resource!=null){
                 var prefab=Resources.Load<GameObject>(resource);
                 if(prefab!=null){
@@ -60,6 +62,10 @@ namespace Brainrot
                     if(c.importedEnemy!=null){c.CacheFeedbackRenderers();return c;}
                     Object.Destroy(go);
                 }
+            }
+            if(kind==EnemyKind.Orcaladon){
+                Debug.LogWarning("Модель Оркаладона ещё не создана. Выполните Tools → TungTung → Создать или обновить игру.");
+                return CreateInternal(parent,0,new Color(.28f,.47f,.65f),size*1.7f);
             }
             int species=kind==EnemyKind.BlueberrinniOctopusini?5:kind==EnemyKind.LiriliLarila?1:kind==EnemyKind.BrrBrrPatapim?2:kind==EnemyKind.CappuccinoAssassino?3:kind==EnemyKind.BombardiroCrocodilo?4:0;
             return CreateInternal(parent,species,color,size);
@@ -320,28 +326,48 @@ namespace Brainrot
             float tip=Mathf.Max(.1f,WeaponTip.localPosition.z);
             Weapon.localScale=new Vector3(1,1,Mathf.Max(.3f,(worldRange/bodyScale-.12f)/tip));
         }
-        public void PlayAttack(float duration=.32f,float contactTime=.09f)
+        public void SetChargePose(float progress,bool active)
         {
-            if(imported!=null){imported.PlayAttack(duration,contactTime);return;}
+            if(imported!=null){imported.SetChargePose(progress,active);return;}
+            chargePose=Mathf.Clamp01(progress);chargeActive=active&&attackRemaining<=0;
+        }
+        public void PlayAttack(float duration=.32f,float contactTime=.09f,bool heavy=false)
+        {
+            if(imported!=null){imported.PlayAttack(duration,contactTime,heavy);return;}
             if(Weapon==null)return;
-            attackDuration=Mathf.Max(.15f,duration);attackRemaining=attackDuration;
+            heavySwing=heavy;chargeActive=false;chargePose=0;
+            attackDuration=Mathf.Max(.15f,duration);attackContact=Mathf.Clamp(contactTime,0,attackDuration*.95f);attackRemaining=attackDuration;
             if(batTrail!=null){batTrail.emitting=false;batTrail.Clear();}
             TickAttack(0);
         }
         void TickAttack(float dt)
         {
             if(Weapon==null)return;
-            if(attackRemaining<=0){if(batTrail!=null)batTrail.emitting=false;return;}
+            if(attackRemaining<=0){
+                if(batTrail!=null)batTrail.emitting=false;
+                if(chargeActive){float w=Mathf.SmoothStep(0,1,chargePose);Weapon.localPosition=Vector3.Lerp(weaponRestPosition,new Vector3(.12f,1.5f,.02f),w);Weapon.localRotation=Quaternion.Slerp(weaponRestRotation,Quaternion.Euler(-112,12,0),w);if(rightArm!=null)rightArm.localRotation=Quaternion.Euler(-72*w,0,-15);if(leftArm!=null)leftArm.localRotation=Quaternion.Euler(-70*w,25*w,20*w);}
+                return;
+            }
             attackRemaining=Mathf.Max(0,attackRemaining-dt);
             float elapsed=attackDuration-attackRemaining;
-            float contact=Mathf.Min(.09f,attackDuration*.35f);
+            float contact=Mathf.Min(attackContact,attackDuration*.65f);
             float yaw;
             if(elapsed<contact)yaw=Mathf.Lerp(-95,0,Mathf.SmoothStep(0,1,elapsed/contact));
             else yaw=Mathf.Lerp(0,110,Mathf.SmoothStep(0,1,(elapsed-contact)/Mathf.Max(.01f,attackDuration-contact)));
             float progress=elapsed/attackDuration;
-            Weapon.localPosition=new Vector3(.03f,1.15f,.12f);
-            Weapon.localRotation=Quaternion.Euler(0,yaw,-5+Mathf.Sin(progress*Mathf.PI)*8);
-            if(rightArm!=null)rightArm.localRotation=Quaternion.Euler(-70,yaw*.65f,-15);
+            if(heavySwing){
+                float before=contact>.00001f?Mathf.SmoothStep(0,1,elapsed/contact):1,after=elapsed<=contact?0:Mathf.SmoothStep(0,1,(elapsed-contact)/Mathf.Max(.01f,attackDuration-contact));
+                var impact=new Vector3(.03f,1.18f,.4f);
+                Weapon.localPosition=after>0?Vector3.Lerp(impact,new Vector3(.03f,.92f,.35f),after):Vector3.Lerp(new Vector3(.12f,1.5f,.02f),impact,before);
+                Weapon.localRotation=Quaternion.Euler(after>0?Mathf.Lerp(-5,55,after):Mathf.Lerp(-112,-5,before),0,0);
+                if(rightArm!=null)rightArm.localRotation=Quaternion.Euler(-75+after*20,0,-18);
+                if(leftArm!=null)leftArm.localRotation=Quaternion.Euler(-73+after*20,25,20);
+            }
+            else{
+                Weapon.localPosition=new Vector3(.14f,1.15f,.12f);
+                Weapon.localRotation=Quaternion.Euler(0,yaw,-5+Mathf.Sin(progress*Mathf.PI)*8);
+                if(rightArm!=null)rightArm.localRotation=Quaternion.Euler(-70,yaw*.65f,-15);
+            }
             if(batTrail!=null)batTrail.emitting=progress>.03f&&progress<.86f;
             if(attackRemaining<=0){Weapon.localPosition=weaponRestPosition;Weapon.localRotation=weaponRestRotation;if(batTrail!=null)batTrail.emitting=false;}
         }
@@ -352,7 +378,6 @@ namespace Brainrot
                 return;
             }
             if(Weapon!=null&&GameManager.Instance!=null&&!GameManager.Instance.IsPlaying)ResetAttack();
-            else TickAttack(Time.deltaTime);
             if(isShark&&biteRemaining>0&&GameManager.Instance!=null&&GameManager.Instance.IsPlaying){
                 biteRemaining=Mathf.Max(0,biteRemaining-Time.deltaTime);float t=1-biteRemaining/biteDuration;
                 float lunge=t<.38f?Mathf.SmoothStep(0,1,t/.38f):1-Mathf.SmoothStep(0,1,(t-.38f)/.62f);
@@ -364,6 +389,7 @@ namespace Brainrot
             if(flashRemaining<=0)ResetFeedback();
             else ApplyFeedback(flashStrength*flashRemaining/flashDuration);
         }
+        void LateUpdate(){if(imported==null&&Weapon!=null&&(GameManager.Instance==null||GameManager.Instance.IsPlaying))TickAttack(Time.deltaTime);}
         public void ResetFeedback()
         {
             flashRemaining=0;
@@ -374,8 +400,10 @@ namespace Brainrot
         public void ResetAttack()
         {
             if(imported!=null){imported.ResetAttack();return;}
-            attackRemaining=0;
+            attackRemaining=0;chargeActive=heavySwing=false;chargePose=0;
             if(Weapon!=null){Weapon.localPosition=weaponRestPosition;Weapon.localRotation=weaponRestRotation;Weapon.localScale=Vector3.one;}
+            if(rightArm!=null)rightArm.localRotation=Quaternion.Euler(0,0,-10);
+            if(leftArm!=null)leftArm.localRotation=Quaternion.Euler(0,0,-10);
             if(batTrail!=null){batTrail.emitting=false;batTrail.Clear();}
         }
         void OnDisable(){ResetFeedback();ResetAttack();ResetBite();}
@@ -395,9 +423,9 @@ namespace Brainrot
             if(biteRemaining<=0)body.localPosition=bodyPosition+Vector3.up*(Mathf.Abs(Mathf.Sin(phase))*.075f*intensity);
             if(biteRemaining<=0)body.localRotation=Quaternion.Euler(0,0,Mathf.Sin(phase)*3*intensity);
             attackBlend=Mathf.MoveTowards(attackBlend,attacking?1:0,Time.deltaTime*14);
-            if(leftArm!=null)leftArm.localRotation=Quaternion.Euler(-swing*.6f,0,-10);
-            if(rightArm!=null&&!AttackActive)rightArm.localRotation=Quaternion.Euler(Mathf.Lerp(swing*.6f,-60,Weapon==null?attackBlend:0),0,-10);
-            if(Weapon!=null&&!AttackActive){Weapon.localPosition=weaponRestPosition;Weapon.localRotation=weaponRestRotation;Weapon.localScale=Vector3.one;}
+            if(leftArm!=null&&!chargeActive&&!(AttackActive&&heavySwing))leftArm.localRotation=Quaternion.Euler(-swing*.6f,0,-10);
+            if(rightArm!=null&&!AttackActive&&!chargeActive)rightArm.localRotation=Quaternion.Euler(Mathf.Lerp(swing*.6f,-60,Weapon==null?attackBlend:0),0,-10);
+            if(Weapon!=null&&!AttackActive&&!chargeActive){Weapon.localPosition=weaponRestPosition;Weapon.localRotation=weaponRestRotation;Weapon.localScale=Vector3.one;}
 
         }
     }

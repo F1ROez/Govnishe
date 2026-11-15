@@ -5,7 +5,7 @@ namespace Brainrot
     public enum EnemyAction
     {
         Chasing = 0, MeleeWindup = 1, ChargeWindup = 2, Charging = 3, Recovery = 4, Staggered = 5,
-        BossWindup = 6, BossWave = 7, Idle = 8, Wandering = 9, Biting = 10
+        BossWindup = 6, BossWave = 7, Idle = 8, Wandering = 9, Biting = 10, SlamWindup = 11, SlamImpact = 12
     }
 
     /// <summary>Local wildlife: idle, wander, notice a nearby player, attack, then lose interest.</summary>
@@ -20,23 +20,24 @@ namespace Brainrot
         public IslandZone HomeZone { get; private set; }
         public Vector3 HomePosition { get; private set; }
         public bool IsAlerted { get; private set; }
-        public bool IsPreparingAttack => Action == EnemyAction.MeleeWindup || Action == EnemyAction.ChargeWindup;
+        public bool IsPreparingAttack => Action == EnemyAction.MeleeWindup || Action == EnemyAction.ChargeWindup || Action == EnemyAction.SlamWindup;
 
         public EnemyPhysicsBody PhysicsBody {get;private set;}
-        EnemySpawner owner;OctopusAttack octopus;
+        EnemySpawner owner;OctopusAttack octopus;OrcaladonAttack orcaladon;
         CharacterVisual visual;
         EnemyTelegraph telegraph;
         EnemyTuning tuning;
         float speed, damage, stateClock, attackClock, chargeClock;
         bool attackHit;
         Vector3 knockVelocity, committedDirection, wanderTarget;
-        float Radius => Kind == EnemyKind.LiriliLarila ? 1.15f : Kind == EnemyKind.BrrBrrPatapim ? 1.05f : Kind == EnemyKind.BombardiroCrocodilo ? .95f : Kind == EnemyKind.CappuccinoAssassino ? .55f : .7f;
+        float Radius => Kind == EnemyKind.Orcaladon ? Mathf.Max(.1f,GameBalance.Current.Orcaladon.CollisionRadius) : Kind == EnemyKind.LiriliLarila ? 1.15f : Kind == EnemyKind.BrrBrrPatapim ? 1.05f : Kind == EnemyKind.BombardiroCrocodilo ? .95f : Kind == EnemyKind.CappuccinoAssassino ? .55f : .7f;
         float AttackRange => Mathf.Max(Radius + .5f, tuning.AttackRange);
 
         public void Initialize(EnemySpawner owner, EnemyKind kind, float difficulty, Vector3 position)
         {
             this.owner = owner; Kind = kind;
             if(PhysicsBody==null)PhysicsBody=gameObject.AddComponent<EnemyPhysicsBody>();PhysicsBody.ResetBody();
+            var capsule=GetComponent<CapsuleCollider>();if(capsule!=null){capsule.radius=kind==EnemyKind.Orcaladon?Mathf.Max(.1f,GameBalance.Current.Orcaladon.CollisionRadius):.55f;capsule.height=kind==EnemyKind.Orcaladon?Mathf.Max(3.4f,capsule.radius*2):2;capsule.center=Vector3.up*capsule.height*.5f;}
             tuning = GameBalance.Current.Enemy(kind);
             HomeZone = IslandMap.GetZone(position);
             HomePosition = position;
@@ -57,6 +58,7 @@ namespace Brainrot
             EnterIdle();
             visual.ResetFeedback();visual.ResetBite();
             if(kind==EnemyKind.BlueberrinniOctopusini){if(octopus==null)octopus=gameObject.AddComponent<OctopusAttack>();octopus.Initialize(this,owner);}
+            if(kind==EnemyKind.Orcaladon){if(orcaladon==null)orcaladon=gameObject.AddComponent<OrcaladonAttack>();orcaladon.Initialize(this,visual);}
         }
         static Color Skin(EnemyKind kind)
         {
@@ -81,6 +83,18 @@ namespace Brainrot
             if (!Alive || game == null || !game.IsPlaying || game.Player == null || game.Player.Health <= 0 || dt <= 0) return;
             if(PhysicsBody!=null&&PhysicsBody.IsPhysical)return;
             if(Kind==EnemyKind.BlueberrinniOctopusini){octopus.Tick(dt);visual.Animate(octopus.Phase==OctopusPhase.Approach||octopus.Phase==OctopusPhase.Retreat?speed:0,false);return;}
+            if(Kind==EnemyKind.Orcaladon){
+                float knockDecay=Mathf.Exp(-6*dt);MoveWithinZone(knockVelocity*((1-knockDecay)/6));knockVelocity*=knockDecay;
+                orcaladon.Tick(dt);IsAlerted=true;
+                switch(orcaladon.Phase){
+                    case OrcaladonPhase.ChargeAim:Action=EnemyAction.ChargeWindup;break;
+                    case OrcaladonPhase.Charging:Action=EnemyAction.Charging;break;
+                    case OrcaladonPhase.SlamWindup:Action=EnemyAction.SlamWindup;break;
+                    case OrcaladonPhase.SlamImpact:Action=EnemyAction.SlamImpact;break;
+                    case OrcaladonPhase.Recovery:Action=EnemyAction.Recovery;break;
+                    default:Action=EnemyAction.Chasing;break;
+                }return;
+            }
             attackClock -= dt; chargeClock -= dt;
             // Integrate damped knockback analytically so the distance is stable at low frame rates.
             float decay = Mathf.Exp(-6 * dt);
@@ -248,6 +262,10 @@ namespace Brainrot
             Health = Mathf.Max(0, Health - amount);knockback.y = 0;
             var feedback = GameBalance.Current.Combat;
             visual.FlashHit(Mathf.Max(0, feedback.HitFlashDuration), Mathf.Clamp01(feedback.HitFlashStrength));
+            if(Kind==EnemyKind.Orcaladon&&Health>0){
+                if(knockback.sqrMagnitude>.01f){knockVelocity=knockback.normalized*Mathf.Max(0,GameBalance.Current.Orcaladon.HeavyPushSpeed);orcaladon.Interrupt();}
+                return;
+            }
             var game = GameManager.Instance;
             if (game != null && game.Player != null)
             {
@@ -263,14 +281,15 @@ namespace Brainrot
             }
             if (Health > 0){if(knockback.sqrMagnitude>.01f)Tumble(knockback);return;}
             Alive = false;IsAlerted = false;telegraph.Hide();
+            if(orcaladon!=null)orcaladon.ResetAttack();
             HitEffects.Burst(transform.position + Vector3.up, Skin(Kind), 8);
             GameManager.Instance.Reward(Mathf.Max(0, tuning.Experience), 1);
             Vector3 launch=knockback.sqrMagnitude>.01f?knockback:(transform.position-GameManager.Instance.Player.transform.position).normalized*3;
             PhysicsBody.Launch(launch,true);owner.Killed(this);
         }
-        public void Tumble(Vector3 velocity){if(!Alive)return;if(octopus!=null)octopus.Interrupt();visual.ResetBite();telegraph.Hide();Action=EnemyAction.Staggered;PhysicsBody.Launch(velocity,false);}
+        public void Tumble(Vector3 velocity){if(!Alive)return;if(Kind==EnemyKind.Orcaladon){if(velocity.sqrMagnitude>.0001f)knockVelocity=velocity.normalized*Mathf.Max(0,GameBalance.Current.Orcaladon.HeavyPushSpeed);orcaladon?.Interrupt();return;}if(octopus!=null)octopus.Interrupt();visual.ResetBite();telegraph.Hide();Action=EnemyAction.Staggered;PhysicsBody.Launch(velocity,false);}
         public void OnRecovered(){if(!Alive)return;Action=EnemyAction.Chasing;attackClock=.5f;visual.ResetFeedback();}
-        void OnDisable() { IsAlerted = false;if (telegraph != null) telegraph.Hide();if (visual != null) visual.ResetFeedback(); }
+        void OnDisable() { IsAlerted = false;if (telegraph != null) telegraph.Hide();if (orcaladon != null) orcaladon.ResetAttack();if (visual != null) visual.ResetFeedback(); }
     }
 
     /// <summary>Reusable attack outlines. No opaque warning discs cover the terrain.</summary>
@@ -309,6 +328,15 @@ namespace Brainrot
             Vector3 end = Ground(IslandMap.ClampToZone(origin + direction * length, zone));
             points[0] = origin - side;points[1] = end - side;points[2] = end + direction * .5f;
             points[3] = end + side;points[4] = origin + side;points[5] = origin - side;Show(6);
+        }
+        public void ChargeStraight(Vector3 origin,Vector3 direction,float length,float width)
+        {
+            origin=Ground(origin);Vector3 side=Vector3.Cross(Vector3.up,direction)*width,end=origin+direction*length;
+            points[0]=origin-side;points[1]=end-side;points[2]=end+direction*.5f;points[3]=end+side;points[4]=origin+side;points[5]=origin-side;Show(6);
+        }
+        public void Circle(Vector3 origin,float radius)
+        {
+            origin=Ground(origin);for(int i=0;i<=32;i++){float angle=i*Mathf.PI*2/32;points[i]=origin+new Vector3(Mathf.Cos(angle),0,Mathf.Sin(angle))*radius;}Show(33);
         }
     }
 }

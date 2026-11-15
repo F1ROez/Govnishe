@@ -10,12 +10,12 @@ namespace Brainrot
         static Texture2D sparkle;
         LineRenderer ring;
         MaterialPropertyBlock ringBlock;
-        Color ringColor;float started;
+        Color ringColor;float started,ringRadius=.8f;
         static readonly int BaseColor=Shader.PropertyToID("_BaseColor");
         ParticleSystem particles;
         float recycleAt;
         bool live;
-        public static void Burst(Vector3 position,Color color,int count=8)
+        public static void Burst(Vector3 position,Color color,int count=8,float groundRingRadius=.8f)
         {
             HitEffects effect=null;
             while(pool.Count>0 && effect==null)effect=pool.Dequeue();
@@ -54,7 +54,7 @@ namespace Brainrot
             }
             effect.transform.position=position;effect.gameObject.SetActive(true);
             var options=new ParticleSystem.EmitParams{startColor=color};
-            effect.particles.Emit(options,Mathf.Clamp(count,1,80));effect.recycleAt=Time.time+.8f;effect.started=Time.time;effect.ringColor=color;effect.ring.enabled=true;effect.live=true;
+            effect.particles.Emit(options,Mathf.Clamp(count,1,80));effect.recycleAt=Time.time+.8f;effect.started=Time.time;effect.ringColor=color;effect.ringRadius=Mathf.Clamp(groundRingRadius,.1f,12);effect.ring.enabled=true;effect.live=true;
             effect.ring.transform.position=new Vector3(position.x,.07f,position.z);effect.TickRing();
         }
         static Texture2D SparkleTexture(){
@@ -64,7 +64,7 @@ namespace Brainrot
                 float alpha=Mathf.Clamp01((1.12f-diamond)*8);float halo=Mathf.Exp(-(u*u+v*v)*14)*.23f;pixels[y*n+x]=new Color(1,1,1,Mathf.Max(alpha,halo));
             }texture.SetPixels(pixels);texture.Apply(false,true);return texture;
         }
-        void TickRing(){float t=(Time.time-started)/.3f;ring.enabled=t<1;if(t>=1)return;ring.transform.localScale=Vector3.one*Mathf.Lerp(.16f,.8f,Mathf.Clamp01(t));var color=ringColor;color.a=(1-t)*.48f;ringBlock.SetColor(BaseColor,color);ring.SetPropertyBlock(ringBlock);}
+        void TickRing(){float t=(Time.time-started)/.3f;ring.enabled=t<1;if(t>=1)return;ring.transform.localScale=Vector3.one*Mathf.Lerp(.16f,ringRadius,Mathf.Clamp01(t));var color=ringColor;color.a=(1-t)*.48f;ringBlock.SetColor(BaseColor,color);ring.SetPropertyBlock(ringBlock);}
         void Update()
         {
             if(!live)return;TickRing();

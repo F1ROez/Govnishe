@@ -14,11 +14,15 @@ namespace Brainrot.Editor
             "m_Script", "Spawning", "Bosses", "Fast", "Tank", "MiniBoss", "King", "Exploration", "Progression", "CorpseSeconds", "ChainPush", "HeavyDamageMultiplier", "HeavyCooldownMultiplier", "Lirili", "Patapim", "Cappuccino", "Crocodilo"
         };
         static readonly Dictionary<string, string> Labels = new Dictionary<string, string> {
+            {"SahurAnimation","Сахур: анимации биты"},{"NormalArcDegrees","Размах обычного одноручного удара"},{"HeavyArcDegrees","Размах сильного двуручного удара"},{"TorsoTwistDegrees","Поворот корпуса при замахе"},{"ChargeLift","Высота подготовки сильного удара"},{"SwingStretch","Выразительность движения рук"},
+            {"ChargeZoomDistance","Приближение камеры при замахе, м"},{"ChargeZoomInSpeed","Скорость плавного приближения"},{"ChargeZoomOutSpeed","Скорость возврата камеры после удара"},
+            {"Orcaladon","Оркаладон: разгон и удар по земле"},{"OrcaladonEnemy","Оркаладон: размер, здоровье и движение"},{"CollisionRadius","Радиус тела и столкновения рывка, м"},
+            {"ChargeDamage","Урон длинного рывка"},{"ChargeKnockback","Отбрасывание игрока рывком"},{"SlamRange","Круговой радиус удара по земле, м"},{"SlamWindup","Подготовка удара по земле, с"},{"SlamDamage","Урон удара по земле"},{"SlamKnockback","Отбрасывание игрока ударом по земле"},{"SlamCooldown","Перезарядка удара по земле, с"},{"HeavyPushSpeed","Толчок Оркаладона сильной битой"},
             {"PlayerModelScale","Размер модели игрока"},{"EnemyModelScale","Общий размер моделей врагов"},{"ModelScale","Размер модели этого врага"},{"Camera","Камера от третьего лица"},{"Distance","Расстояние камеры"},{"ShoulderOffset","Смещение к правому плечу"},{"HeightAboveHead","Высота над головой"},{"InitialPitch","Начальный наклон камеры"},{"MinPitch","Предел взгляда вверх"},{"MaxPitch","Предел взгляда вниз"},{"Id","Идентификатор"},{"DisplayName","Название"},{"VisualStyle","Внешний вид"},{"BodyColor","Цвет модели"},{"VisualScale","Масштаб модели"},
             {"UseCustomStats","Собственные характеристики"},{"StartingStats","Характеристики персонажа"},{"Weapon","Оружие"},{"Abilities","Особые способности"},
             {"UseCustomTiming","Собственные настройки взмаха"},{"DamageMultiplier","Множитель урона"},{"RangeMultiplier","Множитель дальности"},{"AttackIntervalMultiplier","Множитель интервала атак"},
             {"Kind","Вид улучшения"},{"Title","Название"},{"Description","Описание"},{"Rarity","Редкость"},{"MaxRank","Максимальный ранг"},{"Amount","Базовая величина"},
-            {"Octopus","Синий осьминог: прыжок и захват"},{"BlueOctopus","Характеристики синего осьминога"},{"SpawnChance","Доля осьминогов среди появлений"},{"FirstWave","Первая волна появления"},{"AimDistance","Дистанция начала прицеливания"},{"AimSeconds","Длительность прицеливания, с"},{"JumpSeconds","Длительность прыжка, с"},{"JumpHeight","Высота прыжка"},{"LandingRadius","Радиус попадания при приземлении"},{"EscapeClicks","Нажатий для освобождения"},{"RetreatSpeed","Скорость возвращения в воду"},
+            {"Octopus","Синий осьминог: прыжок и захват"},{"BlueOctopus","Характеристики синего осьминога"},{"SpawnChance","Доля среди случайных появлений"},{"FirstWave","Первая волна появления"},{"AimDistance","Дистанция начала прицеливания"},{"AimSeconds","Длительность прицеливания, с"},{"JumpSeconds","Длительность прыжка, с"},{"JumpHeight","Высота прыжка"},{"LandingRadius","Радиус попадания при приземлении"},{"EscapeClicks","Нажатий для освобождения"},{"RetreatSpeed","Скорость возвращения в воду"},
             {"Stamina","Выносливость"},{"Maximum","Максимум выносливости"},{"DrainPerSecond","Расход при беге за секунду"},{"RestorePerSecond","Восстановление за секунду"},{"RestoreDelay","Задержка восстановления"},{"RestartThreshold","Выносливость для повторного бега"},{"DeathBodyLifetime","Время жизни тела погибшего, с"},
             {"Waves","Волны врагов"},{"Bodies","Физика и тела"},
             {"StrongDamageMultiplier","Множитель урона сильного удара"},{"StrongCooldownSeconds","Перезарядка сильного удара, с"},
@@ -103,18 +107,24 @@ namespace Brainrot.Editor
             serializedObject.ApplyModifiedProperties();
         }
 
-        static GUIContent Label(SerializedProperty property)
+        GUIContent Label(SerializedProperty property)
         {
             string title;
             if (!Labels.TryGetValue(property.name, out title)) title = property.displayName;
             string tooltip;
-            if (!Tips.TryGetValue(property.name, out tooltip)) tooltip = "";
+            if (!Tips.TryGetValue(property.name, out tooltip)){
+                var field=FindField(property);
+                var tip=field!=null?Attribute.GetCustomAttribute(field,typeof(TooltipAttribute)) as TooltipAttribute:null;
+                tooltip=tip!=null?tip.tooltip:"";
+            }
             return new GUIContent(title, tooltip);
         }
 
         void DrawProperty(SerializedProperty property)
         {
             if (Hidden.Contains(property.name)) return;
+            // The skill section owns Orcaladon attacks; do not show unused ordinary-shark attack fields.
+            if(property.propertyPath.StartsWith("OrcaladonEnemy.",StringComparison.Ordinal)&&property.name!="Health"&&property.name!="Speed"&&property.name!="ModelScale")return;
             var label = Label(property);
             if (property.propertyType == SerializedPropertyType.Generic && !property.isArray)
             {

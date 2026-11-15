@@ -26,9 +26,11 @@ namespace Brainrot
         public ThirdPersonCameraTuning Camera = new ThirdPersonCameraTuning();
         public StaminaTuning Stamina = new StaminaTuning();
         public CombatTuning Combat = new CombatTuning();
+        public SahurAnimationTuning SahurAnimation = new SahurAnimationTuning();
         public WaveTuning Waves = new WaveTuning();
         public BodyTuning Bodies = new BodyTuning();
         public OctopusTuning Octopus = new OctopusTuning();
+        public OrcaladonTuning Orcaladon = new OrcaladonTuning();
         public SpawnTuning Spawning = new SpawnTuning();
         public ExplorationTuning Exploration = new ExplorationTuning();
         public ProgressionTuning Progression = new ProgressionTuning();
@@ -41,15 +43,16 @@ namespace Brainrot
         public EnemyTuning King = new EnemyTuning { Health=2000,Speed=2.6f,Damage=30,AttackRange=3.2f,MeleeWindup=1.1f,Recovery=1.6f,KnockbackResistance=6,HitStagger=0,Experience=300 };
 
         public EnemyTuning BlueOctopus=new EnemyTuning {Health=75,Speed=3,Damage=0,Experience=0};
+        public EnemyTuning OrcaladonEnemy=new EnemyTuning {Health=100,Speed=2.2f,Damage=30,AttackRange=3.8f,MeleeWindup=.85f,Recovery=.65f,KnockbackResistance=4,HitStagger=.1f,Experience=0};
         public EnemyTuning Lirili = new EnemyTuning {Health=100,Speed=2.4f,Damage=16,CanCharge=true,ChargeWindup=1.2f,ChargeSpeed=11,ChargeDuration=.7f,ChargeCooldown=7,KnockbackResistance=1.6f,Experience=18};
         public EnemyTuning Patapim = new EnemyTuning {Health=150,Speed=1.9f,Damage=23,AttackRange=3,MeleeWindup=1.1f,Recovery=1.6f,KnockbackResistance=1.8f,Experience=25};
         public EnemyTuning Cappuccino = new EnemyTuning {Health=85,Speed=3.7f,Damage=19,CanCharge=true,ChargeWindup=.7f,ChargeSpeed=14,ChargeDuration=.3f,ChargeCooldown=4,Recovery=.8f,Experience=30};
         public EnemyTuning Crocodilo = new EnemyTuning {Health=210,Speed=2.6f,Damage=28,CanCharge=true,ChargeWindup=1.3f,ChargeSpeed=12,ChargeDuration=.65f,ChargeCooldown=7,AttackRange=2.5f,KnockbackResistance=2,Experience=40};
 
         void OnEnable(){EnsureExploration();}
-        public void EnsureExploration(){if(Camera==null)Camera=new ThirdPersonCameraTuning();if(Camera.MaxPitch<=0){Camera.MinPitch=-20;Camera.MaxPitch=65;}if(Stamina==null)Stamina=new StaminaTuning();if(Exploration==null)Exploration=new ExplorationTuning();if(Waves==null)Waves=new WaveTuning();if(Bodies==null)Bodies=new BodyTuning();if(Octopus==null)Octopus=new OctopusTuning();}
+        public void EnsureExploration(){if(Camera==null)Camera=new ThirdPersonCameraTuning();if(Camera.MaxPitch<=0){Camera.MinPitch=-20;Camera.MaxPitch=65;}if(Stamina==null)Stamina=new StaminaTuning();if(Exploration==null)Exploration=new ExplorationTuning();if(Waves==null)Waves=new WaveTuning();if(Bodies==null)Bodies=new BodyTuning();if(Octopus==null)Octopus=new OctopusTuning();if(Orcaladon==null)Orcaladon=new OrcaladonTuning();if(OrcaladonEnemy==null)OrcaladonEnemy=new EnemyTuning {Health=100,Speed=2.2f,Damage=30,AttackRange=3.8f,MeleeWindup=.85f,Recovery=.65f,KnockbackResistance=4,HitStagger=.1f,Experience=0};if(SahurAnimation==null)SahurAnimation=new SahurAnimationTuning();}
         public EnemyTuning Enemy(EnemyKind kind) {
-            switch (kind) { case EnemyKind.BlueberrinniOctopusini:return BlueOctopus;case EnemyKind.LiriliLarila:return Lirili;case EnemyKind.BrrBrrPatapim:return Patapim;case EnemyKind.CappuccinoAssassino:return Cappuccino;case EnemyKind.BombardiroCrocodilo:return Crocodilo;case EnemyKind.Fast:return Fast;case EnemyKind.Tank:return Tank;case EnemyKind.MiniBoss:return MiniBoss;case EnemyKind.King:return King;default:return Normal; }
+            switch (kind) { case EnemyKind.Orcaladon:return OrcaladonEnemy;case EnemyKind.BlueberrinniOctopusini:return BlueOctopus;case EnemyKind.LiriliLarila:return Lirili;case EnemyKind.BrrBrrPatapim:return Patapim;case EnemyKind.CappuccinoAssassino:return Cappuccino;case EnemyKind.BombardiroCrocodilo:return Crocodilo;case EnemyKind.Fast:return Fast;case EnemyKind.Tank:return Tank;case EnemyKind.MiniBoss:return MiniBoss;case EnemyKind.King:return King;default:return Normal; }
         }
         public int RequiredXp(int level) {
             double n=Math.Max(0,(double)level-1);
@@ -66,7 +69,38 @@ namespace Brainrot
         [Range(-60,80),Tooltip("Начальный наклон камеры; ограничивается нижним и верхним пределами.")]public float InitialPitch=10;
         [Range(-60,0),Tooltip("Нижний предел вертикального вращения. Отрицательный угол позволяет посмотреть вверх.")]public float MinPitch=-20;
         [Range(5,80),Tooltip("Верхний предел вертикального вращения: взгляд сверху вниз.")]public float MaxPitch=65;
+        [Range(0,1.5f),Tooltip("Насколько камера приближается во время подготовки сильного удара, м.")]public float ChargeZoomDistance=.65f;
+        [Range(.5f,12),Tooltip("Плавность приближения камеры при замахе; больше — быстрее.")]public float ChargeZoomInSpeed=3;
+        [Range(4,35),Tooltip("Скорость возврата камеры при отпускании ЛКМ; больше — быстрее.")]public float ChargeZoomOutSpeed=14;
         public float ClampPitch(float value)=>Mathf.Clamp(value,Mathf.Clamp(MinPitch,-60,0),Mathf.Clamp(MaxPitch,5,80));
+    }
+    [Serializable] public sealed class SahurAnimationTuning {
+        [Range(60,220),Tooltip("Ширина одноручного взмаха обычной атаки, градусы.")]public float NormalArcDegrees=150;
+        [Range(80,240),Tooltip("Ширина двуручного взмаха сильной атаки, градусы.")]public float HeavyArcDegrees=170;
+        [Range(0,55),Tooltip("Поворот корпуса во время замаха, градусы.")]public float TorsoTwistDegrees=24;
+        [Range(.3f,1.5f),Tooltip("Высота подготовки двуручного удара; визуальный множитель.")]public float ChargeLift=1;
+        [Range(.5f,1.5f),Tooltip("Выразительность движения рук; не меняет игровую дальность попадания.")]public float SwingStretch=1;
+    }
+    [Serializable] public sealed class OrcaladonTuning {
+        [Min(1),Tooltip("Начиная с этой волны Orcaladon выходит из океана. Первое появление гарантировано.")]public int FirstWave=3;
+        [Range(0,.6f),Tooltip("Доля Orcaladon среди случайных появлений после открытия вида.")]public float SpawnChance=.14f;
+        [Min(.5f),Tooltip("Радиус тела при столкновении и атаке рывком, м.")]public float CollisionRadius=1.15f;
+        [Min(1),Tooltip("Минимальная дистанция для начала разгона, м.")]public float ChargeMinDistance=5;
+        [Min(1),Tooltip("Максимальная дистанция для начала разгона, м.")]public float ChargeMaxDistance=17;
+        [Min(.15f),Tooltip("Остановка и предупреждение перед длинным рывком, с.")]public float ChargeWindup=.85f;
+        [Min(1),Tooltip("Скорость длинного рывка, м/с.")]public float ChargeSpeed=15;
+        [Min(.1f),Tooltip("Время движения в рывке, с.")]public float ChargeDuration=1.1f;
+        [Min(0),Tooltip("Урон при одном столкновении во время рывка.")]public float ChargeDamage=30;
+        [Min(0),Tooltip("Скорость отбрасывания игрока рывком, м/с.")]public float ChargeKnockback=12;
+        [Min(.1f),Tooltip("Независимая перезарядка рывка с начала замаха, с.")]public float ChargeCooldown=4;
+        [Min(.5f),Tooltip("Круговой радиус удара двумя руками по земле, м. Эффективный минимум — радиус тела + 0.55 м, чтобы удар доставал игрока у корпуса.")]public float SlamRange=3.8f;
+        [Min(.15f),Tooltip("Предупреждение и подъём рук перед ударом по земле, с.")]public float SlamWindup=.85f;
+        [Min(0),Tooltip("Урон кругового удара по земле.")]public float SlamDamage=30;
+        [Min(0),Tooltip("Скорость сильного отбрасывания игрока ударом по земле, м/с.")]public float SlamKnockback=17;
+        [Min(.1f),Tooltip("Независимая перезарядка удара по земле с начала замаха, с.")]public float SlamCooldown=4;
+        [Min(.1f),Tooltip("Восстановление после каждой атаки, с.")]public float Recovery=.65f;
+        [Min(0),Tooltip("Небольшой толчок живого Orcaladon сильной битой; кувырок не включается.")]public float HeavyPushSpeed=2.5f;
+        [Range(0,.5f),Tooltip("Короткая остановка после сильного попадания, с.")]public float HitStagger=.1f;
     }
     [Serializable] public sealed class PlayerTuning {
         [Header("Начальные характеристики")]

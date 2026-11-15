@@ -19,7 +19,8 @@ namespace Brainrot {
   public void UpdateAttackInput(bool held){
    if(inputSuppressed){if(!held)inputSuppressed=false;return;}
    if(held&&!charging&&Time.time>=nextAttack){charging=true;chargeStarted=Time.time;}
-   if(!held&&charging){bool heavy=ChargeProgress>=1;charging=false;ExecuteAttack(heavy&&HeavyReady);}
+   if(held&&charging)visual?.SetChargePose(ChargeProgress,HeavyReady);
+   if(!held&&charging){bool heavy=ChargeProgress>=1&&HeavyReady;charging=false;if(!ExecuteAttack(heavy))visual?.SetChargePose(0,false);}
   }
   public void TryAttack(){ExecuteAttack(false);}
   public bool ExecuteAttack(bool heavy){
@@ -33,7 +34,7 @@ namespace Brainrot {
    var tuning=GameBalance.Current.Combat;var weapon=player.Character!=null?player.Character.Weapon:null;
    float duration=Mathf.Min(weapon!=null&&weapon.UseCustomTiming?weapon.SwingDuration:tuning.SwingDuration,Mathf.Max(.15f,player.Stats.AttackInterval*.95f));
    float delay=Mathf.Clamp(weapon!=null&&weapon.UseCustomTiming?weapon.ImpactDelay:tuning.ImpactDelay,0,duration*.65f);
-   visual.SetAttackReach(player.Stats.Range);visual.PlayAttack(duration,delay);player.NotifyAttack();GameAudio.Play(270,.06f,.045f);
+   visual.SetAttackReach(player.Stats.Range);visual.PlayAttack(duration,delay,heavy);player.NotifyAttack();GameAudio.Play(270,.06f,.045f);
    if(contacts.Count<32)contacts.Add(new PendingContact {Time=Time.time+delay,Power=power,Heavy=heavy});
   }
   void Update(){

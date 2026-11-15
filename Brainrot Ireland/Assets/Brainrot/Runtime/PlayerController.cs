@@ -26,6 +26,7 @@ namespace Brainrot {
   public bool IsDashing => Time.time<dashUntil;
   CharacterController motor; CharacterVisual visual; CombatSystem combat; Camera cam;
   float yaw,pitch,dashUntil,nextDash,invulnerableUntil,trauma;
+  float chargeCameraBlend;Vector3 externalVelocity;
   void Awake(){
    motor=gameObject.AddComponent<CharacterController>();motor.height=2.5f;motor.center=Vector3.up*1.25f;motor.radius=.48f;
    Character=Character!=null?Character:PlayerCharacterDefinition.Default;
@@ -42,7 +43,7 @@ namespace Brainrot {
    foreach(var ability in abilities)ability.Dispose();abilities.Clear();
    if(Character!=null&&Character.Abilities!=null)foreach(var definition in Character.Abilities)if(definition!=null){var runtime=definition.CreateRuntime(this);if(runtime!=null)abilities.Add(runtime);}
    motor.enabled=false;transform.position=IslandMap.StartPosition;transform.rotation=Quaternion.identity;motor.enabled=true;
-   yaw=0;pitch=GameBalance.Current.Camera.ClampPitch(GameBalance.Current.Camera.InitialPitch);dashUntil=nextDash=invulnerableUntil=0;DashDirection=Vector3.zero;trauma=0;
+   yaw=0;pitch=GameBalance.Current.Camera.ClampPitch(GameBalance.Current.Camera.InitialPitch);dashUntil=nextDash=invulnerableUntil=0;DashDirection=Vector3.zero;externalVelocity=Vector3.zero;chargeCameraBlend=0;trauma=0;
    combat?.ResetRun();visual?.ResetFeedback();
   }
   public void ToggleCameraLock(){SetCameraLock(!CameraLocked);}
@@ -66,7 +67,10 @@ namespace Brainrot {
    if(GameInput.Dash||MobileInput.Dash)TryDash(move);MobileInput.Dash=false;
    sprint=Stamina.Tick(sprint,move.sqrMagnitude>.01f,IsDashing,Time.deltaTime,GameBalance.Current.Stamina);
    Vector3 velocity=IsDashing?DashDirection*Mathf.Max(1,settings.DashSpeed):move*Stats.MoveSpeed*(sprint?Mathf.Max(1,settings.SprintMultiplier):1);
-   motor.Move((velocity+Vector3.down*12)*Time.deltaTime);
+   // Integrate the decaying shove exactly: low frame rates must not enlarge boss knockback.
+   float pushDecay=Mathf.Exp(-6*Time.deltaTime);Vector3 pushStep=externalVelocity*((1-pushDecay)/6);externalVelocity*=pushDecay;
+   if(externalVelocity.sqrMagnitude<.001f)externalVelocity=Vector3.zero;
+   motor.Move((velocity+Vector3.down*12)*Time.deltaTime+pushStep);
    Vector3 pos=transform.position;Vector3 bounded=IslandMap.ClampToLand(pos);
    if((bounded-pos).sqrMagnitude>.0001f){motor.enabled=false;transform.position=bounded;motor.enabled=true;}
    // Locked mode keeps aim relative to camera even when moving backwards or sideways.
@@ -79,13 +83,22 @@ namespace Brainrot {
    float visualScale=Mathf.Max(.1f,Character!=null?Character.VisualScale:1)*Mathf.Max(.1f,GameBalance.Current.PlayerModelScale);
    if(visual!=null)visual.transform.localScale=Vector3.one*visualScale;
    if(cam==null)return;var settings=GameBalance.Current.Camera;pitch=settings.ClampPitch(pitch);Quaternion rot=Quaternion.Euler(pitch,yaw,0);
+   float zoomTarget=combat!=null&&combat.IsCharging&&combat.HeavyReady?Mathf.SmoothStep(0,1,combat.ChargeProgress):0;
+   float zoomSpeed=zoomTarget>chargeCameraBlend?settings.ChargeZoomInSpeed:settings.ChargeZoomOutSpeed;
+   chargeCameraBlend=Mathf.Lerp(chargeCameraBlend,zoomTarget,1-Mathf.Exp(-Mathf.Max(.1f,zoomSpeed)*Time.deltaTime));
    Vector3 target=transform.position+Vector3.up*(1.9f*visualScale+Mathf.Max(0,settings.HeightAboveHead));
-   cam.transform.position=target+rot*Vector3.right*settings.ShoulderOffset-rot*Vector3.forward*Mathf.Max(2,settings.Distance)+Random.insideUnitSphere*trauma;
+   float distance=Mathf.Max(2,settings.Distance-Mathf.Max(0,settings.ChargeZoomDistance)*chargeCameraBlend);
+   cam.transform.position=target+rot*Vector3.right*settings.ShoulderOffset-rot*Vector3.forward*distance+Random.insideUnitSphere*trauma;
    cam.transform.rotation=rot;trauma=Mathf.MoveTowards(trauma,0,Time.unscaledDeltaTime);
   }
   public void Heal(float amount){Health=Mathf.Min(Stats.MaxHealth,Health+Mathf.Max(0,amount));}
-  public void TakeDamage(float amount,Vector3 source){if(!GameManager.Instance.IsPlaying||Time.time<invulnerableUntil||amount<=0)return;Health=Mathf.Max(0,Health-amount);foreach(var ability in abilities)ability.OnDamageTaken(amount);invulnerableUntil=Time.time+.5f;trauma=.18f;HitEffects.Burst(transform.position+Vector3.up,new Color(1,.2f,.1f));GameAudio.Play(130,.1f,.15f);if(Health<=0)GameManager.Instance.Die();}
-  public void CancelAttacks(){combat?.CancelPendingSwings();}
+  public void TakeDamage(float amount,Vector3 source,float knockbackSpeed=0){
+   if(GameManager.Instance==null||!GameManager.Instance.IsPlaying||Time.time<invulnerableUntil||amount<=0)return;
+   Health=Mathf.Max(0,Health-amount);foreach(var ability in abilities)ability.OnDamageTaken(amount);
+   if(knockbackSpeed>0){Vector3 away=transform.position-source;away.y=0;if(away.sqrMagnitude<.001f)away=-transform.forward;externalVelocity=away.normalized*Mathf.Clamp(knockbackSpeed,0,40);}
+   invulnerableUntil=Time.time+.5f;trauma=.18f;HitEffects.Burst(transform.position+Vector3.up,new Color(1,.2f,.1f));GameAudio.Play(130,.1f,.15f);if(Health<=0)GameManager.Instance.Die();
+  }
+  public void CancelAttacks(){combat?.CancelPendingSwings();chargeCameraBlend=0;}
   public void NotifyAttack(){foreach(var ability in abilities)ability.OnAttack();}
   void OnDestroy(){foreach(var ability in abilities)ability.Dispose();abilities.Clear();if(cam!=null)Destroy(cam.gameObject);}
  }

@@ -9,6 +9,8 @@ namespace Brainrot
         public Transform[] LegBones;
         public float TargetHeight=1.9f;
         public bool IsOctopus;
+        public bool IsOrcaladon;
+        public OrcaladonVisual Orcaladon;
         EnemyController enemy;
         Quaternion[] legRest;
         float speed,phase,biteRemaining,biteDuration=.32f;
@@ -40,15 +42,16 @@ namespace Brainrot
             Normalization.localScale*=factor;CacheRest();return true;
         }
         public void Animate(float movement,bool attacking){speed=Mathf.Max(0,movement);if(Animator!=null&&Animator.isActiveAndEnabled&&Animator.runtimeAnimatorController!=null)Animator.SetBool(Moving,speed>.05f);}
-        public void PlayBite(float duration=.32f){if(IsOctopus)return;biteDuration=Mathf.Max(.15f,duration);biteRemaining=biteDuration;}
+        public void PlayBite(float duration=.32f){if(IsOctopus||IsOrcaladon)return;biteDuration=Mathf.Max(.15f,duration);biteRemaining=biteDuration;}
         public void ResetBite(){biteRemaining=0;if(MotionRoot!=null){MotionRoot.localPosition=restMotion;MotionRoot.localRotation=Quaternion.identity;}}
-        public void ResetVisual(){speed=phase=0;ResetBite();if(legRest!=null)for(int i=0;i<legRest.Length;i++)if(LegBones[i]!=null)LegBones[i].localRotation=legRest[i];if(Animator!=null){Animator.enabled=true;if(Animator.runtimeAnimatorController!=null)Animator.SetBool(Moving,false);}}
+        public void ResetVisual(){speed=phase=0;ResetBite();if(Orcaladon!=null)Orcaladon.ResetPose();if(legRest!=null)for(int i=0;i<legRest.Length;i++)if(LegBones[i]!=null)LegBones[i].localRotation=legRest[i];if(Animator!=null){Animator.enabled=true;if(Animator.runtimeAnimatorController!=null)Animator.SetBool(Moving,false);}}
         void LateUpdate(){
             bool physical=enemy!=null&&(!enemy.Alive||(enemy.PhysicsBody!=null&&enemy.PhysicsBody.IsPhysical));
             if(Animator!=null)Animator.enabled=!physical;
             if(physical)return;
             if(GameManager.Instance!=null&&!GameManager.Instance.IsPlaying)return;
             float dt=Time.deltaTime;if(dt<=0)return;
+            if(IsOrcaladon){if(Orcaladon!=null)Orcaladon.Pose(dt,speed);return;}
             if(IsOctopus&&Animator==null){
                 float gait=Mathf.Clamp01(speed/2f);phase+=dt*(gait>0?7.5f:1.7f);
                 if(MotionRoot!=null){MotionRoot.localPosition=restMotion+Vector3.up*Mathf.Abs(Mathf.Sin(phase))*.065f*gait;MotionRoot.localRotation=Quaternion.Euler(Mathf.Sin(phase*.5f)*2*gait,0,Mathf.Sin(phase)*(gait>0?7:1.5f));}

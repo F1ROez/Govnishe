@@ -16,9 +16,16 @@ namespace Brainrot
         public AnimationClip AttackClip;
         public Transform[] AttackBones;
         [Range(0,1)]public float AttackContactNormalized=.4f;
-        public bool UsesRetargetedAttack=>AttackClip!=null&&ModelRoot!=null&&AttackBones!=null&&AttackBones.Length>0;
+        // Old generated prefabs may still contain the private retargeted clip. The real Sahur rig always uses our own choreography.
+        public bool UsesProceduralAttack=>RightUpperArm!=null&&RightForearm!=null&&Grip!=null&&Weapon!=null;
+        public bool UsesRetargetedAttack=>!UsesProceduralAttack&&AttackClip!=null&&ModelRoot!=null&&AttackBones!=null&&AttackBones.Length>0;
         public bool AttackActive => remaining > 0;
+        public bool ChargePoseActive=>charging;
+        public bool HeavyAttackActive=>AttackActive&&heavyAttack;
         float remaining, duration=.32f, reach=3.2f,contactSeconds=.09f,attackStartedTime;
+        float chargeProgress;
+        bool charging,heavyAttack,fromCharge;
+        SahurCombatPose procedural;
         Transform[] cachedBones;
         Vector3[] basePositions;
         Quaternion[] baseRotations;
@@ -39,6 +46,7 @@ namespace Brainrot
             if(RightForearm!=null)foreRest=RightForearm.localRotation;
             if(WeaponTip!=null)batLength=Mathf.Max(.01f,WeaponTip.localPosition.magnitude);
             if(Animator!=null){Animator.applyRootMotion=false;Animator.cullingMode=AnimatorCullingMode.AlwaysAnimate;}
+            if(UsesProceduralAttack)procedural=new SahurCombatPose(this);
             ResetAttack();
         }
         void Start(){CalibrateModel();}
@@ -83,8 +91,10 @@ namespace Brainrot
         }
         public void Animate(float movement,bool attacking){if(Animator!=null&&Animator.runtimeAnimatorController!=null)Animator.SetFloat(Speed,movement);}
         public void SetAttackReach(float range){reach=Mathf.Max(.5f,range);}
-        public void PlayAttack(float seconds,float contactTime=.09f){
-            ResetAttack();duration=Mathf.Max(.15f,seconds);contactSeconds=Mathf.Clamp(contactTime,0,duration*.95f);remaining=duration;attackStartedTime=Time.time;
+        public void SetChargePose(float progress,bool active){charging=active&&remaining<=0;chargeProgress=Mathf.Clamp01(progress);if(!charging)procedural?.Restore();}
+        public void PlayAttack(float seconds,float contactTime=.09f,bool heavy=false){
+            bool charged=charging&&chargeProgress>.05f;
+            ResetAttack();heavyAttack=heavy;fromCharge=charged&&heavy;duration=Mathf.Max(.15f,seconds);contactSeconds=Mathf.Clamp(contactTime,0,duration*.95f);remaining=duration;attackStartedTime=Time.time;
             EnsurePoseCache();
         }
         /// <summary>Keep the animation's strike pose aligned with CombatSystem's existing contact time.</summary>
@@ -103,7 +113,7 @@ namespace Brainrot
         }
         // Undo last frame's visual overrides before Animator evaluates this frame's locomotion.
         // Otherwise an unanimated bone (or an actor without Animator) could accumulate a blended pose.
-        void Update(){RestoreSampledPose();}
+        void Update(){RestoreSampledPose();procedural?.Restore();}
         void CapturePose(){
             EnsurePoseCache();
             for(int i=0;i<cachedBones.Length;i++)if(cachedBones[i]!=null){basePositions[i]=cachedBones[i].localPosition;baseRotations[i]=cachedBones[i].localRotation;}
@@ -144,6 +154,15 @@ namespace Brainrot
             bool swing=remaining>0;
             if(swing)remaining=Mathf.Max(0,duration-(Time.time-attackStartedTime));
             float elapsed=duration-remaining,progress=elapsed/duration;
+            if(UsesProceduralAttack){
+                if(procedural==null)procedural=new SahurCombatPose(this);
+                PoseReadyWeapon();
+                if(swing){procedural.Swing(elapsed,duration,contactSeconds,heavyAttack,fromCharge);ApplyReach();}
+                else if(charging)procedural.Charge(chargeProgress);
+                if(Trail!=null)Trail.emitting=swing&&progress>.02f&&progress<.88f;
+                if(swing&&remaining<=0){procedural.Restore();PoseReadyWeapon();if(Trail!=null)Trail.emitting=false;}
+                return;
+            }
             if(UsesRetargetedAttack){
                 if(swing)SampleRetargetedPose(elapsed);else PoseReadyWeapon();
                 if(Trail!=null)Trail.emitting=swing&&progress>.03f&&progress<.86f;
@@ -165,7 +184,7 @@ namespace Brainrot
             if(swing&&remaining<=0)RestoreArms();
         }
         void RestoreArms(){if(RightUpperArm!=null)RightUpperArm.localRotation=upperRest;if(RightForearm!=null)RightForearm.localRotation=foreRest;}
-        public void ResetAttack(){bool retargeted=UsesRetargetedAttack;RestoreSampledPose();remaining=0;if(!retargeted)RestoreArms();if(Weapon!=null)Weapon.localScale=Vector3.one;if(Trail!=null){Trail.emitting=false;Trail.Clear();}}
+        public void ResetAttack(){bool retargeted=UsesRetargetedAttack;RestoreSampledPose();procedural?.Restore();remaining=0;charging=heavyAttack=fromCharge=false;chargeProgress=0;if(!retargeted&&!UsesProceduralAttack)RestoreArms();if(Weapon!=null)Weapon.localScale=Vector3.one;if(Trail!=null){Trail.emitting=false;Trail.Clear();}}
         void OnDisable(){ResetAttack();}
     }
 }
