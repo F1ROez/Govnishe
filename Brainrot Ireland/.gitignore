@@ -9,3 +9,9 @@ Builds/
 *.sln
 
 /SahurDiagnostics.txt
+
+# Asset Store source and locally baked derivative: install privately through Unity.
+/Assets/Kevin Iglesias/
+/Assets/Kevin Iglesias.meta
+/Assets/Brainrot/Generated/Combat/
+/Assets/Brainrot/Generated/Combat.meta

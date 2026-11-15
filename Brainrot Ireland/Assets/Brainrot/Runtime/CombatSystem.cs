@@ -33,7 +33,7 @@ namespace Brainrot {
    var tuning=GameBalance.Current.Combat;var weapon=player.Character!=null?player.Character.Weapon:null;
    float duration=Mathf.Min(weapon!=null&&weapon.UseCustomTiming?weapon.SwingDuration:tuning.SwingDuration,Mathf.Max(.15f,player.Stats.AttackInterval*.95f));
    float delay=Mathf.Clamp(weapon!=null&&weapon.UseCustomTiming?weapon.ImpactDelay:tuning.ImpactDelay,0,duration*.65f);
-   visual.SetAttackReach(player.Stats.Range);visual.PlayAttack(duration);player.NotifyAttack();GameAudio.Play(270,.06f,.045f);
+   visual.SetAttackReach(player.Stats.Range);visual.PlayAttack(duration,delay);player.NotifyAttack();GameAudio.Play(270,.06f,.045f);
    if(contacts.Count<32)contacts.Add(new PendingContact {Time=Time.time+delay,Power=power,Heavy=heavy});
   }
   void Update(){

@@ -320,9 +320,9 @@ namespace Brainrot
             float tip=Mathf.Max(.1f,WeaponTip.localPosition.z);
             Weapon.localScale=new Vector3(1,1,Mathf.Max(.3f,(worldRange/bodyScale-.12f)/tip));
         }
-        public void PlayAttack(float duration=.32f)
+        public void PlayAttack(float duration=.32f,float contactTime=.09f)
         {
-            if(imported!=null){imported.PlayAttack(duration);return;}
+            if(imported!=null){imported.PlayAttack(duration,contactTime);return;}
             if(Weapon==null)return;
             attackDuration=Mathf.Max(.15f,duration);attackRemaining=attackDuration;
             if(batTrail!=null){batTrail.emitting=false;batTrail.Clear();}

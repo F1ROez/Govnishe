@@ -35,3 +35,9 @@ TropicalUIArt создаёт sprites из общего Texture2D по JSON, те
 ## Обновление профиля света
 
 WorldAtmosphere.ApplyDaylight обновляет компоненты VolumeProfile на месте; существующие TryGet не дублируются. Editor EnsureAtmosphere фиксирует одноразовую версию в AssetImporter.userData (Brainrot.DaylightPreset=2), сохраняет GUID и subassets. После миграции ручные правки профиля не затираются повторной генерацией. Новый ToonCharacter корректно выдаёт HDR в тональную компрессию вместо раннего saturate, светлая сторона/тени согласованы с окружением.
+
+## Локальное подключение Attack2H01
+
+CombatAnimationRetargeter выполняется из SahurModelImporter.BuildPrefab. Исходный Humanoid FBX остаётся у владельца, Generic-копия/целевой клип живут в игнорируемой Generated/Combat. Перенос основан на направлениях суставов и плоскостях рук: оси костей HumanM и metarig несовместимы для прямого копирования quaternion. Начальная поза Сахура берётся из Idle. Текущая длина плеча нормализует меняющийся FBX scale; левый хват корректируется двухзвенной IK. Записываются только повороты19костей, localPosition таза/биты и поворот биты. Корень, scale, root motion и события исходника в runtime-клип не попадают. Целевая поза восстанавливается в finally.
+
+ImportedSahurVisual семплирует готовый .anim после Animator, плавно смешивает его с текущей locomotion-позой и возвращает исходные local transforms перед следующим кадром. MapAttackTime совмещает исходный удар (первый пик после быстрого замаха) с CombatSystem.ImpactDelay; игровые контакты по-прежнему считает CombatSystem. Отмена восстанавливает и позиции, и повороты, и биту; нет Rebind во время атаки. При отсутствии клипа остаётся прежний процедурный fallback.

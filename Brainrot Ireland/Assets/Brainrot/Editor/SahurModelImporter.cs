@@ -63,11 +63,13 @@ namespace Brainrot.Editor
                 }
                 foreach(var skin in model.GetComponentsInChildren<SkinnedMeshRenderer>()){skin.enabled=true;skin.forceRenderingOff=false;skin.updateWhenOffscreen=true;}
                 var animator=model.GetComponent<Animator>();if(animator==null)animator=model.AddComponent<Animator>();animator.applyRootMotion=false;bridge.Animator=animator;
+                bridge.AttackClip=CombatAnimationRetargeter.Build(model.transform,out var attackBones,out var contact);
+                bridge.AttackBones=attackBones;bridge.AttackContactNormalized=contact;
                 animator.runtimeAnimatorController=Controller(model.transform,idle);
                 animator.cullingMode=AnimatorCullingMode.AlwaysAnimate;
                 if(!bridge.CalibrateModel())throw new InvalidOperationException("Сетка Сахура недоступна после запуска Animator; prefab не обновлён.");
                 PrefabUtility.SaveAsPrefabAsset(root,PrefabPath);AssetDatabase.SaveAssets();
-                Debug.Log("Модель Сахура обновлена: оригинальная сетка/текстуры, Idle из FBX, созданные костные ходьба и бег, взмах импортированной битой.");
+                Debug.Log("Модель Сахура обновлена: оригинальная сетка/текстуры, Idle из FBX, костные ходьба и бег. Удар: "+(bridge.UsesRetargetedAttack?"перенесённый HumanM@Attack2H01":"прежний процедурный взмах")+".");
             }
             finally{UnityEngine.Object.DestroyImmediate(root);}
         }

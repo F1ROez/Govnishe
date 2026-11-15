@@ -34,6 +34,27 @@ namespace Brainrot.Tests {
    var bounds=GeometryBounds(actor);Assert.That(bounds.size.y,Is.InRange(1.4f,2.6f));Assert.That(bounds.min.y,Is.InRange(-.35f,.35f));
    Assert.Less(new Vector2(bounds.center.x,bounds.center.z).magnitude,1.5f);
   }
+  [UnityTest]public IEnumerator LocallyBakedAttackAnimatesRigWithoutChangingActorOrNormalization(){
+   var prefab=Resources.Load<GameObject>("ImportedSahur");
+   if(prefab==null||!prefab.GetComponent<ImportedSahurVisual>().UsesRetargetedAttack)Assert.Ignore("Установите Attack2H01 локально и создайте игру.");
+   Assert.IsNull(GameManager.Instance,"Запускайте тесты из Edit mode.");
+   actor=Object.Instantiate(prefab,new Vector3(5,0,-2),Quaternion.Euler(0,65,0));yield return null;
+   var bridge=actor.GetComponent<ImportedSahurVisual>();var position=actor.transform.position;var rotation=actor.transform.rotation;
+   var scale=bridge.Normalization.localScale;var modelScale=bridge.ModelRoot.localScale;
+   var rotations=new Quaternion[bridge.AttackBones.Length];for(int i=0;i<rotations.Length;i++)rotations[i]=bridge.AttackBones[i].localRotation;
+   bridge.PlayAttack(.8f,.25f);yield return new WaitForSeconds(.27f);
+   Assert.IsTrue(bridge.AttackActive);float largestChange=0;
+   for(int i=0;i<rotations.Length;i++){
+    var bone=bridge.AttackBones[i];largestChange=Mathf.Max(largestChange,Quaternion.Angle(rotations[i],bone.localRotation));
+    Assert.IsFalse(float.IsNaN(bone.position.sqrMagnitude)||float.IsInfinity(bone.position.sqrMagnitude),"Неверная поза кости "+bone.name);
+   }
+   Assert.Greater(largestChange,5,"Перенесённый клип должен двигать скелет.");
+   Assert.AreEqual(position,actor.transform.position);Assert.AreEqual(rotation,actor.transform.rotation);
+   Assert.AreEqual(scale,bridge.Normalization.localScale);Assert.AreEqual(modelScale,bridge.ModelRoot.localScale);
+   bridge.ResetAttack();yield return null;
+   Assert.IsFalse(bridge.AttackActive);Assert.IsFalse(bridge.Trail.emitting);Assert.That(GeometryBounds(actor).size.y,Is.InRange(1.2f,2.6f));
+   LogAssert.NoUnexpectedReceived();
+  }
   static Bounds GeometryBounds(GameObject root){
    bool any=false;Bounds bounds=new Bounds();
    foreach(var skin in root.GetComponentsInChildren<SkinnedMeshRenderer>()){

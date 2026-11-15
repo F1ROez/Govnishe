@@ -23,7 +23,9 @@ namespace Brainrot.Editor
             if(clip==null||string.IsNullOrEmpty(path)){EditorUtility.DisplayDialog("Анимация не выбрана","Выберите HumanM@Attack2H01 (или другой нужный клип) в Project и повторите команду.","Хорошо");return;}
             string destination=EditorUtility.SaveFilePanel("Сохранить анимацию с зависимостями","",SelectedAttack,"unitypackage");
             if(string.IsNullOrEmpty(destination))return;
-            AssetDatabase.ExportPackage(new[]{path},destination,ExportPackageOptions.IncludeDependencies);
+            // URP shader dependencies under Packages do not belong in the owner's animation transfer.
+            var dependencies=AssetDatabase.GetDependencies(path,true).Where(p=>p.StartsWith("Assets/",StringComparison.Ordinal)&&!AssetDatabase.IsValidFolder(p)).ToArray();
+            AssetDatabase.ExportPackage(dependencies,destination,ExportPackageOptions.Default);
             EditorUtility.RevealInFinder(destination);
             Debug.Log("Анимация и зависимости подготовлены для передачи файлом: "+destination+". Движение ещё не подключено к Сахуру.");
         }
