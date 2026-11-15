@@ -30,7 +30,7 @@ namespace Brainrot
             float gait=Mathf.Clamp01(movement/2.2f),upperTarget=0,foreTarget=0,leanTarget=0,crouchTarget=0;
             bool charging=state==OrcaladonPhase.Charging;
             if(charging)gait=1;
-            phase+=dt*(charging?17:Mathf.Lerp(1.5f,6.5f,gait));
+            phase=Mathf.Repeat(phase+dt*(charging?17:Mathf.Lerp(1.5f,6.5f,gait)),Mathf.PI*4);
             switch(state){
                 case OrcaladonPhase.ChargeAim:upperTarget=25;foreTarget=-28;leanTarget=12;gait=0;break;
                 case OrcaladonPhase.Charging:upperTarget=34;foreTarget=-35;leanTarget=20;break;

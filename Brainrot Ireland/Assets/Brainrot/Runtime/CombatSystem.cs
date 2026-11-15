@@ -14,9 +14,10 @@ namespace Brainrot {
   public bool IsAttacking=>visual!=null&&visual.AttackActive;
   public void Initialize(PlayerController p,CharacterVisual v){player=p;visual=v;}
   public void SetRangeVisual(AttackRangeVisual value){rangeVisual=value;}
-  public void CancelPendingSwings(){contacts.Clear();charging=false;inputSuppressed=true;visual?.ResetAttack();}
+  public void CancelPendingSwings(){contacts.Clear();charging=false;inputSuppressed=true;if(visual!=null)visual.ResetAttack();}
   public void ResetRun(){nextAttack=nextHeavyAttack=0;CancelPendingSwings();}
   public void UpdateAttackInput(bool held){
+   var game=GameManager.Instance;if(!isActiveAndEnabled||game==null||!game.IsPlaying||player==null||visual==null||player.IsCaptured||player.Health<=0)return;
    if(inputSuppressed){if(!held)inputSuppressed=false;return;}
    if(held&&!charging&&Time.time>=nextAttack){charging=true;chargeStarted=Time.time;}
    if(held&&charging)visual?.SetChargePose(ChargeProgress,HeavyReady);
@@ -24,8 +25,10 @@ namespace Brainrot {
   }
   public void TryAttack(){ExecuteAttack(false);}
   public bool ExecuteAttack(bool heavy){
-   var game=GameManager.Instance;if(game==null||!game.IsPlaying||player.IsCaptured||Time.time<nextAttack)return false;
+   var game=GameManager.Instance;if(!isActiveAndEnabled||game==null||!game.IsPlaying||player==null||visual==null||player.IsCaptured||player.Health<=0||Time.time<nextAttack)return false;
    if(heavy&&!HeavyReady)return false;
+   // Direct ability/test calls use the same lifecycle as releasing LMB. Keep the visual charge until PlayAttack consumes it.
+   charging=false;
    nextAttack=Time.time+Mathf.Max(.12f,player.Stats.AttackInterval);
    if(heavy)nextHeavyAttack=Time.time+HeavyCooldownDuration;
    BeginSwing(heavy?Mathf.Max(1,GameBalance.Current.Combat.StrongDamageMultiplier):1,heavy);return true;
@@ -41,13 +44,23 @@ namespace Brainrot {
    var game=GameManager.Instance;if(game==null||!game.IsPlaying)return;
    for(int i=0;i<contacts.Count&&game.IsPlaying;){if(Time.time>=contacts[i].Time){float power=contacts[i].Power;bool heavy=contacts[i].Heavy;contacts.RemoveAt(i);Strike(power,heavy);}else i++;}
   }
-  public static bool InMeleeSector(Vector3 origin,Vector3 forward,Vector3 target,float range,float arcDegrees,float innerRadius){
+  void OnDisable(){CancelPendingSwings();}
+  /// <summary>Intersection of the displayed cone/near circle and the enemy's horizontal body disc.</summary>
+  public static bool InMeleeSector(Vector3 origin,Vector3 forward,Vector3 target,float range,float arcDegrees,float innerRadius,float targetRadius=0){
    Vector3 delta=target-origin;delta.y=0;float distance=delta.magnitude;
-   if(distance>Mathf.Max(.1f,range))return false;
-   if(distance<=Mathf.Max(0,innerRadius))return true;
+   range=Mathf.Max(.1f,range);targetRadius=Mathf.Max(0,targetRadius);
+   if(distance>range+targetRadius)return false;
+   if(distance<=Mathf.Clamp(innerRadius,0,range)+targetRadius)return true;
    forward.y=0;if(forward.sqrMagnitude<.001f)return false;
-   return Vector3.Dot(forward.normalized,delta/distance)>=Mathf.Cos(Mathf.Clamp(arcDegrees,1,360)*.5f*Mathf.Deg2Rad);
+   forward.Normalize();float degrees=Mathf.Clamp(arcDegrees,1,360);if(degrees>=360)return true;float halfAngle=degrees*.5f*Mathf.Deg2Rad;
+   if(Vector3.Dot(forward,delta/distance)>=Mathf.Cos(halfAngle))return true;
+   if(targetRadius<=0)return false;
+   // A large target may cross either straight edge while its centre is outside the cone.
+   Vector3 side=Vector3.Cross(Vector3.up,forward)*Mathf.Sin(halfAngle),front=forward*Mathf.Cos(halfAngle);
+   float squaredRadius=targetRadius*targetRadius;
+   return SegmentDistanceSquared(delta,(front+side)*range)<=squaredRadius||SegmentDistanceSquared(delta,(front-side)*range)<=squaredRadius;
   }
+  static float SegmentDistanceSquared(Vector3 point,Vector3 end){float t=end.sqrMagnitude>.000001f?Mathf.Clamp01(Vector3.Dot(point,end)/end.sqrMagnitude):0;return (point-end*t).sqrMagnitude;}
   void Strike(float power,bool heavy){
    var stats=player.Stats;var tuning=GameBalance.Current.Combat;var game=GameManager.Instance;var enemies=game.Spawner.Active;
    var weapon=player.Character!=null?player.Character.Weapon:null;
@@ -56,7 +69,9 @@ namespace Brainrot {
    for(int i=enemies.Count-1;i>=0;i--){
     if(i>=enemies.Count)continue;var e=enemies[i];if(!e.Alive)continue;if(Mathf.Abs(e.transform.position.y-transform.position.y)>3)continue;
     Vector3 delta=e.transform.position-transform.position;delta.y=0;
-    bool melee=InMeleeSector(transform.position,transform.forward,e.transform.position,stats.Range,tuning.ArcDegrees,tuning.InnerOmniRadius);
+    var capsule=e.GetComponent<CapsuleCollider>();Vector3 target=e.transform.position;float bodyRadius=0;
+    if(capsule!=null){var scale=capsule.transform.lossyScale;bodyRadius=Mathf.Max(0,capsule.radius)*Mathf.Max(Mathf.Abs(scale.x),Mathf.Abs(scale.z));target=capsule.transform.TransformPoint(capsule.center);}
+    bool melee=InMeleeSector(transform.position,transform.forward,target,stats.Range,tuning.ArcDegrees,tuning.InnerOmniRadius,bodyRadius);
     bool radial=stats.Shockwave>0&&delta.magnitude<=stats.Range+2.5f;if(!melee&&!radial)continue;
     bool critical=melee&&Random.value<stats.CritChance;
     float damage=melee?(stats.Damage+stats.FireDamage)*(critical?2:1)*power:0;if(radial)damage+=stats.Shockwave*power;

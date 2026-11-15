@@ -33,13 +33,46 @@ namespace Brainrot.Tests
             enemy.Tick(.01f);Assert.AreEqual(OrcaladonPhase.ChargeAim,attack.Phase);Assert.AreEqual(100,game.Player.Health);
             var direction=attack.CommittedDirection;game.Player.transform.position=Vector3.right*6;
             enemy.Tick(.3f);Assert.AreEqual(OrcaladonPhase.Charging,attack.Phase);Assert.AreEqual(direction,attack.CommittedDirection);
-            Assert.That(Vector3.Distance(enemy.transform.position,Vector3.back*10),Is.LessThan(.001f),"Подготовка должна останавливать врага.");
+            Assert.That(enemy.transform.position.z,Is.EqualTo(-8).Within(.001f),"После .2 с подготовки оставшиеся .1 с кадра должны продолжить разгон.");
             game.Player.transform.position=Vector3.zero;enemy.Tick(.8f);
             Assert.AreEqual(70,game.Player.Health,"Рывок должен проверять весь пройденный отрезок.");
-            yield return new WaitForSeconds(.55f);game.Player.transform.position=Vector3.forward*7;
+            yield return new WaitForSeconds(.55f);game.Player.transform.position=Vector3.forward*9;
             enemy.Tick(.1f);Assert.AreEqual(70,game.Player.Health,"Один разгон не наносит повторный урон.");
             Assert.Greater(attack.ChargeCooldownRemaining,0);Assert.AreEqual(0,attack.SlamCooldownRemaining);
             yield return null;
+        }
+        [UnityTest]public IEnumerator CommittedChargeTravelsTheSameDistanceAcrossDifferentFrameSizes(){
+            profile.Orcaladon.ChargeWindup=.2f;profile.Orcaladon.ChargeSpeed=20;profile.Orcaladon.ChargeDuration=1;
+            profile.Orcaladon.SlamRange=2;profile.Orcaladon.ChargeMinDistance=3;profile.Orcaladon.ChargeMaxDistance=20;
+            var large=Orca(Vector3.back*10);large.Tick(.01f);large.Tick(.45f);
+            var small=Orca(Vector3.back*10);small.Tick(.01f);for(int i=0;i<3;i++)small.Tick(.15f);
+            Assert.That(Vector3.Distance(large.transform.position,small.transform.position),Is.LessThan(.001f));
+            Assert.That(large.transform.position.z,Is.EqualTo(-5).Within(.001f));
+            Assert.That(large.GetComponent<OrcaladonAttack>().PhaseProgress,Is.EqualTo(small.GetComponent<OrcaladonAttack>().PhaseProgress).Within(.001f));
+            yield return null;
+        }
+        [UnityTest]public IEnumerator HeavyInterruptPreservesSpentCooldownAndCancelsTheCommittedHit(){
+            var enemy=Orca(Vector3.back*10);var attack=enemy.GetComponent<OrcaladonAttack>();enemy.Tick(.01f);enemy.Tick(.1f);
+            Assert.AreEqual(OrcaladonPhase.ChargeAim,attack.Phase);float remaining=attack.ChargeCooldownRemaining;
+            enemy.TakeDamage(1,Vector3.right*11);
+            Assert.AreEqual(OrcaladonPhase.Recovery,attack.Phase);Assert.That(attack.ChargeCooldownRemaining,Is.EqualTo(remaining).Within(.0001f));
+            enemy.Tick(.2f);enemy.Tick(.01f);Assert.AreEqual(OrcaladonPhase.Approach,attack.Phase);
+            Assert.AreEqual(100,game.Player.Health);Assert.IsFalse(enemy.PhysicsBody.IsPhysical);yield return null;
+        }
+        [UnityTest]public IEnumerator OrcaDoesNotOverlapPlayerWhileWaitingForSlamCooldown(){
+            var enemy=Orca(Vector3.right*2);var attack=enemy.GetComponent<OrcaladonAttack>();enemy.Tick(.01f);
+            Assert.AreEqual(OrcaladonPhase.SlamWindup,attack.Phase);attack.Interrupt();enemy.Tick(.2f);
+            enemy.transform.position=Vector3.right*1.7f;enemy.Tick(.5f);
+            float distance=Vector3.Distance(enemy.transform.position,game.Player.transform.position);
+            Assert.That(distance,Is.EqualTo(profile.Orcaladon.CollisionRadius+.5f).Within(.001f));
+            enemy.Tick(.5f);Assert.That(Vector3.Distance(enemy.transform.position,game.Player.transform.position),Is.EqualTo(distance).Within(.001f));
+            Assert.AreEqual(100,game.Player.Health);yield return null;
+        }
+        [UnityTest]public IEnumerator MovingSharkDoesNotStepThroughPlayerDuringALongWindupFrame(){
+            profile.Normal.Damage=8;var enemy=game.Spawner.Spawn(EnemyKind.Normal,Vector3.back*1.7f);enemy.Tick(.61f);
+            Assert.AreEqual(EnemyAction.MeleeWindup,enemy.Action);enemy.Tick(.66f);enemy.Tick(.2f);
+            Assert.GreaterOrEqual(Vector3.Distance(enemy.transform.position,game.Player.transform.position),1.29f);
+            Assert.AreEqual(92,game.Player.Health,"Движение до укуса должно останавливаться перед игроком, сохраняя направление атаки.");yield return null;
         }
         [UnityTest]public IEnumerator GroundSlamWarnsBeforeCircularDamageAndCanBeDodged(){
             profile.Orcaladon.SlamWindup=.5f;profile.Orcaladon.SlamRange=3.8f;

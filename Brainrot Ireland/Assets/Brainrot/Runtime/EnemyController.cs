@@ -84,7 +84,7 @@ namespace Brainrot
             if(PhysicsBody!=null&&PhysicsBody.IsPhysical)return;
             if(Kind==EnemyKind.BlueberrinniOctopusini){octopus.Tick(dt);visual.Animate(octopus.Phase==OctopusPhase.Approach||octopus.Phase==OctopusPhase.Retreat?speed:0,false);return;}
             if(Kind==EnemyKind.Orcaladon){
-                float knockDecay=Mathf.Exp(-6*dt);MoveWithinZone(knockVelocity*((1-knockDecay)/6));knockVelocity*=knockDecay;
+                ApplyKnockback(dt);
                 orcaladon.Tick(dt);IsAlerted=true;
                 switch(orcaladon.Phase){
                     case OrcaladonPhase.ChargeAim:Action=EnemyAction.ChargeWindup;break;
@@ -96,11 +96,7 @@ namespace Brainrot
                 }return;
             }
             attackClock -= dt; chargeClock -= dt;
-            // Integrate damped knockback analytically so the distance is stable at low frame rates.
-            float decay = Mathf.Exp(-6 * dt);
-            MoveWithinZone(knockVelocity * ((1 - decay) / 6));
-            knockVelocity *= decay;
-            if (knockVelocity.sqrMagnitude < .001f) knockVelocity = Vector3.zero;
+            ApplyKnockback(dt);
 
             Vector3 playerPosition = game.Player.transform.position;
             Vector3 delta = Flat(playerPosition - transform.position);
@@ -114,19 +110,19 @@ namespace Brainrot
             {
                 case EnemyAction.MeleeWindup:
                     stateClock-=dt;
-                    if(distance>Radius+.6f)MoveWithinZone(direction*speed*dt);
+                    float windupSpeed=FollowPlayer(direction,distance,dt);
                     Face(direction,dt);committedDirection=direction;
-                    telegraph.Cone(transform.position,direction,AttackRange);visual.Animate(speed,true);
+                    telegraph.Cone(transform.position,direction,AttackRange);visual.Animate(windupSpeed,true);
                     if(stateClock<=0){
                         visual.PlayBite(.32f);Action=EnemyAction.Biting;stateClock=.32f;attackHit=false;
                     }
                     return;
                 case EnemyAction.Biting:
-                    stateClock-=dt;visual.Animate(speed,true);
-                    if(distance>Radius+.6f)MoveWithinZone(direction*speed*dt);
+                    stateClock-=dt;
+                    float biteSpeed=FollowPlayer(direction,distance,dt);visual.Animate(biteSpeed,true);
                     if(!attackHit&&stateClock<=.2f){attackHit=true;
                         Vector3 impact=Flat(game.Player.transform.position-transform.position);
-                        if(impact.magnitude<=AttackRange&&Vector3.Dot(transform.forward,impact.normalized)>.3f)game.Player.TakeDamage(damage,transform.position);
+                        if(impact.sqrMagnitude<=AttackRange*AttackRange&&(impact.sqrMagnitude<.000001f||Vector3.Dot(transform.forward,impact.normalized)>.3f))game.Player.TakeDamage(damage,transform.position);
                     }
                     if(stateClock<=0)EnterRecovery(tuning.Recovery);
                     return;
@@ -138,7 +134,7 @@ namespace Brainrot
                     TickCharge(dt, playerPosition);
                     return;
                 case EnemyAction.Recovery:
-                    if(distance>Radius+.6f)MoveWithinZone(direction*speed*dt);Face(direction,dt);visual.Animate(speed,false);
+                    float recoverySpeed=FollowPlayer(direction,distance,dt);Face(direction,dt);visual.Animate(recoverySpeed,false);
                     stateClock-=dt;if(stateClock<=0)Action=EnemyAction.Chasing;return;
                 case EnemyAction.Staggered:
                     stateClock -= dt; visual.Animate(0, false);
@@ -151,7 +147,7 @@ namespace Brainrot
                 transform.rotation = Quaternion.LookRotation(direction);
                 Action = EnemyAction.ChargeWindup;
                 stateClock = Mathf.Max(.25f, tuning.ChargeWindup);
-                telegraph.Charge(transform.position, direction, Mathf.Max(1, tuning.ChargeSpeed * tuning.ChargeDuration), Radius + .5f, HomeZone);
+                telegraph.ChargeStraight(transform.position, direction, Mathf.Max(1, tuning.ChargeSpeed * tuning.ChargeDuration), Radius + .5f);
                 visual.Animate(0, true);
                 return;
             }
@@ -166,11 +162,11 @@ namespace Brainrot
                 return;
             }
             float stop = Mathf.Max(Radius + .4f, AttackRange * .8f);
-            Vector3 move = distance > stop ? direction * speed : Vector3.zero;
-            if (distance > 3) move += Vector3.Cross(direction, Vector3.up) * Mathf.Sin(GetInstanceID() * .71f + game.Elapsed) * .18f;
-            MoveWithinZone(move * dt);
+            Vector3 step = direction * Mathf.Min(speed*dt,Mathf.Max(0,distance-stop));
+            if (distance > 3) step += Vector3.Cross(direction, Vector3.up) * Mathf.Sin(GetInstanceID() * .71f + game.Elapsed) * (.18f*dt);
+            MoveWithinZone(step);
             Face(direction, dt);
-            visual.Animate(move.magnitude, false);
+            visual.Animate(step.magnitude/dt, false);
         }
 
         void TickAmbient(float dt)
@@ -216,8 +212,19 @@ namespace Brainrot
         }
         void MoveWithinZone(Vector3 displacement)
         {
+            if(displacement.sqrMagnitude<=.0000000001f)return;
             Vector3 next = transform.position + displacement;
             next.y = 0;transform.position = next;
+        }
+        float FollowPlayer(Vector3 direction,float distance,float dt)
+        {
+            float step=Mathf.Min(speed*dt,Mathf.Max(0,distance-Radius-.6f));MoveWithinZone(direction*step);return step/dt;
+        }
+        void ApplyKnockback(float dt)
+        {
+            if(knockVelocity.sqrMagnitude<.001f){knockVelocity=Vector3.zero;return;}
+            // Integrate damped knockback analytically; avoid touching Transform for every unpushed enemy.
+            float decay=Mathf.Exp(-6*dt);MoveWithinZone(knockVelocity*((1-decay)/6));knockVelocity*=decay;
         }
         void Face(Vector3 direction, float dt)
         {
@@ -321,13 +328,6 @@ namespace Brainrot
             origin = Ground(origin);points[0] = origin;
             for (int i = 0; i <= 24; i++) points[i + 1] = origin + Quaternion.Euler(0, Mathf.Lerp(-72, 72, i / 24f), 0) * direction * radius;
             points[26] = origin;Show(27);
-        }
-        public void Charge(Vector3 origin, Vector3 direction, float length, float width, IslandZone zone)
-        {
-            origin = Ground(origin);Vector3 side = Vector3.Cross(Vector3.up, direction) * width;
-            Vector3 end = Ground(IslandMap.ClampToZone(origin + direction * length, zone));
-            points[0] = origin - side;points[1] = end - side;points[2] = end + direction * .5f;
-            points[3] = end + side;points[4] = origin + side;points[5] = origin - side;Show(6);
         }
         public void ChargeStraight(Vector3 origin,Vector3 direction,float length,float width)
         {

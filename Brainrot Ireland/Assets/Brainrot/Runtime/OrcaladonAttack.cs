@@ -35,52 +35,61 @@ namespace Brainrot
             Vector3 offset=Flat(player.transform.position-transform.position);
             float distance=offset.magnitude;
             Vector3 direction=distance>.0001f?offset/distance:transform.forward;
-            switch(Phase)
-            {
-                case OrcaladonPhase.Approach:
-                    if(distance<=SlamRadius&&slamCooldown<=0){BeginSlam(direction);return;}
-                    float min=Mathf.Max(.5f,tuning.ChargeMinDistance),max=Mathf.Max(min,tuning.ChargeMaxDistance);
-                    if(distance>=min&&distance<=max&&chargeCooldown<=0){BeginCharge(direction);return;}
-                    float speed=Mathf.Max(.1f,GameBalance.Current.Enemy(EnemyKind.Orcaladon).Speed);
-                    float movement=distance>Mathf.Max(.6f,tuning.CollisionRadius+.5f)?speed:0;
-                    transform.position+=direction*(movement*dt);
-                    Face(direction,dt);visual?.Animate(movement,false);
-                    return;
-                case OrcaladonPhase.ChargeAim:
-                    visual?.Animate(0,true);phaseClock-=dt;
-                    if(phaseClock<=0){warning.Hide();Enter(OrcaladonPhase.Charging,Mathf.Max(.1f,tuning.ChargeDuration));}
-                    return;
-                case OrcaladonPhase.Charging:
-                    float step=Mathf.Min(dt,Mathf.Max(0,phaseClock));
-                    Vector3 start=transform.position,end=start+CommittedDirection*(Mathf.Max(1,tuning.ChargeSpeed)*step);end.y=0;transform.position=end;
-                    if(!chargeHit&&EnemyController.SweptHitXZ(start,end,player.transform.position,Mathf.Max(.1f,tuning.CollisionRadius)+.48f)){
-                        chargeHit=true;
-                        // Always push along the charge, including a large frame that ends beyond the player.
-                        player.TakeDamage(Mathf.Max(0,tuning.ChargeDamage),player.transform.position-CommittedDirection*2,Mathf.Max(0,tuning.ChargeKnockback));
-                    }
-                    phaseClock-=dt;visual?.Animate(Mathf.Max(1,tuning.ChargeSpeed),true);
-                    if(phaseClock<=0)EnterRecovery(Mathf.Max(.05f,tuning.Recovery));
-                    return;
-                case OrcaladonPhase.SlamWindup:
-                    visual?.Animate(0,true);phaseClock-=dt;
-                    if(phaseClock<=0){
-                        float radius=SlamRadius;
-                        Enter(OrcaladonPhase.SlamImpact,.18f);
-                        warning.Circle(transform.position,radius);
-                        if(Flat(player.transform.position-transform.position).sqrMagnitude<=radius*radius)
-                            player.TakeDamage(Mathf.Max(0,tuning.SlamDamage),transform.position,Mathf.Max(0,tuning.SlamKnockback));
-                        HitEffects.Burst(transform.position+Vector3.up*.12f,new Color(1,.85f,.42f),24,radius);
-                        GameAudio.Play(95,.13f,.12f);
-                    }
-                    return;
-                case OrcaladonPhase.SlamImpact:
-                    visual?.Animate(0,true);phaseClock-=dt;
-                    if(phaseClock<=0)EnterRecovery(Mathf.Max(.05f,tuning.Recovery));
-                    return;
-                case OrcaladonPhase.Recovery:
-                    visual?.Animate(0,false);phaseClock-=dt;
-                    if(phaseClock<=0)Enter(OrcaladonPhase.Approach,0);
-                    return;
+            float remaining=dt;
+            // Carry elapsed time across an already telegraphed attack's phases. At most four
+            // transitions are possible; choosing a NEW attack always returns to render its warning.
+            for(int transition=0;transition<4&&remaining>0&&game.IsPlaying&&player.Health>0;transition++){
+                switch(Phase)
+                {
+                    case OrcaladonPhase.Approach:
+                        if(distance<=SlamRadius&&slamCooldown<=0){BeginSlam(direction);return;}
+                        float min=Mathf.Max(.5f,tuning.ChargeMinDistance),max=Mathf.Max(min,tuning.ChargeMaxDistance);
+                        if(distance>=min&&distance<=max&&chargeCooldown<=0){BeginCharge(direction);return;}
+                        float speed=Mathf.Max(.1f,GameBalance.Current.Enemy(EnemyKind.Orcaladon).Speed);
+                        float movement=Mathf.Min(speed*remaining,Mathf.Max(0,distance-Mathf.Max(.6f,tuning.CollisionRadius+.5f)));
+                        if(movement>.00001f)transform.position+=direction*movement;
+                        Face(direction,remaining);visual?.Animate(movement/remaining,false);
+                        return;
+                    case OrcaladonPhase.ChargeAim:
+                        visual?.Animate(0,true);remaining=ConsumePhase(remaining);
+                        if(phaseClock>0)return;
+                        warning.Hide();Enter(OrcaladonPhase.Charging,Mathf.Max(.1f,tuning.ChargeDuration));
+                        continue;
+                    case OrcaladonPhase.Charging:
+                        float step=Mathf.Min(remaining,Mathf.Max(0,phaseClock));
+                        Vector3 start=transform.position,end=start+CommittedDirection*(Mathf.Max(1,tuning.ChargeSpeed)*step);end.y=0;transform.position=end;
+                        if(!chargeHit&&EnemyController.SweptHitXZ(start,end,player.transform.position,Mathf.Max(.1f,tuning.CollisionRadius)+.48f)){
+                            chargeHit=true;
+                            // Always push along the charge, including a large frame that ends beyond the player.
+                            player.TakeDamage(Mathf.Max(0,tuning.ChargeDamage),player.transform.position-CommittedDirection*2,Mathf.Max(0,tuning.ChargeKnockback));
+                        }
+                        remaining=ConsumePhase(remaining);visual?.Animate(Mathf.Max(1,tuning.ChargeSpeed),true);
+                        if(phaseClock>0)return;
+                        EnterRecovery(Mathf.Max(.05f,tuning.Recovery));
+                        continue;
+                    case OrcaladonPhase.SlamWindup:
+                        visual?.Animate(0,true);remaining=ConsumePhase(remaining);
+                        if(phaseClock<=0){
+                            float radius=SlamRadius;
+                            Enter(OrcaladonPhase.SlamImpact,.18f);
+                            warning.Circle(transform.position,radius);
+                            if(Flat(player.transform.position-transform.position).sqrMagnitude<=radius*radius)
+                                player.TakeDamage(Mathf.Max(0,tuning.SlamDamage),transform.position,Mathf.Max(0,tuning.SlamKnockback));
+                            HitEffects.Burst(transform.position+Vector3.up*.12f,new Color(1,.85f,.42f),24,radius);
+                            GameAudio.Play(95,.13f,.12f);
+                        }
+                        if(Phase==OrcaladonPhase.SlamWindup)return;
+                        continue;
+                    case OrcaladonPhase.SlamImpact:
+                        visual?.Animate(0,true);remaining=ConsumePhase(remaining);
+                        if(phaseClock>0)return;
+                        EnterRecovery(Mathf.Max(.05f,tuning.Recovery));
+                        continue;
+                    case OrcaladonPhase.Recovery:
+                        visual?.Animate(0,false);ConsumePhase(remaining);
+                        if(phaseClock<=0)Enter(OrcaladonPhase.Approach,0);
+                        return;
+                }
             }
         }
         void BeginCharge(Vector3 direction)
@@ -98,6 +107,7 @@ namespace Brainrot
             Enter(OrcaladonPhase.SlamWindup,Mathf.Max(.15f,t.SlamWindup));warning.Circle(transform.position,SlamRadius);visual?.Animate(0,true);
         }
         void Enter(OrcaladonPhase phase,float duration){Phase=phase;phaseDuration=phaseClock=Mathf.Max(0,duration);}
+        float ConsumePhase(float elapsed){float used=Mathf.Min(elapsed,Mathf.Max(0,phaseClock));phaseClock=Mathf.Max(0,phaseClock-used);return Mathf.Max(0,elapsed-used);}
         void EnterRecovery(float duration){warning?.Hide();Enter(OrcaladonPhase.Recovery,duration);}
         public void Interrupt()
         {

@@ -17,11 +17,16 @@ namespace Brainrot
         bool mapExpanded;
         Text waveTitle,stageText,soundMute;Text stats, healthText, xpText, notification, aimHint, hitMarker, hitLabel,chargeLabel;
         float hitUntil;
-        bool lastHitCritical;
+        bool lastHitCritical,hitVisible;
         Image healthFill, xpFill,screenShade;
-        Image heavyShade,dashShade,escapeFill;Text heavyTime,dashTime;GameObject capturePanel;
+        Image escapeFill;GameObject capturePanel;
+        AbilityDisplay heavyAbility,dashAbility;
         GameState shownState = (GameState)(-1);
         int shownLevel = -1;
+        int shownHealth=int.MinValue,shownMaxHealth=int.MinValue,shownStamina=int.MinValue,shownMaxStamina=int.MinValue;
+        int shownWave=int.MinValue,shownRemaining=int.MinValue,shownSeconds=int.MinValue,shownKills=int.MinValue;
+        int shownChargeMode=-1,shownChargePercent=-1,shownCameraMode=-1;
+        string shownStage;
         readonly Color ink = CartoonUI.Ink;
         readonly Color gold = CartoonUI.Gold;
         readonly Color cyan = CartoonUI.Aqua;
@@ -77,34 +82,14 @@ namespace Brainrot
         {
             if (canvas == null || GameManager.Instance == null) return;
             var gm=GameManager.Instance;
-            hud.SetActive(gm.State==GameState.Playing || gm.State==GameState.Paused || gm.State==GameState.Upgrade || gm.State==GameState.Map);
-            mobile.SetActive(Application.isMobilePlatform && gm.State==GameState.Playing);
-            overlay.SetActive(gm.State!=GameState.Playing&&gm.State!=GameState.Map);
-            screenShade.color=new Color(.025f,.025f,.025f,gm.State==GameState.Paused?.28f:.45f);
-            if (gm.Player != null && gm.Upgrades != null)
-            {
-                healthText.text=$"ЗДОРОВЬЕ   {Mathf.CeilToInt(gm.Player.Health)} / {Mathf.CeilToInt(gm.Player.Stats.MaxHealth)}";
-                healthFill.fillAmount=Mathf.Clamp01(gm.Player.Health/Mathf.Max(1,gm.Player.Stats.MaxHealth));
-                xpText.text=$"ВЫНОСЛИВОСТЬ  {Mathf.CeilToInt(gm.Player.Stamina.Value)} / {Mathf.CeilToInt(gm.Player.Stamina.Maximum)}";
-                xpFill.fillAmount=gm.Player.Stamina.Value/Mathf.Max(1,gm.Player.Stamina.Maximum);
-            }
-            xpText.gameObject.SetActive(true);xpFill.transform.parent.gameObject.SetActive(true);
-            waveTitle.text=$"ВОЛНА {gm.Wave}";stageText.text=$"{gm.Spawner.Waves.Stage} · {Mathf.CeilToInt(gm.Spawner.Waves.Remaining)} с";stats.text=$"{TimeLabel(gm.Elapsed)}   |   Побеждено: {gm.Kills}";
-            capturePanel.SetActive(gm.Player!=null&&gm.Player.IsCaptured);if(gm.Player!=null)escapeFill.fillAmount=gm.Player.EscapeProgress;
-            notification.text=gm.Notification ?? "";soundMute.gameObject.SetActive(GameMusic.IsMuted);
-            if(gm.Player!=null){UpdateAbility(heavyShade,heavyTime,gm.Player.Combat.HeavyCooldownRemaining,gm.Player.Combat.HeavyCooldownDuration);UpdateAbility(dashShade,dashTime,gm.Player.DashCooldownRemaining,gm.Player.DashCooldownDuration);}
-            var combat=gm.Player!=null?gm.Player.Combat:null;
-            chargeLabel.text=combat!=null&&combat.IsCharging&&!combat.HeavyReady?"СИЛЬНЫЙ УДАР ВОССТАНАВЛИВАЕТСЯ — ОБЫЧНАЯ АТАКА":combat!=null&&combat.IsCharging?(combat.ChargeProgress>=1?"СИЛЬНЫЙ УДАР ГОТОВ — ОТПУСТИ ЛКМ":"ЗАРЯД СИЛЬНОГО УДАРА: "+Mathf.RoundToInt(combat.ChargeProgress*100)+"%"):"";
-            aimHint.text=gm.Player!=null && gm.Player.CameraLocked ? "ВЗГЛЯД ПО КАМЕРЕ  ·  V" : "СВОБОДНЫЙ ПОВОРОТ  ·  V";
-            if(Time.unscaledTime>=hitUntil) {hitMarker.text="";hitLabel.text="";}
-            else {
-                float alpha=Mathf.Clamp01((hitUntil-Time.unscaledTime)/.12f);
-                Color feedback=lastHitCritical?gold:Color.white;feedback.a=alpha;
-                hitMarker.color=feedback;hitLabel.color=feedback;
-            }
-            
+            bool hudVisible=gm.State==GameState.Playing || gm.State==GameState.Paused || gm.State==GameState.Upgrade || gm.State==GameState.Map;
+            SetActive(hud,hudVisible);
+            SetActive(mobile,Application.isMobilePlatform && gm.State==GameState.Playing);
+            SetActive(overlay,gm.State!=GameState.Playing&&gm.State!=GameState.Map);
+            if(shownState!=gm.State)screenShade.color=new Color(.025f,.025f,.025f,gm.State==GameState.Paused?.28f:.45f);
+            if(hudVisible)RefreshHud(gm);
             mapExpanded=gm.State==GameState.Map;
-            fullMap.SetActive(mapExpanded);
+            SetActive(fullMap,mapExpanded);
             int level=gm.Upgrades!=null?gm.Upgrades.Level:0;
             if(shownState!=gm.State || (gm.State==GameState.Upgrade && shownLevel!=level))
             {
@@ -113,12 +98,49 @@ namespace Brainrot
                 if(gm.State!=GameState.Playing) BuildScreen();
             }
         }
+        static void SetActive(GameObject target,bool active){if(target.activeSelf!=active)target.SetActive(active);}
+        void RefreshHud(GameManager gm)
+        {
+            var player=gm.Player;
+            if(player!=null){
+                int health=Mathf.CeilToInt(player.Health),maximum=Mathf.CeilToInt(player.Stats.MaxHealth);
+                if(health!=shownHealth||maximum!=shownMaxHealth){shownHealth=health;shownMaxHealth=maximum;healthText.text=$"ЗДОРОВЬЕ   {health} / {maximum}";}
+                healthFill.fillAmount=Mathf.Clamp01(player.Health/Mathf.Max(1,player.Stats.MaxHealth));
+                int stamina=Mathf.CeilToInt(player.Stamina.Value),staminaMaximum=Mathf.CeilToInt(player.Stamina.Maximum);
+                if(stamina!=shownStamina||staminaMaximum!=shownMaxStamina){shownStamina=stamina;shownMaxStamina=staminaMaximum;xpText.text=$"ВЫНОСЛИВОСТЬ  {stamina} / {staminaMaximum}";}
+                xpFill.fillAmount=player.Stamina.Value/Mathf.Max(1,player.Stamina.Maximum);
+            }
+            int wave=gm.Wave;
+            if(wave!=shownWave){shownWave=wave;waveTitle.text=$"ВОЛНА {wave}";}
+            string stage=gm.Spawner.Waves.Stage;int remaining=Mathf.CeilToInt(gm.Spawner.Waves.Remaining);
+            if(stage!=shownStage||remaining!=shownRemaining){shownStage=stage;shownRemaining=remaining;stageText.text=$"{stage} · {remaining} с";}
+            int seconds=Mathf.Max(0,Mathf.FloorToInt(gm.Elapsed));
+            if(seconds!=shownSeconds||gm.Kills!=shownKills){shownSeconds=seconds;shownKills=gm.Kills;stats.text=$"{TimeLabel(seconds)}   |   Побеждено: {gm.Kills}";}
+            SetActive(capturePanel,player!=null&&player.IsCaptured);if(player!=null)escapeFill.fillAmount=player.EscapeProgress;
+            notification.text=gm.Notification ?? "";SetActive(soundMute.gameObject,GameMusic.IsMuted);
+            if(player!=null){heavyAbility.Update(player.Combat.HeavyCooldownRemaining,player.Combat.HeavyCooldownDuration);dashAbility.Update(player.DashCooldownRemaining,player.DashCooldownDuration);}
+            var combat=player!=null?player.Combat:null;
+            int chargeMode=combat==null||!combat.IsCharging?0:!combat.HeavyReady?1:combat.ChargeProgress>=1?3:2;
+            int percent=chargeMode==2?Mathf.RoundToInt(combat.ChargeProgress*100):0;
+            if(chargeMode!=shownChargeMode||percent!=shownChargePercent){
+                shownChargeMode=chargeMode;shownChargePercent=percent;
+                chargeLabel.text=chargeMode==1?"СИЛЬНЫЙ УДАР ВОССТАНАВЛИВАЕТСЯ — ОБЫЧНАЯ АТАКА":chargeMode==3?"СИЛЬНЫЙ УДАР ГОТОВ — ОТПУСТИ ЛКМ":chargeMode==2?"ЗАРЯД СИЛЬНОГО УДАРА: "+percent+"%":"";
+            }
+            int cameraMode=player!=null&&player.CameraLocked?1:0;
+            if(cameraMode!=shownCameraMode){shownCameraMode=cameraMode;aimHint.text=cameraMode==1?"ВЗГЛЯД ПО КАМЕРЕ  ·  V":"СВОБОДНЫЙ ПОВОРОТ  ·  V";}
+            if(hitVisible&&Time.unscaledTime>=hitUntil){hitVisible=false;hitMarker.text="";hitLabel.text="";}
+            else if(hitVisible){
+                float alpha=Mathf.Clamp01((hitUntil-Time.unscaledTime)/.12f);
+                Color feedback=lastHitCritical?gold:Color.white;feedback.a=alpha;
+                hitMarker.color=feedback;hitLabel.color=feedback;
+            }
+        }
 
         void BuildAbilityIcons(){
             var strong=AbilityCard("Сильный удар",new Vector2(.012f,.64f),new Vector2(.087f,.825f),"HeavyCard","HeavyIcon","СИЛЬНЫЙ\nУДАР","ЛКМ · удержать");
-            heavyShade=CooldownShade(strong.transform);heavyTime=ReadyBadge(strong.transform);
+            heavyAbility=new AbilityDisplay(CooldownShade(strong.transform),ReadyBadge(strong.transform));
             var dash=AbilityCard("Рывок",new Vector2(.012f,.435f),new Vector2(.087f,.62f),"DashCard","DashIcon","РЫВОК","ПРОБЕЛ");
-            dashShade=CooldownShade(dash.transform);dashTime=ReadyBadge(dash.transform);
+            dashAbility=new AbilityDisplay(CooldownShade(dash.transform),ReadyBadge(dash.transform));
         }
         GameObject AbilityCard(string name,Vector2 min,Vector2 max,string frame,string icon,string title,string key){
             var card=TropicalUIArt.Place(name,hud.transform,min,max,frame).gameObject;
@@ -128,7 +150,19 @@ namespace Brainrot
         }
         Text ReadyBadge(Transform parent){var badge=TropicalUIArt.Place("Готовность",parent,new Vector2(.08f,.13f),new Vector2(.92f,.32f),"ReadyBadge");return Label(badge.transform,"ГОТОВ",13,TextAnchor.MiddleCenter,new Vector2(.04f,.08f),new Vector2(.96f,.94f));}
         Image CooldownShade(Transform parent){var image=Box("Перезарядка",parent,new Vector2(.08f,.31f),new Vector2(.92f,.79f),new Color(.10f,.10f,.10f,.62f)).GetComponent<Image>();image.type=Image.Type.Filled;image.fillMethod=Image.FillMethod.Radial360;image.fillOrigin=2;image.fillClockwise=true;image.raycastTarget=false;return image;}
-        static void UpdateAbility(Image shade,Text label,float remaining,float duration){shade.fillAmount=Mathf.Clamp01(remaining/Mathf.Max(.1f,duration));label.text=remaining>0?Mathf.CeilToInt(remaining)+" с":"ГОТОВ";label.color=remaining>0?new Color(1,.9f,.6f):Color.white;label.transform.parent.GetComponent<Image>().color=remaining>0?new Color(.76f,.80f,.75f):Color.white;}
+        sealed class AbilityDisplay
+        {
+            readonly Image shade,badge;readonly Text label;
+            int shownSeconds=int.MinValue;bool cooling;
+            public AbilityDisplay(Image shade,Text label){this.shade=shade;this.label=label;badge=label.transform.parent.GetComponent<Image>();}
+            public void Update(float remaining,float duration){
+                shade.fillAmount=Mathf.Clamp01(remaining/Mathf.Max(.1f,duration));
+                int seconds=remaining>0?Mathf.CeilToInt(remaining):0;
+                bool active=remaining>0,first=shownSeconds==int.MinValue;
+                if(seconds!=shownSeconds){shownSeconds=seconds;label.text=seconds>0?seconds+" с":"ГОТОВ";}
+                if(first||active!=cooling){cooling=active;label.color=active?new Color(1,.9f,.6f):Color.white;badge.color=active?new Color(.76f,.80f,.75f):Color.white;}
+            }
+        }
         Image RoundButton(string name,Vector2 min,Vector2 max,string icon,UnityEngine.Events.UnityAction action){
             if(Application.isMobilePlatform){float right=name=="Пауза" ? .987f : .895f;min=new Vector2(right-.075f,.86f);max=new Vector2(right,.99f);}
             var face=TropicalUIArt.Place(name,hud.transform,min,max,icon);face.preserveAspect=true;face.raycastTarget=true;var button=face.gameObject.AddComponent<Button>();button.targetGraphic=face;button.onClick.AddListener(GameMusic.PlayButtonClick);button.onClick.AddListener(action);face.gameObject.AddComponent<CartoonButtonMotion>();CartoonUI.EnsureTouchTarget(button);
@@ -209,7 +243,7 @@ namespace Brainrot
         public void ShowHit(bool critical,int count=1)
         {
             if(hitMarker==null)return;
-            hitUntil=Time.unscaledTime+.3f;lastHitCritical=critical;
+            hitUntil=Time.unscaledTime+.3f;lastHitCritical=critical;hitVisible=true;
             hitMarker.text="×";hitLabel.text=(critical?"КРИТИЧЕСКИЙ УДАР":"ПОПАДАНИЕ")+(count>1?" ×"+count:"");
         }
 
@@ -217,7 +251,7 @@ namespace Brainrot
         {
             // A miss must not erase a confirmed hit from an immediately preceding echo.
             if(hitMarker==null || Time.unscaledTime<hitUntil)return;
-            hitUntil=Time.unscaledTime+.13f;lastHitCritical=false;
+            hitUntil=Time.unscaledTime+.13f;lastHitCritical=false;hitVisible=true;
             hitMarker.text="";hitLabel.text="ПРОМАХ";
         }
 

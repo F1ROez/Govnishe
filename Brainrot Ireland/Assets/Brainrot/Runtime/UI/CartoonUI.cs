@@ -105,7 +105,7 @@ namespace Brainrot
     {
         Image image;Graphic[] decoration;RectTransform rect;float left,right,shown=1;
         void Awake(){image=GetComponent<Image>();decoration=GetComponentsInChildren<Graphic>();rect=(RectTransform)transform;left=rect.anchorMin.x;right=rect.anchorMax.x;}
-        void LateUpdate(){float target=Mathf.Clamp01(image.fillAmount);shown=Mathf.MoveTowards(shown,target,Time.unscaledDeltaTime*4);var maximum=rect.anchorMax;maximum.x=Mathf.Lerp(left,right,shown);rect.anchorMax=maximum;image.enabled=shown>.001f;foreach(var graphic in decoration)if(graphic!=image)graphic.enabled=image.enabled;}
+        void LateUpdate(){float target=Mathf.Clamp01(image.fillAmount);shown=Mathf.MoveTowards(shown,target,Time.unscaledDeltaTime*4);var maximum=rect.anchorMax;float x=Mathf.Lerp(left,right,shown);if(!Mathf.Approximately(maximum.x,x)){maximum.x=x;rect.anchorMax=maximum;}bool visible=shown>.001f;if(image.enabled!=visible)image.enabled=visible;foreach(var graphic in decoration)if(graphic!=image&&graphic.enabled!=visible)graphic.enabled=visible;}
     }
 
 }

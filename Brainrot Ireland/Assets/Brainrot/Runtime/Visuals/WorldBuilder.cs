@@ -7,6 +7,7 @@ namespace Brainrot
     public static class WorldBuilder
     {
         static Material sand, grass, bark, leaf, stone, foam, coral, leafLight;
+        static Mesh beachRock,beachPlant;
         public static Material Material(Color color, string name = "Island material")
         {
             var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
@@ -18,7 +19,7 @@ namespace Brainrot
         public static void Build()
         {
             var old = GameObject.Find("Procedural Island");
-            if (old != null) Object.Destroy(old);
+            if (old != null){old.SetActive(false);Object.Destroy(old);}
             var root = new GameObject("Procedural Island").transform;
             sand = Material(Color.white, "Vanilla sand — hand-painted procedural palette");
             sand.SetTexture("_BaseMap",SandPalette());
@@ -29,6 +30,7 @@ namespace Brainrot
             foam = Material(new Color(.96f,1,.96f), "Foam");
             coral=Material(new Color(.98f,.61f,.48f),"Peach seashells");
             leafLight=Material(new Color(.68f,.89f,.32f),"Young lime leaves");
+            beachRock=BeachRockMesh();beachPlant=PalmCrown(0,.67f,5);
             leaf.SetFloat("_Cull",0);leafLight.SetFloat("_Cull",0);grass.SetFloat("_Cull",0);
             var rng = new System.Random(731);
             Island(root);
@@ -58,7 +60,7 @@ namespace Brainrot
                 else
                 {
                     var rock = Primitive("Beach rock", PrimitiveType.Sphere, root, p + Vector3.up*.28f, new Vector3(1.3f,.8f,1.1f), stone);
-                    rock.GetComponent<MeshFilter>().sharedMesh=BeachRockMesh();
+                    rock.GetComponent<MeshFilter>().sharedMesh=beachRock;
                     rock.transform.Rotate(12, a*Mathf.Rad2Deg, 23);
                 }
             }
@@ -209,7 +211,8 @@ namespace Brainrot
         static void BeachPlants(Transform root,Vector3 position,float angle)
         {
             var patch=new GameObject("Прибрежные листья",typeof(MeshFilter),typeof(MeshRenderer));patch.transform.SetParent(root,false);patch.transform.localPosition=position;
-            patch.GetComponent<MeshFilter>().sharedMesh=PalmCrown(angle,.67f,5);patch.GetComponent<MeshRenderer>().sharedMaterial=grass;
+            patch.GetComponent<MeshFilter>().sharedMesh=beachPlant;patch.GetComponent<MeshRenderer>().sharedMaterial=grass;
+            patch.transform.localRotation=Quaternion.Euler(0,-angle*Mathf.Rad2Deg,0);
             patch.transform.localScale=new Vector3(1,.68f,1);patch.transform.localPosition+=Vector3.up*.13f;
         }
         static void Starfish(Transform root,Vector3 p,float angle)

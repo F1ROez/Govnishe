@@ -58,7 +58,9 @@ Shader "Brainrot/TropicalWater"
     color*=.97+.03*saturate(dot(normal,sun.direction));
     color+=wave*_WaveStrength*.14;
     // Soft broad sunlight rather than a clipped white spotlight; distance fades small details.
-    float detail=saturate(view.y*4);
+    // Fade sub-pixel caustics and sparkles before they flicker at the horizon or on a small Android viewport.
+    float footprint=max(length(ddx(warped)),length(ddy(warped)));
+    float detail=saturate(view.y*4)*(1-smoothstep(.18,.9,footprint));
     half spec=pow(saturate(dot(normal,halfVector)),80)*.19;
     color+=sun.color*spec;
     float cells=abs(sin(warped.x*2.9+sin(warped.y*2.1)+t*.13)*sin(warped.y*2.6+sin(warped.x*1.7)-t*.18));

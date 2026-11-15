@@ -8,6 +8,7 @@ namespace Brainrot
     public sealed class WorldAtmosphere : MonoBehaviour
     {
         VolumeProfile profile;
+        bool authoredBloom;
         UniversalAdditionalCameraData cameraData;int quality=-1;
         public const string PresetName="Яркий тропический день — v2";
         static T Component<T>(VolumeProfile profile) where T:VolumeComponent {if(profile.TryGet<T>(out var value))return value;return profile.Add<T>(true);}
@@ -27,12 +28,13 @@ namespace Brainrot
         IEnumerator Start()
         {
             var template=Resources.Load<VolumeProfile>("IslandAtmosphere");
-            if(template==null)profile=CreateProfile(SaveSystem.Data.Quality>0);
+            if(template==null)profile=CreateProfile();
             else{
                 profile=ScriptableObject.CreateInstance<VolumeProfile>();
                 foreach(var component in template.components)if(component!=null)profile.components.Add(Instantiate(component));
-                if(profile.TryGet<Bloom>(out var bloom))bloom.active=SaveSystem.Data.Quality>0;
             }
+            // Quality may disable an authored effect, but must not turn on one the owner disabled in the profile.
+            authoredBloom=profile.TryGet<Bloom>(out var configuredBloom)&&configuredBloom.active;
             var volume=gameObject.AddComponent<Volume>();volume.isGlobal=true;volume.priority=1;volume.sharedProfile=profile;volume.weight=1;
             // WorldBuilder precedes PlayerController's camera. Search only during bootstrap, never every frame afterwards.
             for(int attempt=0;attempt<30;attempt++){
@@ -45,7 +47,7 @@ namespace Brainrot
             }
         }
         void Update(){if(profile!=null&&quality!=SaveSystem.Data.Quality)ApplyQuality();}
-        void ApplyQuality(){quality=SaveSystem.Data.Quality;if(profile!=null&&profile.TryGet<Bloom>(out var bloom))bloom.active=quality>0;if(cameraData!=null)cameraData.antialiasing=quality>0?AntialiasingMode.FastApproximateAntialiasing:AntialiasingMode.None;}
+        void ApplyQuality(){quality=SaveSystem.Data.Quality;if(profile!=null&&profile.TryGet<Bloom>(out var bloom))bloom.active=authoredBloom&&quality>0;if(cameraData!=null)cameraData.antialiasing=quality>0?AntialiasingMode.FastApproximateAntialiasing:AntialiasingMode.None;}
         void OnDestroy(){if(profile!=null){foreach(var component in profile.components)if(component!=null)Destroy(component);Destroy(profile);}}
     }
 }
