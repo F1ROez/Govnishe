@@ -16,6 +16,13 @@ namespace Brainrot.Editor {
    const string path=Root+"/Resources/GameBalance.asset";
    var balance=AssetDatabase.LoadAssetAtPath<GameBalance>(path);
    if(balance==null){balance=ScriptableObject.CreateInstance<GameBalance>();AssetDatabase.CreateAsset(balance,path);AssetDatabase.SaveAssets();}
+   // Upgrade only the old factory colours; keep colours edited by the owner.
+   if(balance.Ocean!=null){
+    bool changed=false;
+    if(balance.Ocean.DeepColor==new Color(.015f,.35f,.55f)){balance.Ocean.DeepColor=new Color(.015f,.49f,.73f);changed=true;}
+    if(balance.Ocean.ShallowColor==new Color(.12f,.75f,.78f)){balance.Ocean.ShallowColor=new Color(.04f,.83f,.78f);changed=true;}
+    if(changed){EditorUtility.SetDirty(balance);AssetDatabase.SaveAssets();}
+   }
    return balance;
   }
   public static PlayerCharacterDefinition EnsureCharacter(){
@@ -51,7 +58,7 @@ namespace Brainrot.Editor {
   }
   static void EnsureAtmosphere(){
    const string path=Root+"/Resources/IslandAtmosphere.asset";
-   var profile=AssetDatabase.LoadAssetAtPath<VolumeProfile>(path);const string marker="Brainrot.DaylightPreset=2";
+   var profile=AssetDatabase.LoadAssetAtPath<VolumeProfile>(path);const string marker="Brainrot.DaylightPreset=3";
    var settings=AssetImporter.GetAtPath(path);
    if(profile!=null&&settings!=null&&(settings.userData??"").Contains(marker))return;
    if(profile==null){profile=WorldAtmosphere.CreateProfile(true);AssetDatabase.CreateAsset(profile,path);}

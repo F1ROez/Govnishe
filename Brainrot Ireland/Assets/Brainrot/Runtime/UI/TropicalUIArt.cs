@@ -8,13 +8,27 @@ namespace Brainrot
     public static class TropicalUIArt
     {
         [Serializable] sealed class Layout {public Entry[] sprites;}
-        [Serializable] sealed class Entry {public string name;public float x,y,width,height,border;}
+        [Serializable] sealed class Entry {public string name,resource;public float x,y,width,height,border;}
         static readonly Dictionary<string,Sprite> sprites=new Dictionary<string,Sprite>();
         static bool loaded;
         static Sprite wood,blue;
         public static Sprite Get(string name){
-            if(!loaded){loaded=true;var texture=Resources.Load<Texture2D>("TropicalUIAtlas");var json=Resources.Load<TextAsset>("TropicalUIAtlasLayout");
-                if(texture!=null&&json!=null){try{var layout=JsonUtility.FromJson<Layout>(json.text);if(layout!=null&&layout.sprites!=null)foreach(var entry in layout.sprites){if(entry.width<=0||entry.height<=0)continue;var rect=new Rect(entry.x,texture.height-entry.y-entry.height,entry.width,entry.height);if(rect.xMin<0||rect.yMin<0||rect.xMax>texture.width||rect.yMax>texture.height)continue;var border=entry.name=="LogoPlaque"?new Vector4(75,35,40,68):Vector4.one*entry.border;var sprite=Sprite.Create(texture,rect,new Vector2(.5f,.5f),100,0,SpriteMeshType.FullRect,border);sprite.name=entry.name;sprites[entry.name]=sprite;}}catch(Exception e){Debug.LogWarning("Не удалось прочитать оформление UI: "+e.Message);}}
+            if(!loaded){loaded=true;var json=Resources.Load<TextAsset>("TropicalUIAtlasLayout");
+                if(json!=null){try{
+                    var textures=new Dictionary<string,Texture2D>();
+                    var layout=JsonUtility.FromJson<Layout>(json.text);
+                    if(layout!=null&&layout.sprites!=null)foreach(var entry in layout.sprites){
+                        if(string.IsNullOrEmpty(entry.name)||entry.width<=0||entry.height<=0)continue;
+                        string resource=string.IsNullOrEmpty(entry.resource)?"TropicalUIAtlas":entry.resource;
+                        if(!textures.TryGetValue(resource,out var texture)){texture=Resources.Load<Texture2D>(resource);textures[resource]=texture;}
+                        if(texture==null){Debug.LogWarning("Не найден лист оформления: "+resource);continue;}
+                        var rect=new Rect(entry.x,texture.height-entry.y-entry.height,entry.width,entry.height);
+                        if(rect.xMin<0||rect.yMin<0||rect.xMax>texture.width||rect.yMax>texture.height){Debug.LogWarning("Рамка за пределами листа: "+entry.name);continue;}
+                        var border=Vector4.one*Mathf.Clamp(entry.border,0,Mathf.Min(entry.width,entry.height)*.5f);
+                        var sprite=Sprite.Create(texture,rect,new Vector2(.5f,.5f),100,0,SpriteMeshType.FullRect,border);
+                        sprite.name=entry.name;sprites[entry.name]=sprite;
+                    }
+                }catch(Exception e){Debug.LogWarning("Не удалось прочитать оформление UI: "+e.Message);}}
             }
             if(sprites.TryGetValue(name,out var found))return found;
             if(name=="HeavyIcon")return CartoonUI.Heavy;if(name=="DashIcon")return CartoonUI.Dash;

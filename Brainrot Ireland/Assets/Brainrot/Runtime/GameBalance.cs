@@ -232,8 +232,8 @@ namespace Brainrot
         [Min(1)]public float WarningLead=12;
     }
     [Serializable] public sealed class OceanTuning {
-        public Color DeepColor=new Color(.015f,.35f,.55f);
-        public Color ShallowColor=new Color(.12f,.75f,.78f);
+        public Color DeepColor=new Color(.015f,.49f,.73f);
+        public Color ShallowColor=new Color(.04f,.83f,.78f);
         [Range(0,2)]public float WaveSpeed=.6f;
         [Range(.05f,2)]public float WaveScale=.45f;
         [Range(0,.5f)]public float WaveStrength=.12f;

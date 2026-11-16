@@ -74,11 +74,34 @@ namespace Brainrot
         }
         public static void Typography(Text text,bool heading=false){text.font=Font;text.fontStyle=heading?FontStyle.Bold:FontStyle.Normal;text.color=Cream;text.resizeTextForBestFit=true;text.resizeTextMinSize=Mathf.Min(text.fontSize,Mathf.Max(8,text.fontSize-4));text.resizeTextMaxSize=text.fontSize;text.verticalOverflow=VerticalWrapMode.Truncate;var outline=text.gameObject.AddComponent<Outline>();outline.effectColor=new Color(.19f,.095f,.035f,.95f);outline.effectDistance=new Vector2(1.5f,-1.5f);var shadow=text.gameObject.AddComponent<Shadow>();shadow.effectColor=new Color(.09f,.07f,.04f,.6f);shadow.effectDistance=new Vector2(0,-3);}
         public static void StyleButton(Button button,bool primary=false){
-            var image=button.GetComponent<Image>();image.sprite=TropicalUIArt.Get(primary?"WoodButtonGold":"WoodButton");image.type=image.sprite.border.sqrMagnitude>.01f?UnityEngine.UI.Image.Type.Sliced:UnityEngine.UI.Image.Type.Simple;image.color=Color.white;image.raycastTarget=true;image.pixelsPerUnitMultiplier=1.4f;
+            var image=button.GetComponent<Image>();image.sprite=TropicalUIArt.Get(primary?"GoldButton":"WoodButton");image.type=image.sprite.border.sqrMagnitude>.01f?UnityEngine.UI.Image.Type.Sliced:UnityEngine.UI.Image.Type.Simple;image.color=Color.white;image.raycastTarget=true;image.pixelsPerUnitMultiplier=1.15f;
             var shadow=button.gameObject.AddComponent<Shadow>();shadow.effectDistance=new Vector2(0,-4);shadow.effectColor=new Color(.11f,.065f,.02f,.45f);
             var colors=button.colors;colors.normalColor=Color.white;colors.highlightedColor=new Color(1,1,.86f);colors.pressedColor=new Color(.82f,.76f,.66f);colors.disabledColor=new Color(.48f,.47f,.43f,.86f);colors.fadeDuration=.1f;button.colors=colors;
             button.onClick.AddListener(GameMusic.PlayButtonClick);
             button.gameObject.AddComponent<CartoonButtonMotion>();EnsureTouchTarget(button);
+        }
+        public static void MarkSelected(Button button){
+            var image=button.GetComponent<Image>();image.sprite=TropicalUIArt.Get("BlueButton");image.color=Color.white;
+            image.type=image.sprite.border.sqrMagnitude>.01f?UnityEngine.UI.Image.Type.Sliced:UnityEngine.UI.Image.Type.Simple;
+            var colors=button.colors;colors.normalColor=Color.white;colors.highlightedColor=new Color(.86f,1,1);button.colors=colors;
+        }
+        /// <summary>A real UGUI slider: the complete track accepts clicks, with a generous round gold handle.</summary>
+        public static Slider GlossySlider(string name,Transform parent,Vector2 min,Vector2 max,float minimum,float maximum,float value,UnityEngine.Events.UnityAction<float> changed){
+            var outer=Image(name,parent,min,max,new Color(1,.67f,.025f));outer.raycastTarget=true;
+            Image("Верхний блик рамки",outer.transform,new Vector2(.006f,.16f),new Vector2(.994f,.96f),new Color(1,.96f,.55f));
+            var track=Image("Синий желоб",outer.transform,new Vector2(.008f,.16f),new Vector2(.992f,.84f),new Color(.015f,.11f,.25f));
+            var fill=Image("Бирюзовая шкала",track.transform,Vector2.zero,Vector2.one,new Color(0,.79f,1));
+            Image("Блик шкалы",fill.transform,new Vector2(.018f,.58f),new Vector2(.982f,.94f),new Color(.64f,1,1,.8f));
+            var handleArea=new GameObject("Область ручки",typeof(RectTransform));handleArea.transform.SetParent(outer.transform,false);
+            var area=(RectTransform)handleArea.transform;area.anchorMin=new Vector2(.015f,0);area.anchorMax=new Vector2(.985f,1);area.offsetMin=area.offsetMax=Vector2.zero;
+            var handle=Image("Золотая ручка",area,new Vector2(0,.5f),new Vector2(0,.5f),new Color(.63f,.26f,.01f),Disc);
+            handle.rectTransform.sizeDelta=new Vector2(34,34);handle.raycastTarget=true;
+            Image("Ободок ручки",handle.transform,new Vector2(.055f,.07f),new Vector2(.945f,.96f),new Color(1,.9f,.35f),Disc);
+            Image("Лицевая сторона ручки",handle.transform,new Vector2(.14f,.16f),new Vector2(.86f,.89f),new Color(1,.60f,0),Disc);
+            Image("Солнечный блик",handle.transform,new Vector2(.24f,.57f),new Vector2(.76f,.82f),new Color(1,1,.68f,.75f));
+            var slider=outer.gameObject.AddComponent<Slider>();slider.minValue=minimum;slider.maxValue=maximum;slider.fillRect=fill.rectTransform;slider.handleRect=handle.rectTransform;slider.targetGraphic=handle;slider.value=value;
+            var colors=slider.colors;colors.highlightedColor=new Color(1,1,.8f);colors.pressedColor=new Color(1,.88f,.45f);colors.fadeDuration=.08f;slider.colors=colors;
+            slider.onValueChanged.AddListener(changed);return slider;
         }
         public static void EnsureTouchTarget(Button button){if(Application.isMobilePlatform&&button.GetComponent<CartoonMinimumTouchTarget>()==null)button.gameObject.AddComponent<CartoonMinimumTouchTarget>();}
     }

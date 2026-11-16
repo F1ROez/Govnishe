@@ -2,67 +2,75 @@
   "sprites": [
     {
       "name": "VitalsFrame",
-      "x": 3,
-      "y": 157,
-      "width": 193,
-      "height": 115,
-      "border": 22
+      "resource": "TropicalPanels",
+      "x": 800,
+      "y": 547,
+      "width": 704,
+      "height": 204,
+      "border": 35
     },
     {
       "name": "WoodButton",
-      "x": 202,
-      "y": 176,
-      "width": 192,
-      "height": 92,
-      "border": 25
+      "resource": "TropicalPanels",
+      "x": 12,
+      "y": 58,
+      "width": 744,
+      "height": 185,
+      "border": 30
     },
     {
       "name": "WoodButtonGold",
-      "x": 400,
-      "y": 175,
-      "width": 192,
-      "height": 95,
-      "border": 25
+      "resource": "TropicalPanels",
+      "x": 782,
+      "y": 60,
+      "width": 740,
+      "height": 181,
+      "border": 30
     },
     {
       "name": "StatsStrip",
-      "x": 597,
-      "y": 187,
-      "width": 195,
-      "height": 71,
-      "border": 18
+      "resource": "TropicalPanels",
+      "x": 10,
+      "y": 580,
+      "width": 748,
+      "height": 162,
+      "border": 26
     },
     {
       "name": "HeavyCard",
-      "x": 10,
-      "y": 455,
-      "width": 178,
-      "height": 289,
-      "border": 25
+      "resource": "TropicalIcons",
+      "x": 40,
+      "y": 22,
+      "width": 350,
+      "height": 315,
+      "border": 0
     },
     {
       "name": "DashCard",
-      "x": 209,
-      "y": 455,
-      "width": 178,
-      "height": 289,
-      "border": 25
+      "resource": "TropicalIcons",
+      "x": 410,
+      "y": 22,
+      "width": 346,
+      "height": 315,
+      "border": 0
     },
     {
       "name": "ReadyBadge",
-      "x": 400,
-      "y": 562,
-      "width": 191,
-      "height": 94,
-      "border": 20
+      "resource": "TropicalPanels",
+      "x": 807,
+      "y": 810,
+      "width": 688,
+      "height": 178,
+      "border": 28
     },
     {
       "name": "WavePlaque",
-      "x": 597,
-      "y": 545,
-      "width": 196,
-      "height": 110,
-      "border": 28
+      "resource": "TropicalPanels",
+      "x": 8,
+      "y": 266,
+      "width": 752,
+      "height": 246,
+      "border": 0
     },
     {
       "name": "HeavyIcon",
@@ -82,82 +90,173 @@
     },
     {
       "name": "PauseIcon",
-      "x": 402,
-      "y": 899,
-      "width": 186,
-      "height": 192,
+      "resource": "TropicalIcons",
+      "x": 1144,
+      "y": 49,
+      "width": 357,
+      "height": 266,
       "border": 0
     },
     {
       "name": "SoundIcon",
-      "x": 602,
-      "y": 899,
-      "width": 185,
-      "height": 192,
+      "resource": "TropicalIcons",
+      "x": 775,
+      "y": 50,
+      "width": 345,
+      "height": 265,
       "border": 0
     },
     {
       "name": "LogoPlaque",
-      "x": 1,
-      "y": 1307,
-      "width": 197,
-      "height": 162,
-      "border": 32
+      "resource": "TropicalPanels",
+      "x": 8,
+      "y": 266,
+      "width": 752,
+      "height": 246,
+      "border": 0
     },
     {
       "name": "Portrait",
-      "x": 201,
-      "y": 1285,
-      "width": 194,
-      "height": 209,
+      "resource": "TropicalIcons",
+      "x": 57,
+      "y": 357,
+      "width": 315,
+      "height": 311,
       "border": 0
     },
     {
       "name": "ControlsPanel",
-      "x": 398,
-      "y": 1365,
-      "width": 196,
-      "height": 66,
-      "border": 20
-    },
-    {
-      "name": "RoundButton",
-      "x": 602,
-      "y": 1300,
-      "width": 185,
-      "height": 188,
-      "border": 0
-    },
-    {
-      "name": "StageRibbon",
-      "x": 1,
-      "y": 1736,
-      "width": 197,
-      "height": 95,
-      "border": 22
-    },
-    {
-      "name": "WoodPanel",
-      "x": 204,
-      "y": 1661,
-      "width": 189,
-      "height": 236,
-      "border": 32
-    },
-    {
-      "name": "WaveAccent",
-      "x": 401,
-      "y": 1699,
-      "width": 190,
+      "resource": "TropicalPanels",
+      "x": 16,
+      "y": 820,
+      "width": 736,
       "height": 152,
       "border": 0
     },
     {
+      "name": "RoundButton",
+      "resource": "TropicalIcons",
+      "x": 1144,
+      "y": 49,
+      "width": 357,
+      "height": 266,
+      "border": 0
+    },
+    {
+      "name": "StageRibbon",
+      "resource": "TropicalPanels",
+      "x": 782,
+      "y": 318,
+      "width": 740,
+      "height": 162,
+      "border": 0
+    },
+    {
+      "name": "WoodPanel",
+      "resource": "TropicalBoard",
+      "x": 0,
+      "y": 0,
+      "width": 1254,
+      "height": 1254,
+      "border": 0
+    },
+    {
+      "name": "WaveAccent",
+      "resource": "TropicalPanels",
+      "x": 782,
+      "y": 318,
+      "width": 740,
+      "height": 162,
+      "border": 0
+    },
+    {
       "name": "LeafAccent",
-      "x": 599,
-      "y": 1699,
-      "width": 193,
-      "height": 167,
+      "resource": "TropicalIcons",
+      "x": 1137,
+      "y": 706,
+      "width": 371,
+      "height": 283,
+      "border": 0
+    },
+    {
+      "name": "GoldButton",
+      "resource": "TropicalPanels",
+      "x": 782,
+      "y": 60,
+      "width": 740,
+      "height": 181,
+      "border": 30
+    },
+    {
+      "name": "HeaderPlaque",
+      "resource": "TropicalPanels",
+      "x": 8,
+      "y": 266,
+      "width": 752,
+      "height": 246,
+      "border": 0
+    },
+    {
+      "name": "BlueButton",
+      "resource": "TropicalPanels",
+      "x": 800,
+      "y": 547,
+      "width": 704,
+      "height": 204,
+      "border": 35
+    },
+    {
+      "name": "MenuPlay",
+      "resource": "TropicalIcons",
+      "x": 458,
+      "y": 379,
+      "width": 246,
+      "height": 268,
+      "border": 0
+    },
+    {
+      "name": "MenuNew",
+      "resource": "TropicalIcons",
+      "x": 774,
+      "y": 397,
+      "width": 343,
+      "height": 238,
+      "border": 0
+    },
+    {
+      "name": "MenuRecords",
+      "resource": "TropicalIcons",
+      "x": 1152,
+      "y": 369,
+      "width": 336,
+      "height": 288,
+      "border": 0
+    },
+    {
+      "name": "MenuSettings",
+      "resource": "TropicalIcons",
+      "x": 55,
+      "y": 688,
+      "width": 317,
+      "height": 315,
+      "border": 0
+    },
+    {
+      "name": "MenuExit",
+      "resource": "TropicalIcons",
+      "x": 443,
+      "y": 687,
+      "width": 307,
+      "height": 309,
+      "border": 0
+    },
+    {
+      "name": "FlowerAccent",
+      "resource": "TropicalIcons",
+      "x": 772,
+      "y": 699,
+      "width": 363,
+      "height": 296,
       "border": 0
     }
   ]
