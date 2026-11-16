@@ -258,6 +258,42 @@
       "width": 363,
       "height": 296,
       "border": 0
+    },
+    {
+      "name": "ReferenceMainMenu",
+      "resource": "ReferenceMainMenu",
+      "x": 0,
+      "y": 0,
+      "width": 1672,
+      "height": 941,
+      "border": 0
+    },
+    {
+      "name": "ReferencePause",
+      "resource": "ReferencePause",
+      "x": 0,
+      "y": 0,
+      "width": 1448,
+      "height": 1086,
+      "border": 0
+    },
+    {
+      "name": "ReferenceSettings",
+      "resource": "ReferenceSettings",
+      "x": 0,
+      "y": 0,
+      "width": 1448,
+      "height": 1086,
+      "border": 0
+    },
+    {
+      "name": "ReferenceMenuScene",
+      "resource": "TropicalMenuBackdrop",
+      "x": 0,
+      "y": 0,
+      "width": 1672,
+      "height": 941,
+      "border": 0
     }
   ]
 }

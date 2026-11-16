@@ -186,7 +186,7 @@ namespace Brainrot
             }
             else if(gm.State==GameState.Paused)
             {
-                Title("ПАУЗА");MenuButton("ПРОДОЛЖИТЬ",.49f,()=>gm.Resume());MenuButton("НАСТРОЙКИ",.345f,ShowSettings);MenuButton("ГЛАВНОЕ МЕНЮ",.20f,()=>gm.MainMenu());
+                ClearOverlay();ReferenceScreens.Pause(ReferenceScreens.Viewport(overlay.transform,"Пауза 16:9"),()=>gm.Resume(),ShowSettings,()=>gm.MainMenu());
             }
             else if(gm.State==GameState.Dead)
             {
@@ -223,26 +223,11 @@ namespace Brainrot
             ClearScreen();Title("ЛЕГЕНДЫ ОСТРОВА");var d=SaveSystem.Data;
             Label(overlay.transform,$"ВРЕМЯ ВЫЖИВАНИЯ    {TimeLabel(d.BestTime)}\n\nПОБЕЖДЕНО ВРАГОВ    {d.BestKills}",29,TextAnchor.MiddleCenter,new Vector2(.29f,.33f),new Vector2(.71f,.66f));MenuButton("НАЗАД",.16f,BuildScreen);
         }
+        void ClearOverlay(){foreach(Transform child in overlay.transform){child.gameObject.SetActive(false);Destroy(child.gameObject);}}
         void ShowSettings()
         {
-            ClearScreen();Title("НАСТРОЙКИ");screenShade.color=new Color(.025f,.04f,.065f,.08f);
-            SettingSlider("ГРОМКОСТЬ",.57f,0,1,SaveSystem.Data.Volume,v=>{SaveSystem.Data.Volume=v;GameMusic.ApplyVolume();SaveSystem.Save();});
-            SettingSlider("ЧУВСТВИТЕЛЬНОСТЬ МЫШИ",.45f,.2f,3,SaveSystem.Data.Sensitivity,v=>{SaveSystem.Data.Sensitivity=v;SaveSystem.Save();});
-            bool locked=GameManager.Instance.Player!=null?GameManager.Instance.Player.CameraLocked:SaveSystem.Data.CameraLocked;
-            Button(overlay.transform,"ФИКСАЦИЯ КАМЕРЫ: "+(locked?"ВКЛ":"ВЫКЛ"),new Vector2(.29f,.355f),new Vector2(.71f,.405f),()=>{
-                var player=GameManager.Instance.Player;
-                if(player!=null)player.SetCameraLock(!player.CameraLocked);
-                else {SaveSystem.Data.CameraLocked=!SaveSystem.Data.CameraLocked;SaveSystem.Data.HasCameraPreference=true;SaveSystem.Save();}
-                ShowSettings();
-            });
-            Button(overlay.transform,"КОНТУР УДАРА: "+(SaveSystem.Data.ShowAttackRange?"ВКЛ":"ВЫКЛ"),new Vector2(.29f,.28f),new Vector2(.71f,.33f),()=>{
-                SaveSystem.Data.ShowAttackRange=!SaveSystem.Data.ShowAttackRange;SaveSystem.Save();ShowSettings();
-            });
-            Label(overlay.transform,"КАЧЕСТВО ГРАФИКИ",16,TextAnchor.MiddleCenter,new Vector2(.2f,.235f),new Vector2(.8f,.27f));
-            QualityButton("НИЗКОЕ",.29f,.42f,0);
-            QualityButton("СРЕДНЕЕ",.435f,.565f,1);
-            QualityButton("ВЫСОКОЕ",.58f,.71f,2);
-            Button(overlay.transform,"НАЗАД",new Vector2(.37f,.08f),new Vector2(.63f,.155f),BuildScreen);
+            ClearOverlay();screenShade.color=new Color(.025f,.04f,.065f,.12f);
+            ReferenceScreens.Settings(ReferenceScreens.Viewport(overlay.transform,"Настройки 16:9"),BuildScreen);
         }
 
         public void ShowHit(bool critical,int count=1)
