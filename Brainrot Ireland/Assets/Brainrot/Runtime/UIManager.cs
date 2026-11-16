@@ -28,7 +28,7 @@ namespace Brainrot
         GameState shownState = (GameState)(-1);
         int shownLevel = -1;
         int shownHealth=int.MinValue,shownMaxHealth=int.MinValue,shownStamina=int.MinValue,shownMaxStamina=int.MinValue;
-        int shownWave=int.MinValue,shownRemaining=int.MinValue,shownSeconds=int.MinValue,shownKills=int.MinValue;
+        int shownWave=int.MinValue,shownRemaining=int.MinValue,shownKills=int.MinValue;
         int shownChargeMode=-1,shownChargePercent=-1,shownCameraMode=-1;
         string shownStage;
         readonly Color ink = CartoonUI.Ink;
@@ -54,18 +54,17 @@ namespace Brainrot
             healthText=Label(plate.transform,"ЗДОРОВЬЕ",16,TextAnchor.MiddleCenter,new Vector2(.28f,.55f),new Vector2(.94f,.87f));
             xpText=Label(plate.transform,"ВЫНОСЛИВОСТЬ",13,TextAnchor.MiddleCenter,new Vector2(.28f,.19f),new Vector2(.94f,.49f));
             TropicalUIArt.Place("Портрет Сахура",plate.transform,new Vector2(.012f,.01f),new Vector2(.275f,.99f),"Portrait",true);
-            var wave=TropicalUIArt.Place("Деревянная табличка волны",hud.transform,new Vector2(.355f,.895f),new Vector2(.645f,.999f),"WavePlaque").gameObject;
-            waveTitle=Label(wave.transform,"ВОЛНА 1",29,TextAnchor.MiddleCenter,new Vector2(.18f,.15f),new Vector2(.82f,.85f));waveTitle.color=CartoonUI.Cream;waveTitle.resizeTextMinSize=14;
-            var stage=TropicalUIArt.Place("Лента этапа",hud.transform,new Vector2(.374f,.842f),new Vector2(.626f,.904f),"StageRibbon").gameObject;
-            stageText=Label(stage.transform,"",18,TextAnchor.MiddleCenter,new Vector2(.14f,.12f),new Vector2(.86f,.88f));
-            var score=TropicalUIArt.Place("Время и победы",hud.transform,new Vector2(.379f,.794f),new Vector2(.621f,.845f),"StatsStrip").gameObject;
-            stats=Label(score.transform,"",15,TextAnchor.MiddleCenter,new Vector2(.085f,.12f),new Vector2(.915f,.9f));stats.color=CartoonUI.Ink;stats.GetComponent<Outline>().effectColor=new Color(1,.95f,.8f,.8f);
+            var wave=Box("Компактная волна",hud.transform,new Vector2(.38f,.865f),new Vector2(.62f,.982f),new Color(.045f,.18f,.23f,.94f));
+            waveTitle=Label(wave.transform,"ВОЛНА 1",20,TextAnchor.MiddleLeft,new Vector2(.06f,.60f),new Vector2(.47f,.94f));
+            stageText=Label(wave.transform,"",13,TextAnchor.MiddleRight,new Vector2(.50f,.61f),new Vector2(.94f,.94f));
+            stats=Label(wave.transform,"",12,TextAnchor.MiddleRight,new Vector2(.51f,.08f),new Vector2(.94f,.36f));
             var soundButton=RoundButton("Звук",new Vector2(.891f,.905f),new Vector2(.936f,.985f),"SoundIcon",()=>GameMusic.ToggleMute());
             soundMute=Label(soundButton.transform,"×",19,TextAnchor.MiddleCenter,new Vector2(.55f,.01f),new Vector2(.99f,.46f));soundMute.color=new Color(1,.35f,.25f);
             RoundButton("Пауза",new Vector2(.943f,.905f),new Vector2(.988f,.985f),"PauseIcon",()=>GameManager.Instance.Pause());
-            waveMeter=QuestHUD.Meter(hud.transform,"Ход волны",new Vector2(.397f,.779f),new Vector2(.603f,.794f),new Color(.08f,.88f,1));
-            waveProgressText=Label(hud.transform,"",12,TextAnchor.MiddleCenter,new Vector2(.385f,.752f),new Vector2(.615f,.779f));waveProgressText.color=CartoonUI.Cream;
-            var waveBanner=Box("Событие волны",hud.transform,new Vector2(.325f,.66f),new Vector2(.675f,.75f),Color.clear);
+            waveMeter=QuestHUD.Meter(wave.transform,"Ход волны",new Vector2(.06f,.43f),new Vector2(.94f,.53f),new Color(.32f,.73f,.68f));
+            waveMeter.GetComponent<Image>().color=new Color(.3f,.49f,.51f);
+            waveProgressText=Label(wave.transform,"",12,TextAnchor.MiddleLeft,new Vector2(.06f,.08f),new Vector2(.51f,.36f));
+            var waveBanner=Box("Событие волны",hud.transform,new Vector2(.355f,.765f),new Vector2(.645f,.85f),Color.clear);
             waveNotice=waveBanner.AddComponent<HudWaveNotice>();waveNotice.Build();
             notification=Label(hud.transform,"",20,TextAnchor.MiddleCenter,new Vector2(.20f,.60f),new Vector2(.80f,.66f));notification.color=gold;
             var controls=TropicalUIArt.Place("Подсказки управления",hud.transform,new Vector2(.135f,.018f),new Vector2(.865f,.085f),"ControlsPanel").gameObject;
@@ -104,11 +103,11 @@ namespace Brainrot
         {
             if (canvas == null || GameManager.Instance == null) return;
             var gm=GameManager.Instance;
-            bool hudVisible=gm.State==GameState.Playing || gm.State==GameState.Paused || gm.State==GameState.Upgrade || gm.State==GameState.Map;
+            bool hudVisible=gm.State==GameState.Playing || gm.State==GameState.Map;
             SetActive(hud,hudVisible);
             SetActive(mobile,Application.isMobilePlatform && gm.State==GameState.Playing);
             SetActive(overlay,gm.State!=GameState.Playing&&gm.State!=GameState.Map);
-            if(shownState!=gm.State)screenShade.color=new Color(.025f,.025f,.025f,gm.State==GameState.Paused?.18f:.3f);
+            if(shownState!=gm.State)screenShade.color=new Color(.025f,.025f,.025f,gm.State==GameState.Paused?.42f:.3f);
             if(hudVisible)RefreshHud(gm);
             mapExpanded=gm.State==GameState.Map;
             SetActive(fullMap,mapExpanded);
@@ -138,17 +137,16 @@ namespace Brainrot
             string stage=gm.Spawner.Waves.Stage;int remaining=Mathf.CeilToInt(gm.Spawner.Waves.Remaining);
             int alive=gm.Spawner.Active.Count;
             bool clearing=gm.Spawner.Waves.WaitingForClear;
-            if(stage!=shownStage||remaining!=shownRemaining||alive!=shownAlive){shownStage=stage;shownRemaining=remaining;shownAlive=alive;stageText.text=clearing?$"ЗАЧИСТКА · ОСТАЛОСЬ {alive}":$"{stage} · {remaining} с";}
+            if(stage!=shownStage||remaining!=shownRemaining||alive!=shownAlive){shownStage=stage;shownRemaining=remaining;shownAlive=alive;stageText.text=clearing?"ЗАЧИСТКА":stage=="ПОДКРЕПЛЕНИЯ"?"ПОДКРЕПЛЕНИЯ":$"{stage} · {remaining} с";}
             int resolved=gm.Spawner.WaveResolved,planned=gm.Spawner.WavePlanned;
-            if(resolved!=shownWaveResolved||planned!=shownWavePlanned){shownWaveResolved=resolved;shownWavePlanned=planned;waveProgressText.text=planned>0?$"УСТРАНЕНО {Mathf.Min(resolved,planned)} / {planned}":"ОКЕАН ГОТОВИТ НОВУЮ ВОЛНУ";}
+            if(resolved!=shownWaveResolved||planned!=shownWavePlanned){shownWaveResolved=resolved;shownWavePlanned=planned;waveProgressText.text=planned>0?$"ПРОЙДЕНО {Mathf.Min(resolved,planned)} / {planned}":"ПОДГОТОВКА";}
             waveMeter.Set(gm.Spawner.WaveCompletion);
             if(gm.IsPlaying){
                 if(announcedWave!=wave){announcedWave=wave;announcedClear=false;waveMeter.Set(gm.Spawner.WaveCompletion,true);waveNotice.Show(wave,false,gm.Goals!=null?gm.Goals.WaveEventText:"");GameAudio.PlayWave();}
                 bool complete=gm.Spawner.Waves.Resting&&!clearing;
                 if(complete&&!announcedClear){announcedClear=true;waveNotice.Show(wave,true,"");GameAudio.PlayWave(true);}
             }
-            int seconds=Mathf.Max(0,Mathf.FloorToInt(gm.Elapsed));
-            if(seconds!=shownSeconds||gm.Kills!=shownKills){shownSeconds=seconds;shownKills=gm.Kills;stats.text=$"{TimeLabel(seconds)}   |   Побеждено: {gm.Kills}";}
+            if(gm.Kills!=shownKills){shownKills=gm.Kills;stats.text=$"ПОБЕД: {gm.Kills}";}
             SetActive(capturePanel,player!=null&&player.IsCaptured);if(player!=null)escapeFill.fillAmount=player.EscapeProgress;
             notification.text=gm.Notification ?? "";SetActive(soundMute.gameObject,GameMusic.IsMuted);
             SetActive(controlsLegend,gm.IsPlaying&&!Application.isMobilePlatform);SetActive(aimHint.gameObject,gm.IsPlaying);SetActive(notification.gameObject,gm.IsPlaying);
@@ -226,7 +224,7 @@ namespace Brainrot
         }
         void BuildScreen()
         {
-            ClearScreen();var gm=GameManager.Instance;screenShade.color=new Color(.025f,.04f,.065f,gm.State==GameState.Paused?.18f:.3f);
+            ClearScreen();var gm=GameManager.Instance;screenShade.color=new Color(.025f,.04f,.065f,gm.State==GameState.Paused?.42f:.3f);
             if(gm.State==GameState.Menu)
             {
                 Title("ОСТРОВ САХУРА");
@@ -276,7 +274,7 @@ namespace Brainrot
         void ClearOverlay(){foreach(Transform child in overlay.transform){child.gameObject.SetActive(false);Destroy(child.gameObject);}}
         void ShowSettings()
         {
-            ClearOverlay();screenShade.color=new Color(.025f,.04f,.065f,.12f);
+            ClearOverlay();screenShade.color=new Color(.025f,.04f,.065f,.42f);
             ReferenceScreens.Settings(ReferenceScreens.Viewport(overlay.transform,"Настройки 16:9"),BuildScreen);
         }
 

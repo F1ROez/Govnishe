@@ -115,6 +115,7 @@ namespace Brainrot
     public sealed class CartoonButtonMotion:MonoBehaviour,IPointerEnterHandler,IPointerExitHandler,IPointerDownHandler,IPointerUpHandler,ISelectHandler,IDeselectHandler
     {
         public Transform VisualTarget;
+        public Color BaseColor=Color.white;
         bool hover,pressed,selected;Button button;float scale=1,velocity;Graphic face;
         void Awake(){button=GetComponent<Button>();}
         public void Tick(float delta){
@@ -126,7 +127,7 @@ namespace Brainrot
             if(Mathf.Abs(scale-target)<.0001f){scale=target;velocity=0;}
             if(!Mathf.Approximately(visual.localScale.x,scale))visual.localScale=Vector3.one*scale;
             if(face==null&&button!=null)face=button.targetGraphic;
-            if(face!=null&&VisualTarget!=null)face.color=active?Color.white:new Color(.64f,.64f,.64f,.90f);
+            if(face!=null&&VisualTarget!=null)face.color=active?BaseColor:BaseColor*new Color(.64f,.64f,.64f,.90f);
         }
         void Update(){Tick(Time.unscaledDeltaTime);}
         public void OnPointerEnter(PointerEventData data){hover=true;}

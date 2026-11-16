@@ -35,16 +35,20 @@ namespace Brainrot.Tests
                 Assert.AreEqual(1,button.targetGraphic.transform.localScale.x,.001f);
             }finally{Object.DestroyImmediate(parent);}
         }
-        [Test]public void PauseButtonsKeepSeparateActionsAndStayOnPaintedButtonRows(){
+        [Test]public void PauseButtonsKeepSeparateActionsAndDoNotOverlap(){
             var parent=new GameObject("Pause",typeof(RectTransform));int resume=0,settings=0,menu=0;
             try{
                 parent.GetComponent<RectTransform>().sizeDelta=new Vector2(1280,720);
                 var viewport=ReferenceScreens.Viewport(parent.transform,"Reference");
                 ReferenceScreens.Pause(viewport,()=>resume++,()=>settings++,()=>menu++);
                 var buttons=parent.GetComponentsInChildren<Button>();Assert.AreEqual(3,buttons.Length);
+                float previousBottom=1;
                 foreach(var button in buttons){
                     var image=button.GetComponent<Image>();Assert.IsTrue(image.raycastTarget);
-                    var rect=(RectTransform)button.transform;Assert.Greater(rect.anchorMin.x,.2f);Assert.Less(rect.anchorMax.x,.8f);
+                    var rect=(RectTransform)button.transform;Assert.GreaterOrEqual(rect.anchorMin.x,0);Assert.LessOrEqual(rect.anchorMax.x,1);
+                    Assert.LessOrEqual(rect.anchorMax.y,previousBottom);previousBottom=rect.anchorMin.y;
+                    var motion=button.GetComponent<CartoonButtonMotion>();var color=button.targetGraphic.color;
+                    motion.OnPointerEnter(null);motion.Tick(.1f);Assert.AreEqual(color,button.targetGraphic.color);
                     button.onClick.Invoke();
                 }
                 Assert.AreEqual(1,resume);Assert.AreEqual(1,settings);Assert.AreEqual(1,menu);

@@ -33,53 +33,98 @@ namespace Brainrot
             image.gameObject.AddComponent<CartoonButtonMotion>().VisualTarget=visual.transform;
             button.onClick.AddListener(GameMusic.PlayButtonClick);button.onClick.AddListener(action);CartoonUI.EnsureTouchTarget(button);return button;
         }
+        static readonly Color Sea = new Color(.065f,.22f,.27f);
+        static readonly Color Mint = new Color(.32f,.73f,.68f);
+        static readonly Color Paper = new Color(.94f,.96f,.88f);
+        public static Image Surface(Transform parent,string name,float x,float y,float w,float h,Color color){
+            var image=CartoonUI.Image(name,parent,Vector2.zero,Vector2.one,color);Rect(image.rectTransform,x,y,w,h);return image;
+        }
+        static Text SeaText(Transform parent,string value,int size,float x,float y,float w,float h){
+            var text=Text(parent,value,size,x,y,w,h);text.color=Paper;
+            text.GetComponent<Outline>().effectColor=new Color(.025f,.10f,.13f,.65f);text.GetComponent<Outline>().effectDistance=new Vector2(.7f,-.7f);
+            text.GetComponent<Shadow>().effectColor=Color.clear;return text;
+        }
+        static Transform Panel(Transform viewport,string title,float x,float y,float w,float h){
+            Surface(viewport,"Мягкая тень",x,y+.012f,w,h,new Color(.01f,.06f,.09f,.35f));
+            var rim=Surface(viewport,"Морская рамка",x,y,w,h,new Color(.30f,.53f,.53f));
+            var body=Surface(rim.transform,"Матовая панель",.003f,.004f,.994f,.992f,Sea).transform;
+            Surface(body,"Акцент",.075f,.035f,.12f,.008f,Mint);
+            SeaText(body,title,32,.08f,.065f,.84f,.10f);
+            Surface(body,"Разделитель",.08f,.19f,.84f,.002f,new Color(.5f,.76f,.74f,.25f));
+            var leaf=Art(body,"LeafAccent",.86f,-.035f,.17f,.15f);leaf.preserveAspect=true;leaf.color=new Color(.65f,.83f,.72f);
+            return body;
+        }
+        static Button SeaButton(Transform parent,string title,float x,float y,float w,float h,UnityAction action,int size=22,bool primary=false){
+            var hit=Surface(parent,title,x,y,w,h,Color.clear);hit.raycastTarget=true;
+            var face=Surface(hit.transform,"Кнопка",0,0,1,1,primary?new Color(.16f,.48f,.45f):new Color(.12f,.32f,.37f));
+            Surface(face.transform,"Мягкий верхний край",.04f,.035f,.92f,.018f,new Color(.68f,.90f,.84f,.22f));
+            SeaText(face.transform,title,size,.04f,.12f,.92f,.76f);
+            var button=hit.gameObject.AddComponent<Button>();button.targetGraphic=face;button.transition=Selectable.Transition.None;
+            var motion=hit.gameObject.AddComponent<CartoonButtonMotion>();motion.VisualTarget=face.transform;motion.BaseColor=face.color;
+            button.onClick.AddListener(GameMusic.PlayButtonClick);button.onClick.AddListener(action);CartoonUI.EnsureTouchTarget(button);return button;
+        }
         public static void Pause(Transform viewport,UnityAction resume,UnityAction settings,UnityAction menu){
-            var frame=Art(viewport,"ReferencePause",.23f,.21f,.54f,.72f);
-            Text(frame.transform,"ПАУЗА",62,.27f,.15f,.46f,.12f);
-            var first=Hotspot(frame.transform,"ПРОДОЛЖИТЬ",.235f,.378f,.54f,.132f,resume,32);
-            Hotspot(frame.transform,"НАСТРОЙКИ",.235f,.545f,.54f,.132f,settings,32);
-            Hotspot(frame.transform,"ГЛАВНОЕ МЕНЮ",.235f,.706f,.54f,.132f,menu,29);
+            var frame=Panel(viewport,"ПАУЗА",.3125f,.20f,.375f,.60f);
+            var gm=GameManager.Instance;
+            SeaText(frame,gm!=null?$"Волна {gm.Wave}  ·  Побеждено {gm.Kills}":"ОСТРОВ МОЖЕТ ПОДОЖДАТЬ",16,.08f,.22f,.84f,.06f);
+            var first=SeaButton(frame,"ПРОДОЛЖИТЬ",.10f,.34f,.80f,.14f,resume,24,true);
+            SeaButton(frame,"НАСТРОЙКИ",.10f,.515f,.80f,.14f,settings);
+            SeaButton(frame,"ГЛАВНОЕ МЕНЮ",.10f,.69f,.80f,.14f,menu);
+            SeaText(frame,"ESC — вернуться к игре",13,.1f,.88f,.8f,.05f);
             if(EventSystem.current!=null)EventSystem.current.SetSelectedGameObject(first.gameObject);
         }
         public static void Settings(Transform viewport,UnityAction back){
-            var frame=Art(viewport,"ReferenceSettings",.215f,.205f,.57f,.76f).transform;
-            Text(frame,"НАСТРОЙКИ",43,.24f,.095f,.52f,.12f).color=CartoonUI.Gold;
-            Slider(frame,"ГРОМКОСТЬ",.255f,0,1,SaveSystem.Data.Volume,v=>{SaveSystem.Data.Volume=v;GameMusic.ApplyVolume();SaveSystem.Save();});
-            Slider(frame,"ЧУВСТВИТЕЛЬНОСТЬ МЫШИ",.369f,.2f,3,SaveSystem.Data.Sensitivity,v=>{SaveSystem.Data.Sensitivity=v;SaveSystem.Save();});
+            var frame=Panel(viewport,"НАСТРОЙКИ",.275f,.105f,.45f,.79f);
+            Slider(frame,"ГРОМКОСТЬ",.225f,0,1,SaveSystem.Data.Volume,v=>{SaveSystem.Data.Volume=v;GameMusic.ApplyVolume();SaveSystem.Save();});
+            Slider(frame,"ЧУВСТВИТЕЛЬНОСТЬ МЫШИ",.355f,.2f,3,SaveSystem.Data.Sensitivity,v=>{SaveSystem.Data.Sensitivity=v;SaveSystem.Save();});
             var player=GameManager.Instance!=null?GameManager.Instance.Player:null;bool locked=player!=null?player.CameraLocked:SaveSystem.Data.CameraLocked;
-            Button camera=null,range=null;
-            camera=Hotspot(frame,"ФИКСАЦИЯ КАМЕРЫ: "+(locked?"ВКЛ":"ВЫКЛ"),.18f,.485f,.66f,.087f,()=>{
+            Button camera=null,range=null,shake=null;
+            camera=SeaButton(frame,"ФИКСАЦИЯ КАМЕРЫ: "+(locked?"ВКЛ":"ВЫКЛ"),.08f,.485f,.84f,.075f,()=>{
                 locked=!locked;if(player!=null)player.SetCameraLock(locked);else{SaveSystem.Data.CameraLocked=locked;SaveSystem.Data.HasCameraPreference=true;SaveSystem.Save();}
                 camera.GetComponentInChildren<Text>().text="ФИКСАЦИЯ КАМЕРЫ: "+(locked?"ВКЛ":"ВЫКЛ");
-            },23);
-            range=Hotspot(frame,"КОНТУР УДАРА: "+(SaveSystem.Data.ShowAttackRange?"ВКЛ":"ВЫКЛ"),.18f,.582f,.66f,.087f,()=>{
+            },18);
+            range=SeaButton(frame,"КОНТУР УДАРА: "+(SaveSystem.Data.ShowAttackRange?"ВКЛ":"ВЫКЛ"),.08f,.575f,.84f,.075f,()=>{
                 SaveSystem.Data.ShowAttackRange=!SaveSystem.Data.ShowAttackRange;SaveSystem.Save();range.GetComponentInChildren<Text>().text="КОНТУР УДАРА: "+(SaveSystem.Data.ShowAttackRange?"ВКЛ":"ВЫКЛ");
-            },23);
-            Text(frame,"КАЧЕСТВО ГРАФИКИ",20,.29f,.682f,.42f,.045f);
-            Flourish(frame,.21f,.682f,false);Flourish(frame,.72f,.682f,true);
+            },18);
+            bool shaking=SaveSystem.Data.CameraShakeStrength>.01f;
+            shake=SeaButton(frame,"ТРЯСКА КАМЕРЫ: "+(shaking?"ВКЛ":"ВЫКЛ"),.08f,.665f,.84f,.075f,()=>{
+                shaking=!shaking;SaveSystem.Data.CameraShakeStrength=shaking?1:0;SaveSystem.Save();
+                shake.GetComponentInChildren<Text>().text="ТРЯСКА КАМЕРЫ: "+(shaking?"ВКЛ":"ВЫКЛ");
+            },18);
+            SeaText(frame,"КАЧЕСТВО ГРАФИКИ",15,.08f,.758f,.84f,.035f);
             var buttons=new Button[3];string[] titles={"НИЗКОЕ","СРЕДНЕЕ","ВЫСОКОЕ"};
             for(int i=0;i<3;i++){
-                int level=i;float left=.15f+i*.245f;
-                buttons[i]=Hotspot(frame,titles[i],left,.735f,.225f,.08f,()=>{
+                int level=i;
+                buttons[i]=SeaButton(frame,titles[i],.08f+i*.285f,.805f,.27f,.065f,()=>{
                     SaveSystem.Data.Quality=level;GameQuality.Apply(level);SaveSystem.Save();
-                    for(int j=0;j<buttons.Length;j++)buttons[j].targetGraphic.GetComponent<Image>().sprite=TropicalUIArt.Get(j==level?"BlueButton":"GoldButton");
+                    for(int j=0;j<buttons.Length;j++)MarkQuality(buttons[j],j==level,titles[j]);
                 },16);
-                buttons[i].targetGraphic.GetComponent<Image>().sprite=TropicalUIArt.Get(SaveSystem.Data.Quality==i?"BlueButton":"GoldButton");
+                MarkQuality(buttons[i],SaveSystem.Data.Quality==i,titles[i]);
             }
-            Hotspot(frame,"НАЗАД",.30f,.855f,.405f,.10f,back,29);
-            Button shake=null;bool shaking=SaveSystem.Data.CameraShakeStrength>.01f;
-            shake=Hotspot(frame,"ТРЯСКА\n"+(shaking?"ВКЛ":"ВЫКЛ"),.745f,.865f,.15f,.075f,()=>{
-                shaking=!shaking;SaveSystem.Data.CameraShakeStrength=shaking?1:0;SaveSystem.Save();
-                shake.GetComponentInChildren<Text>().text="ТРЯСКА\n"+(shaking?"ВКЛ":"ВЫКЛ");
-            },12);
+            SeaButton(frame,"НАЗАД",.29f,.90f,.42f,.075f,back,20,true);
             if(EventSystem.current!=null)EventSystem.current.SetSelectedGameObject(camera.gameObject);
+        }
+        static void MarkQuality(Button button,bool selected,string title){
+            button.targetGraphic.color=selected?new Color(.16f,.48f,.45f):new Color(.12f,.32f,.37f);
+            button.GetComponent<CartoonButtonMotion>().BaseColor=button.targetGraphic.color;
+            button.GetComponentInChildren<Text>().text=(selected?"• ":"")+title;
         }
         static void Flourish(Transform parent,float x,float y,bool flip){
             var go=new GameObject("Морской завиток",typeof(RectTransform),typeof(WaveFlourish));go.transform.SetParent(parent,false);Rect((RectTransform)go.transform,x,y,.085f,.045f);go.GetComponent<WaveFlourish>().raycastTarget=false;if(flip)go.transform.localScale=new Vector3(-1,1,1);
         }
         static void Slider(Transform frame,string title,float top,float min,float max,float value,UnityAction<float> action){
-            var label=Text(frame,title,21,.19f,top,.62f,.043f);label.alignment=TextAnchor.MiddleLeft;
-            CartoonUI.GlossySlider(title,frame,new Vector2(.19f,1-top-.09f),new Vector2(.81f,1-top-.053f),min,max,value,action);
+            var label=SeaText(frame,title,17,.08f,top,.68f,.035f);label.alignment=TextAnchor.MiddleLeft;
+            var number=SeaText(frame,"",16,.77f,top,.15f,.035f);
+            bool percent=Mathf.Approximately(max,1);
+            number.text=percent?Mathf.RoundToInt(value*100)+"%":value.ToString("0.0")+"×";
+            var hit=Surface(frame,title+" — ползунок",.08f,top+.04f,.84f,.055f,Color.clear);hit.raycastTarget=true;
+            var track=Surface(hit.transform,"Желоб",0,.36f,1,.28f,new Color(.035f,.13f,.18f));
+            var fill=Surface(track.transform,"Заполнение",0,0,1,1,Mint);
+            var handle=CartoonUI.Image("Ручка",hit.transform,new Vector2(0,.5f),new Vector2(0,.5f),Paper,CartoonUI.Disc);
+            handle.rectTransform.sizeDelta=new Vector2(22,22);handle.raycastTarget=true;
+            var slider=hit.gameObject.AddComponent<UnityEngine.UI.Slider>();slider.minValue=min;slider.maxValue=max;
+            slider.fillRect=fill.rectTransform;slider.handleRect=handle.rectTransform;slider.targetGraphic=handle;slider.value=value;
+            slider.onValueChanged.AddListener(v=>{number.text=percent?Mathf.RoundToInt(v*100)+"%":v.ToString("0.0")+"×";action(v);});
         }
     }
     /// <summary>Small canvas flourish, drawn as smooth ribbons without cropped atlas edges.</summary>
