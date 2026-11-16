@@ -5,7 +5,7 @@ namespace Brainrot {
   struct PendingContact {public float Time,Power;public bool Heavy;}
   readonly List<PendingContact> contacts=new List<PendingContact>(16);
   PlayerController player;CharacterVisual visual;AttackRangeVisual rangeVisual;
-  float nextAttack,nextHeavyAttack,chargeStarted;bool charging,inputSuppressed;
+  float nextAttack,nextHeavyAttack,chargeStarted;bool charging,inputSuppressed,chargeReadyEffect;
   public bool IsCharging=>charging;
   public float HeavyCooldownRemaining=>Mathf.Max(0,nextHeavyAttack-Time.time);
   public float HeavyCooldownDuration=>Mathf.Max(.1f,GameBalance.Current.Combat.StrongCooldownSeconds);
@@ -14,22 +14,22 @@ namespace Brainrot {
   public bool IsAttacking=>visual!=null&&visual.AttackActive;
   public void Initialize(PlayerController p,CharacterVisual v){player=p;visual=v;}
   public void SetRangeVisual(AttackRangeVisual value){rangeVisual=value;}
-  public void CancelPendingSwings(){contacts.Clear();charging=false;inputSuppressed=true;if(visual!=null)visual.ResetAttack();}
+  public void CancelPendingSwings(){contacts.Clear();charging=false;chargeReadyEffect=false;inputSuppressed=true;GameAudio.EndCharge();player?.ResetCombatCamera();if(visual!=null)visual.ResetAttack();}
   public void ResetRun(){nextAttack=nextHeavyAttack=0;CancelPendingSwings();}
   public void RestoreHeavyCooldown(float remaining){CancelPendingSwings();nextAttack=Time.time+.2f;nextHeavyAttack=Time.time+Mathf.Clamp(float.IsNaN(remaining)||float.IsInfinity(remaining)?0:remaining,0,HeavyCooldownDuration);}
   public void UpdateAttackInput(bool held){
    var game=GameManager.Instance;if(!isActiveAndEnabled||game==null||!game.IsPlaying||player==null||visual==null||player.IsCaptured||player.Health<=0)return;
    if(inputSuppressed){if(!held)inputSuppressed=false;return;}
-   if(held&&!charging&&Time.time>=nextAttack){charging=true;chargeStarted=Time.time;}
-   if(held&&charging)visual?.SetChargePose(ChargeProgress,HeavyReady);
-   if(!held&&charging){bool heavy=ChargeProgress>=1&&HeavyReady;charging=false;if(!ExecuteAttack(heavy))visual?.SetChargePose(0,false);}
+   if(held&&!charging&&Time.time>=nextAttack){charging=true;chargeStarted=Time.time;chargeReadyEffect=false;if(HeavyReady)GameAudio.BeginCharge();}
+   if(held&&charging){visual?.SetChargePose(ChargeProgress,HeavyReady);GameAudio.SetCharge(ChargeProgress,HeavyReady);if(HeavyReady&&ChargeProgress>=1&&!chargeReadyEffect){chargeReadyEffect=true;visual?.ChargeReady();}}
+   if(!held&&charging){bool heavy=ChargeProgress>=1&&HeavyReady;charging=false;GameAudio.EndCharge();if(!ExecuteAttack(heavy))visual?.SetChargePose(0,false);}
   }
   public void TryAttack(){ExecuteAttack(false);}
   public bool ExecuteAttack(bool heavy){
    var game=GameManager.Instance;if(!isActiveAndEnabled||game==null||!game.IsPlaying||player==null||visual==null||player.IsCaptured||player.Health<=0||Time.time<nextAttack)return false;
    if(heavy&&!HeavyReady)return false;
    // Direct ability/test calls use the same lifecycle as releasing LMB. Keep the visual charge until PlayAttack consumes it.
-   charging=false;
+   charging=false;GameAudio.EndCharge();
    nextAttack=Time.time+Mathf.Max(.12f,player.Stats.AttackInterval);
    if(heavy)nextHeavyAttack=Time.time+HeavyCooldownDuration;
    BeginSwing(heavy?Mathf.Max(1,GameBalance.Current.Combat.StrongDamageMultiplier):1,heavy);return true;
@@ -38,7 +38,7 @@ namespace Brainrot {
    var tuning=GameBalance.Current.Combat;var weapon=player.Character!=null?player.Character.Weapon:null;
    float duration=Mathf.Min(weapon!=null&&weapon.UseCustomTiming?weapon.SwingDuration:tuning.SwingDuration,Mathf.Max(.15f,player.Stats.AttackInterval*.95f));
    float delay=Mathf.Clamp(weapon!=null&&weapon.UseCustomTiming?weapon.ImpactDelay:tuning.ImpactDelay,0,duration*.65f);
-   visual.SetAttackReach(player.Stats.Range);visual.PlayAttack(duration,delay,heavy);player.NotifyAttack();GameAudio.Play(270,.06f,.045f);
+   visual.SetAttackReach(player.Stats.Range);visual.PlayAttack(duration,delay,heavy);player.NotifyAttack();GameAudio.Swing(heavy);
    if(contacts.Count<32)contacts.Add(new PendingContact {Time=Time.time+delay,Power=power,Heavy=heavy});
   }
   void Update(){
@@ -66,9 +66,11 @@ namespace Brainrot {
    var stats=player.Stats;var tuning=GameBalance.Current.Combat;var game=GameManager.Instance;var enemies=game.Spawner.Active;
    var weapon=player.Character!=null?player.Character.Weapon:null;
    float push=tuning.Knockback*Mathf.Max(0,tuning.KnockbackMultiplier)*(weapon!=null?Mathf.Max(0,weapon.KnockbackMultiplier):1);
-   int hits=0;bool anyCritical=false;
+   float visualScale=Mathf.Max(.1f,player.Character!=null?player.Character.VisualScale:1)*Mathf.Max(.1f,GameBalance.Current.PlayerModelScale);
+   BatSwingArc.Play(transform.position+Vector3.up*(1.15f*visualScale),transform.forward,stats.Range,heavy);
+   int hits=0;bool anyCritical=false;Vector3 impactCenter=Vector3.zero;
    for(int i=enemies.Count-1;i>=0;i--){
-    if(i>=enemies.Count)continue;var e=enemies[i];if(!e.Alive)continue;if(Mathf.Abs(e.transform.position.y-transform.position.y)>3)continue;
+    if(i>=enemies.Count)continue;var e=enemies[i];if(e==null||!e.Alive)continue;if(Mathf.Abs(e.transform.position.y-transform.position.y)>3)continue;
     Vector3 delta=e.transform.position-transform.position;delta.y=0;
     var capsule=e.GetComponent<CapsuleCollider>();Vector3 target=e.transform.position;float bodyRadius=0;
     if(capsule!=null){var scale=capsule.transform.lossyScale;bodyRadius=Mathf.Max(0,capsule.radius)*Mathf.Max(Mathf.Abs(scale.x),Mathf.Abs(scale.z));target=capsule.transform.TransformPoint(capsule.center);}
@@ -77,12 +79,15 @@ namespace Brainrot {
     bool critical=melee&&Random.value<stats.CritChance;
     float damage=melee?(stats.Damage+stats.FireDamage)*(critical?2:1)*power:0;if(radial)damage+=stats.Shockwave*power;
     float dealt=Mathf.Min(e.Health,damage);Vector3 direction=delta.sqrMagnitude>.001f?delta.normalized:transform.forward;
-    e.TakeDamage(damage,heavy?direction*Mathf.Max(GameBalance.Current.Bodies.LaunchSpeed,push):Vector3.zero);player.Heal(dealt*stats.Lifesteal);hits++;anyCritical|=critical;
-    HitEffects.Burst(e.transform.position+Vector3.up,stats.FireDamage>0?new Color(1,.35f,.04f):new Color(1,.9f,.75f),critical?10:5);
+    e.TakeDamage(damage,heavy?direction*Mathf.Max(GameBalance.Current.Bodies.LaunchSpeed,push):Vector3.zero);player.Heal(dealt*stats.Lifesteal);hits++;anyCritical|=critical;impactCenter+=e.transform.position;
+    HitEffects.Burst(e.transform.position+Vector3.up,stats.FireDamage>0?new Color(1,.35f,.04f):new Color(1,.9f,.75f),heavy?10:critical?8:4,heavy?1.1f:.45f);
     if(!game.IsPlaying)break;
    }
    rangeVisual?.Pulse(hits>0);
-   if(hits>0){game.ReportHit(anyCritical,hits);GameAudio.Play(anyCritical?400:190,.08f,.15f);}else game.ReportMiss();
+   if(hits>0){
+    game.ReportHit(anyCritical,hits);player.ConfirmBatHit(heavy,hits);GameAudio.Impact(heavy,anyCritical,hits);
+    if(heavy){visual.HoldImpact(GameBalance.Current.Feedback.HitPosePauseSeconds);HitEffects.HeavyImpact(impactCenter/hits,transform.forward);}
+   }else game.ReportMiss();
    if(stats.Shockwave>0)HitEffects.Burst(transform.position+Vector3.up*.3f,Color.white,16);
   }
  }

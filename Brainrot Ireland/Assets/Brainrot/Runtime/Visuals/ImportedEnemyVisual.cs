@@ -15,12 +15,12 @@ namespace Brainrot
         Quaternion[] legRest;
         bool movingKnown,animatorMoving;
         float speed,phase,biteRemaining,biteDuration=.32f;
-        Vector3 restMotion;
+        Vector3 restMotion;Quaternion restRotation=Quaternion.identity;
         static readonly int Moving=UnityEngine.Animator.StringToHash("Moving");
         void Awake(){enemy=GetComponentInParent<EnemyController>();CacheRest();}
         void Start(){CalibrateModel();}
         void CacheRest(){
-            if(MotionRoot!=null)restMotion=MotionRoot.localPosition;
+            if(MotionRoot!=null){restMotion=MotionRoot.localPosition;restRotation=MotionRoot.localRotation;}
             if(LegBones==null)return;
             if(legRest==null||legRest.Length!=LegBones.Length)legRest=new Quaternion[LegBones.Length];
             for(int i=0;i<LegBones.Length;i++)if(LegBones[i]!=null)legRest[i]=LegBones[i].localRotation;
@@ -46,7 +46,7 @@ namespace Brainrot
         public void Animate(float movement,bool attacking){speed=Mathf.Max(0,movement);ApplyMoving();}
         void ApplyMoving(){if(Animator==null||!Animator.isActiveAndEnabled||Animator.runtimeAnimatorController==null)return;bool moving=speed>.05f;if(!movingKnown||moving!=animatorMoving){Animator.SetBool(Moving,moving);animatorMoving=moving;movingKnown=true;}}
         public void PlayBite(float duration=.32f){if(IsOctopus||IsOrcaladon)return;biteDuration=Mathf.Max(.15f,duration);biteRemaining=biteDuration;}
-        public void ResetBite(){biteRemaining=0;if(MotionRoot!=null){MotionRoot.localPosition=restMotion;MotionRoot.localRotation=Quaternion.identity;}}
+        public void ResetBite(){biteRemaining=0;if(MotionRoot!=null){MotionRoot.localPosition=restMotion;MotionRoot.localRotation=restRotation;}}
         public void ResetVisual(){speed=phase=0;ResetBite();if(Orcaladon!=null)Orcaladon.ResetPose();if(legRest!=null)for(int i=0;i<legRest.Length;i++)if(LegBones[i]!=null)LegBones[i].localRotation=legRest[i];if(Animator!=null){if(!Animator.enabled)Animator.enabled=true;movingKnown=false;ApplyMoving();}}
         void LateUpdate(){
             bool physical=enemy!=null&&(!enemy.Alive||(enemy.PhysicsBody!=null&&enemy.PhysicsBody.IsPhysical));
@@ -57,13 +57,13 @@ namespace Brainrot
             if(IsOrcaladon){if(Orcaladon!=null)Orcaladon.Pose(dt,speed);return;}
             if(IsOctopus&&Animator==null){
                 float gait=Mathf.Clamp01(speed/2f);phase=Mathf.Repeat(phase+dt*(gait>0?7.5f:1.7f),Mathf.PI*4);
-                if(MotionRoot!=null){MotionRoot.localPosition=restMotion+Vector3.up*Mathf.Abs(Mathf.Sin(phase))*.065f*gait;MotionRoot.localRotation=Quaternion.Euler(Mathf.Sin(phase*.5f)*2*gait,0,Mathf.Sin(phase)*(gait>0?7:1.5f));}
+                if(MotionRoot!=null){MotionRoot.localPosition=restMotion+Vector3.up*Mathf.Abs(Mathf.Sin(phase))*.065f*gait;MotionRoot.localRotation=restRotation*Quaternion.Euler(Mathf.Sin(phase*.5f)*2*gait,0,Mathf.Sin(phase)*(gait>0?7:1.5f));}
             }else if(!IsOctopus){
                 float gait=Mathf.Clamp01(speed/2f);phase=Mathf.Repeat(phase+dt*Mathf.Lerp(0,9,gait),Mathf.PI*4);
                 if(legRest!=null)for(int i=0;i<legRest.Length;i++)if(LegBones[i]!=null)LegBones[i].localRotation=legRest[i]*Quaternion.Euler(Mathf.Sin(phase+(i==1?Mathf.PI:i==2?Mathf.PI*.5f:0))*26*gait,0,0);
                 float lunge=0;
                 if(biteRemaining>0){biteRemaining=Mathf.Max(0,biteRemaining-dt);float t=1-biteRemaining/biteDuration;lunge=t<.38f?Mathf.SmoothStep(0,1,t/.38f):1-Mathf.SmoothStep(0,1,(t-.38f)/.62f);}
-                if(MotionRoot!=null){MotionRoot.localPosition=restMotion+Vector3.up*(Mathf.Abs(Mathf.Sin(phase))*.045f*gait)+Vector3.forward*(lunge*.48f);MotionRoot.localRotation=Quaternion.Euler(lunge*9,0,Mathf.Sin(phase)*2.5f*gait);}
+                if(MotionRoot!=null){MotionRoot.localPosition=restMotion+Vector3.up*(Mathf.Abs(Mathf.Sin(phase))*.045f*gait)+Vector3.forward*(lunge*.48f);MotionRoot.localRotation=restRotation*Quaternion.Euler(lunge*9,0,Mathf.Sin(phase)*2.5f*gait);}
             }
         }
         void OnDisable(){ResetBite();}

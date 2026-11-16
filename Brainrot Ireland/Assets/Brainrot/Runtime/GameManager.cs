@@ -18,8 +18,8 @@ namespace Brainrot {
   public string Notification {get;private set;}=""; float noticeUntil; UIManager ui;
   void Awake(){ if(Instance!=null&&Instance!=this){Destroy(gameObject);return;} Instance=this;if(!SceneFlow.LoadingGame)InitializeWorld();}
   public void InitializeWorld(){if(initialized)return;initialized=true;Balance=Balance!=null?Balance:GameBalance.Current;Balance.EnsureExploration(); Time.timeScale=1; SaveSystem.Load();GameMusic.ApplyVolume(); Application.targetFrameRate=60;
-   QualitySettings.SetQualityLevel(Mathf.Clamp(SaveSystem.Data.Quality,0,Mathf.Max(0,QualitySettings.names.Length-1)));
-   WorldBuilder.Build(); var go=new GameObject("Игрок");go.SetActive(false);Player=go.AddComponent<PlayerController>();Player.Character=PlayerCharacter!=null?PlayerCharacter:PlayerCharacterDefinition.Default;go.SetActive(true);
+   GameQuality.Apply(SaveSystem.Data.Quality);
+   WorldBuilder.Build();GameAudio.Prewarm(); var go=new GameObject("Игрок");go.SetActive(false);Player=go.AddComponent<PlayerController>();Player.Character=PlayerCharacter!=null?PlayerCharacter:PlayerCharacterDefinition.Default;go.SetActive(true);
    Spawner=gameObject.AddComponent<EnemySpawner>(); Upgrades=gameObject.AddComponent<UpgradeSystem>();
    Goals=gameObject.AddComponent<RunGoals>();Goals.Initialize(this);
    ui=gameObject.AddComponent<UIManager>(); ui.Initialize(); SetState(GameState.Menu);
@@ -36,19 +36,19 @@ namespace Brainrot {
   }
   void SetState(GameState value){
    if(value==GameState.Playing&&(!focused||backgrounded))value=GameState.Paused;
-   if(value!=GameState.Playing&&Player!=null)Player.CancelAttacks();State=value;
+   if(value!=GameState.Playing){if(Player!=null)Player.CancelAttacks();GameAudio.StopGameplayEffects();}State=value;
    if(value==GameState.Playing)GameMusic.SetGameplay();else if(value==GameState.Menu)GameMusic.SetMenu();else GameMusic.SetPaused(true);
    if(!focused||backgrounded)GameMusic.SetPaused(true);
    if(value==GameState.Paused||value==GameState.Dead)UIInputRouter.EnsureForScene(gameObject.scene);
    Time.timeScale=IsPlaying?1:0;bool lockMouse=IsPlaying&&!Application.isMobilePlatform;Cursor.lockState=lockMouse?CursorLockMode.Locked:CursorLockMode.None;Cursor.visible=!lockMouse;MobileInput.Clear();
   }
   public void StartRun(){
-   RunPersistence.Clear();HasRun=true;Spawner.ResetRun();Elapsed=0;Kills=0;Notification="";Player.ResetRun();Upgrades.ResetRun();Goals.ResetRun();
-   GameMusic.RestartGameplay();SetState(GameState.Playing);Notify("Акулы выходят из океана. Продержитесь как можно дольше.",5);SaveCheckpoint();nextCheckpoint=Time.unscaledTime+AutosaveSeconds;
+   GameAudio.StopGameplayEffects();HitEffects.ClearAll();RunPersistence.Clear();HasRun=true;Spawner.ResetRun();Elapsed=0;Kills=0;Notification="";Player.ResetRun();Upgrades.ResetRun();Goals.ResetRun();
+   ui?.ResetRunPresentation();GameMusic.RestartGameplay();SetState(GameState.Playing);Notify("Акулы выходят из океана. Продержитесь как можно дольше.",5);SaveCheckpoint();nextCheckpoint=Time.unscaledTime+AutosaveSeconds;
   }
   public bool SaveCheckpoint(){
    if(!initialized||!HasRun||Player==null||Player.Health<=0||Spawner==null)return false;
-   var snapshot=new RunSnapshot {Elapsed=Elapsed,Kills=Kills,Player=Player.CaptureRunState(),Wave=Spawner.Waves.CaptureRunState(),Spawner=Spawner.CaptureRunState()};
+   var snapshot=new RunSnapshot {Elapsed=Elapsed,Kills=Kills,ChallengeMaskEarnedThisRun=Goals!=null?Goals.EarnedThisRunMask:0,Player=Player.CaptureRunState(),Wave=Spawner.Waves.CaptureRunState(),Spawner=Spawner.CaptureRunState()};
    bool saved=RunPersistence.Save(snapshot);
    if(saved){SaveSystem.Data.BestTime=Mathf.Max(SaveSystem.Data.BestTime,Elapsed);SaveSystem.Data.BestKills=Mathf.Max(SaveSystem.Data.BestKills,Kills);SaveSystem.Data.BestWave=Mathf.Max(SaveSystem.Data.BestWave,Wave);SaveSystem.Save();}
    if(!saved)Notify("НЕ УДАЛОСЬ СОХРАНИТЬ ЗАБЕГ. ПРОВЕРЬ СВОБОДНОЕ МЕСТО НА ДИСКЕ.",5);
@@ -57,10 +57,10 @@ namespace Brainrot {
   public bool RestoreSavedRun(){
    if(!RunPersistence.TryLoad(out var snapshot)||!RunSaveStore.IsValid(snapshot))return false;
    // Transient hit/grab/tumble states are intentionally normalized; no invisible attack survives loading.
-   Player.CancelAttacks();MobileInput.Clear();Spawner.ResetRun();Upgrades.ResetRun();
+   GameAudio.StopGameplayEffects();HitEffects.ClearAll();Player.CancelAttacks();MobileInput.Clear();Spawner.ResetRun();Upgrades.ResetRun();
    Player.RestoreRunState(snapshot.Player);Spawner.Waves.RestoreRunState(snapshot.Wave);Spawner.RestoreRunState(snapshot.Spawner);
-   Elapsed=snapshot.Elapsed;Kills=snapshot.Kills;HasRun=true;Goals.ResetRun(true);Notification="";nextCheckpoint=Time.unscaledTime+AutosaveSeconds;
-   GameMusic.RestartGameplay();SetState(GameState.Playing);Notify("ЗАБЕГ ВОССТАНОВЛЕН — ДЕРЖИ БИТУ КРЕПЧЕ!",3);return true;
+   Elapsed=snapshot.Elapsed;Kills=snapshot.Kills;HasRun=true;Goals.ResetRun(true);Goals.RestoreRunProgress(snapshot.ChallengeMaskEarnedThisRun);Notification="";nextCheckpoint=Time.unscaledTime+AutosaveSeconds;
+   ui?.ResetRunPresentation();GameMusic.RestartGameplay();SetState(GameState.Playing);Notify("ЗАБЕГ ВОССТАНОВЛЕН — ДЕРЖИ БИТУ КРЕПЧЕ!",3);return true;
   }
   public void OpenMap(){if(IsPlaying)SetState(GameState.Map);}
   public void CloseMap(){if(State==GameState.Map)SetState(GameState.Playing);}

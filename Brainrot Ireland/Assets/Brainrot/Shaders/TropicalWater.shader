@@ -56,7 +56,7 @@ Shader "Brainrot/TropicalWater"
     Light sun=GetMainLight();float3 halfVector=SafeNormalize(view+sun.direction);
     float angle=atan2(i.world.z,i.world.x);
     // Same coastline as the playable island; no depth/opaque texture dependency or extra render passes.
-    float coast=22+sin(angle*5)*.3+cos(angle*9)*.17;
+    float coast=22.58+sin(angle*5)*.3+cos(angle*9)*.17;
     float shore=max(0,length(i.world.xz)-coast);
     half shallow=1-smoothstep(.2,16,shore);
     // Colour controls remain authoritative; the editor supplies the bright default palette.
@@ -75,19 +75,24 @@ Shader "Brainrot/TropicalWater"
     half spec=pow(saturate(dot(normal,halfVector)),110)*.26;
     color+=sun.color*spec;
     float cells=abs(sin(warped.x*2.9+sin(warped.y*2.1)+t*.13)*sin(warped.y*2.6+sin(warped.x*1.7)-t*.18));
-    half caustic=1-smoothstep(.025,.10,cells);
+    float cellsAA=max(.004,fwidth(cells));
+    half caustic=1-smoothstep(.025-cellsAA*.35,.10+cellsAA,cells);
     color+=half3(.22,.45,.36)*caustic*shallow*detail*.23;
     float sweep=shore*1.62-t*.60+sin(angle*13+t*.1)*.32;
-    half roll=pow(saturate(sin(sweep)*.5+.5),13);
+    float sweepAA=max(.01,fwidth(sweep));
+    half roll=pow(saturate(sin(sweep)*.5+.5),13)*(1-smoothstep(.35,1.25,sweepAA));
     half broken=.54+.46*smoothstep(.16,.76,large.x*.6+small.x*.4);
-    half foam=saturate(roll*(1-smoothstep(.3,5.2,shore))*broken*.94);
+    float lace=Noise(warped*3.2+float2(-t*.09,t*.12));
+    half holes=smoothstep(.18,.54,lace);
+    half foam=saturate(roll*(1-smoothstep(.3,5.2,shore))*broken*lerp(.38,1,holes)*.94);
     // A persistent narrow lace line ties the ocean to the wet sand.
     foam=max(foam,(1-smoothstep(.04,.56,shore))*broken*.94);
     // Small broken whitecaps beyond the beach make the ocean feel lively without stripe bands.
     float crest=smoothstep(.69,.87,large.x*.56+small.x*.44);
     float whitecap=crest*smoothstep(.35,.70,small.x)*smoothstep(3,12,shore)*detail*.72;
     foam=max(foam,whitecap);
-    color=lerp(color,half3(.96,1,.99),foam);
+    // Tiny warm translucent-looking gaps keep the surf like bubbly lace, not opaque white ribbons.
+    color=lerp(color,half3(.94,.995,.97),foam);
     float spark=pow(saturate(sin(warped.x*6.1+t)*sin(warped.y*7.3-t*.7)),28);
     color+=half3(.92,.97,1)*spark*spec*detail*.35;
     return half4(MixFog(saturate(color),i.fog),1);

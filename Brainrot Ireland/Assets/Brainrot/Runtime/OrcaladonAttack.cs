@@ -51,6 +51,7 @@ namespace Brainrot
                         Face(direction,remaining);visual?.Animate(movement/remaining,false);
                         return;
                     case OrcaladonPhase.ChargeAim:
+                        warning.ChargeStraight(transform.position,CommittedDirection,Mathf.Max(1,tuning.ChargeSpeed)*Mathf.Max(.1f,tuning.ChargeDuration),Mathf.Max(.1f,tuning.CollisionRadius)+.48f,PhaseProgress);
                         visual?.Animate(0,true);remaining=ConsumePhase(remaining);
                         if(phaseClock>0)return;
                         warning.Hide();Enter(OrcaladonPhase.Charging,Mathf.Max(.1f,tuning.ChargeDuration));
@@ -68,6 +69,7 @@ namespace Brainrot
                         EnterRecovery(Mathf.Max(.05f,tuning.Recovery));
                         continue;
                     case OrcaladonPhase.SlamWindup:
+                        warning.Circle(transform.position,SlamRadius,PhaseProgress);
                         visual?.Animate(0,true);remaining=ConsumePhase(remaining);
                         if(phaseClock<=0){
                             float radius=SlamRadius;
@@ -97,14 +99,14 @@ namespace Brainrot
             var t=Settings;CommittedDirection=direction;transform.rotation=Quaternion.LookRotation(direction);chargeHit=false;
             chargeCooldown=Mathf.Max(.1f,t.ChargeCooldown);
             Enter(OrcaladonPhase.ChargeAim,Mathf.Max(.1f,t.ChargeWindup));
-            warning.ChargeStraight(transform.position,direction,Mathf.Max(1,t.ChargeSpeed)*Mathf.Max(.1f,t.ChargeDuration),Mathf.Max(.1f,t.CollisionRadius)+.48f);
+            warning.ChargeStraight(transform.position,direction,Mathf.Max(1,t.ChargeSpeed)*Mathf.Max(.1f,t.ChargeDuration),Mathf.Max(.1f,t.CollisionRadius)+.48f,0);
             visual?.Animate(0,true);
         }
         void BeginSlam(Vector3 direction)
         {
             var t=Settings;CommittedDirection=direction;transform.rotation=Quaternion.LookRotation(direction);
             slamCooldown=Mathf.Max(.1f,t.SlamCooldown);
-            Enter(OrcaladonPhase.SlamWindup,Mathf.Max(.15f,t.SlamWindup));warning.Circle(transform.position,SlamRadius);visual?.Animate(0,true);
+            Enter(OrcaladonPhase.SlamWindup,Mathf.Max(.15f,t.SlamWindup));warning.Circle(transform.position,SlamRadius,0);visual?.Animate(0,true);
         }
         void Enter(OrcaladonPhase phase,float duration){Phase=phase;phaseDuration=phaseClock=Mathf.Max(0,duration);}
         float ConsumePhase(float elapsed){float used=Mathf.Min(elapsed,Mathf.Max(0,phaseClock));phaseClock=Mathf.Max(0,phaseClock-used);return Mathf.Max(0,elapsed-used);}

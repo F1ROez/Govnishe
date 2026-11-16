@@ -17,7 +17,7 @@ namespace Brainrot
                 return fallback;
             }
         }
-        [Tooltip("Параметры нового забега. Спавн теперь зависит от текущей зоны острова.")]
+        [Tooltip("Начальные параметры героя для нового забега на маленьком острове.")]
         public PlayerTuning Player = new PlayerTuning();
         [Min(.1f),Tooltip("Размер модели игрока. 1 — базовый размер; применяется сразу. Не меняет дальность ударов.")]
         public float PlayerModelScale=1;
@@ -27,6 +27,7 @@ namespace Brainrot
         public CrowdTuning Crowd = new CrowdTuning();
         public StaminaTuning Stamina = new StaminaTuning();
         public CombatTuning Combat = new CombatTuning();
+        public CombatFeelTuning Feedback = new CombatFeelTuning();
         public SahurAnimationTuning SahurAnimation = new SahurAnimationTuning();
         public WaveTuning Waves = new WaveTuning();
         public BodyTuning Bodies = new BodyTuning();
@@ -51,7 +52,7 @@ namespace Brainrot
         public EnemyTuning Crocodilo = new EnemyTuning {Health=210,Speed=2.6f,Damage=28,CanCharge=true,ChargeWindup=1.3f,ChargeSpeed=12,ChargeDuration=.65f,ChargeCooldown=7,AttackRange=2.5f,KnockbackResistance=2,Experience=40};
 
         void OnEnable(){EnsureExploration();}
-        public void EnsureExploration(){if(Crowd==null)Crowd=new CrowdTuning();if(Camera==null)Camera=new ThirdPersonCameraTuning();if(Camera.MaxPitch<=0){Camera.MinPitch=-20;Camera.MaxPitch=65;}if(Stamina==null)Stamina=new StaminaTuning();if(Exploration==null)Exploration=new ExplorationTuning();if(Waves==null)Waves=new WaveTuning();if(Bodies==null)Bodies=new BodyTuning();if(Octopus==null)Octopus=new OctopusTuning();if(Orcaladon==null)Orcaladon=new OrcaladonTuning();if(OrcaladonEnemy==null)OrcaladonEnemy=new EnemyTuning {Health=100,Speed=2.2f,Damage=30,AttackRange=3.8f,MeleeWindup=.85f,Recovery=.65f,KnockbackResistance=4,HitStagger=.1f,Experience=0};if(SahurAnimation==null)SahurAnimation=new SahurAnimationTuning();}
+        public void EnsureExploration(){if(Feedback==null)Feedback=new CombatFeelTuning();if(Crowd==null)Crowd=new CrowdTuning();if(Camera==null)Camera=new ThirdPersonCameraTuning();if(Camera.MaxPitch<=0){Camera.MinPitch=-20;Camera.MaxPitch=65;}if(Stamina==null)Stamina=new StaminaTuning();if(Exploration==null)Exploration=new ExplorationTuning();if(Waves==null)Waves=new WaveTuning();if(Bodies==null)Bodies=new BodyTuning();if(Octopus==null)Octopus=new OctopusTuning();if(Orcaladon==null)Orcaladon=new OrcaladonTuning();if(OrcaladonEnemy==null)OrcaladonEnemy=new EnemyTuning {Health=100,Speed=2.2f,Damage=30,AttackRange=3.8f,MeleeWindup=.85f,Recovery=.65f,KnockbackResistance=4,HitStagger=.1f,Experience=0};if(SahurAnimation==null)SahurAnimation=new SahurAnimationTuning();}
         public EnemyTuning Enemy(EnemyKind kind) {
             switch (kind) { case EnemyKind.Orcaladon:return OrcaladonEnemy;case EnemyKind.BlueberrinniOctopusini:return BlueOctopus;case EnemyKind.LiriliLarila:return Lirili;case EnemyKind.BrrBrrPatapim:return Patapim;case EnemyKind.CappuccinoAssassino:return Cappuccino;case EnemyKind.BombardiroCrocodilo:return Crocodilo;case EnemyKind.Fast:return Fast;case EnemyKind.Tank:return Tank;case EnemyKind.MiniBoss:return MiniBoss;case EnemyKind.King:return King;default:return Normal; }
         }

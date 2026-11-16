@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Events;
+using UnityEngine.EventSystems;
 namespace Brainrot
 {
     /// <summary>Coordinates follow the supplied 16:9 compositions. Art and interactive rectangles share one viewport.</summary>
@@ -35,9 +36,10 @@ namespace Brainrot
         public static void Pause(Transform viewport,UnityAction resume,UnityAction settings,UnityAction menu){
             var frame=Art(viewport,"ReferencePause",.23f,.21f,.54f,.72f);
             Text(frame.transform,"ПАУЗА",62,.27f,.15f,.46f,.12f);
-            Hotspot(frame.transform,"ПРОДОЛЖИТЬ",.235f,.378f,.54f,.132f,resume,32);
+            var first=Hotspot(frame.transform,"ПРОДОЛЖИТЬ",.235f,.378f,.54f,.132f,resume,32);
             Hotspot(frame.transform,"НАСТРОЙКИ",.235f,.545f,.54f,.132f,settings,32);
             Hotspot(frame.transform,"ГЛАВНОЕ МЕНЮ",.235f,.706f,.54f,.132f,menu,29);
+            if(EventSystem.current!=null)EventSystem.current.SetSelectedGameObject(first.gameObject);
         }
         public static void Settings(Transform viewport,UnityAction back){
             var frame=Art(viewport,"ReferenceSettings",.215f,.205f,.57f,.76f).transform;
@@ -59,12 +61,18 @@ namespace Brainrot
             for(int i=0;i<3;i++){
                 int level=i;float left=.15f+i*.245f;
                 buttons[i]=Hotspot(frame,titles[i],left,.735f,.225f,.08f,()=>{
-                    SaveSystem.Data.Quality=level;QualitySettings.SetQualityLevel(Mathf.Clamp(level,0,Mathf.Max(0,QualitySettings.names.Length-1)),true);SaveSystem.Save();
+                    SaveSystem.Data.Quality=level;GameQuality.Apply(level);SaveSystem.Save();
                     for(int j=0;j<buttons.Length;j++)buttons[j].targetGraphic.GetComponent<Image>().sprite=TropicalUIArt.Get(j==level?"BlueButton":"GoldButton");
                 },16);
                 buttons[i].targetGraphic.GetComponent<Image>().sprite=TropicalUIArt.Get(SaveSystem.Data.Quality==i?"BlueButton":"GoldButton");
             }
             Hotspot(frame,"НАЗАД",.30f,.855f,.405f,.10f,back,29);
+            Button shake=null;bool shaking=SaveSystem.Data.CameraShakeStrength>.01f;
+            shake=Hotspot(frame,"ТРЯСКА\n"+(shaking?"ВКЛ":"ВЫКЛ"),.745f,.865f,.15f,.075f,()=>{
+                shaking=!shaking;SaveSystem.Data.CameraShakeStrength=shaking?1:0;SaveSystem.Save();
+                shake.GetComponentInChildren<Text>().text="ТРЯСКА\n"+(shaking?"ВКЛ":"ВЫКЛ");
+            },12);
+            if(EventSystem.current!=null)EventSystem.current.SetSelectedGameObject(camera.gameObject);
         }
         static void Flourish(Transform parent,float x,float y,bool flip){
             var go=new GameObject("Морской завиток",typeof(RectTransform),typeof(WaveFlourish));go.transform.SetParent(parent,false);Rect((RectTransform)go.transform,x,y,.085f,.045f);go.GetComponent<WaveFlourish>().raycastTarget=false;if(flip)go.transform.localScale=new Vector3(-1,1,1);

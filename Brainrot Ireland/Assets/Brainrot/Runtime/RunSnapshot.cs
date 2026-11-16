@@ -8,6 +8,7 @@ namespace Brainrot
         public int Version=CurrentVersion;
         public float Elapsed;
         public int Kills;
+        public int ChallengeMaskEarnedThisRun;
         public PlayerRunSnapshot Player;
         public WaveRunSnapshot Wave;
         public SpawnerRunSnapshot Spawner;
@@ -27,6 +28,8 @@ namespace Brainrot
     {
         public float SpawnClock;
         public int AnnouncedWave;
+        // Added fields default to zero in legacy checkpoints; the spawner migrates these on restore.
+        public int BudgetWave,PlannedCount,SpawnedCount,ResolvedCount;
         public bool OctopusIntroduced,OrcaladonIntroduced;
         public EnemyRunSnapshot[] Enemies=Array.Empty<EnemyRunSnapshot>();
     }

@@ -7,6 +7,8 @@ Shader "Brainrot/ToonCharacter"
   _Brightness("Яркость",Range(.5,2))=1.10
   _Saturation("Насыщенность",Range(0,2))=1.25
   _TextureSoftening("Мягкость текстуры",Range(0,1))=.08
+  _RimStrength("Мягкий контровой свет",Range(0,.3))=.07
+  _GlossStrength("Широкий блик",Range(0,.5))=.17
   _Cull("Стороны",Float)=2
   _Cutoff("Порог",Range(0,1))=.5
  }
@@ -18,7 +20,7 @@ Shader "Brainrot/ToonCharacter"
   HLSLINCLUDE
   #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
   CBUFFER_START(UnityPerMaterial)
-   float4 _BaseMap_ST;half4 _BaseColor;half _Brightness,_Saturation,_TextureSoftening,_Cull,_Cutoff;
+   float4 _BaseMap_ST;half4 _BaseColor;half _Brightness,_Saturation,_TextureSoftening,_RimStrength,_GlossStrength,_Cull,_Cutoff;
   CBUFFER_END
   ENDHLSL
   Pass
@@ -32,6 +34,7 @@ Shader "Brainrot/ToonCharacter"
    #pragma fragment Frag
    #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
    #pragma multi_compile_fragment _ _SHADOWS_SOFT _SHADOWS_SOFT_LOW _SHADOWS_SOFT_MEDIUM _SHADOWS_SOFT_HIGH
+   #pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
    #pragma multi_compile_fog
    #pragma multi_compile_instancing
    #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
@@ -50,15 +53,29 @@ Shader "Brainrot/ToonCharacter"
     texColor+=texColor*(1-saturate(texColor))*saturate(_TextureSoftening)*.45;
     half3 albedo=texColor*_BaseColor.rgb*_Brightness;
     half3 n=normalize(i.normal);Light sun=GetMainLight(TransformWorldToShadowCoord(i.world));
-    half ndotl=dot(n,sun.direction);half band=smoothstep(-.12,.64,ndotl);
-    half shadow=lerp(.72,1,sun.shadowAttenuation);
-    half3 light=lerp(half3(.48,.63,.82),half3(1.08,1.04,.91),band)*shadow;
-    light+=saturate(SampleSH(n))*.065+half3(.045,.065,.075)*saturate(n.y);
+    half ndotl=dot(n,sun.direction);half band=smoothstep(-.18,.68,ndotl);
+    // Keep recognisable painted colours in shadow, while actually responding to the scene's
+    // sun colour/intensity. Earlier lighting was hard-coded and ignored the peach sun entirely.
+    half sunLuma=max(.001,dot(sun.color,half3(.2126,.7152,.0722)));
+    half3 sunTint=lerp(half3(1,1,1),sun.color/sunLuma,.65);
+    half energy=min(1.14,sunLuma);
+    half shadow=lerp(.50,1,sun.shadowAttenuation);
+    half3 skyFill=lerp(half3(.47,.43,.34),half3(.48,.65,.86),saturate(n.y*.5+.5));
+    half3 light=skyFill*.72+sunTint*(band*.70*shadow*energy);
+    light+=saturate(SampleSH(n))*.055;
+    // The single shadowless sky fill works with the owned Forward URP renderer. Additional
+    // lights are deliberately restrained so a crowd stays colourful rather than turning white.
+    #if defined(_ADDITIONAL_LIGHTS)
+     uint count=GetAdditionalLightsCount();
+     for(uint lightIndex=0u;lightIndex<count;lightIndex++){
+      Light fill=GetAdditionalLight(lightIndex,i.world);
+      light+=fill.color*(smoothstep(-.10,.80,dot(n,fill.direction))*.24)*fill.distanceAttenuation;
+     }
+    #endif
     float3 view=SafeNormalize(GetWorldSpaceViewDir(i.world));
-    half rim=pow(1-saturate(dot(n,view)),3)*.075;
-    // A broad restrained highlight reads like polished painted toys, rather than white plastic.
-    half gloss=pow(saturate(dot(n,SafeNormalize(view+sun.direction))),28)*saturate(ndotl)*sun.shadowAttenuation*.20;
-    half3 color=albedo*light+rim*half3(.40,.72,1)+gloss*lerp(albedo,half3(1,.96,.83),.45);
+    half rim=pow(1-saturate(dot(n,view)),3)*_RimStrength;
+    half gloss=pow(saturate(dot(n,SafeNormalize(view+sun.direction))),24)*saturate(ndotl)*sun.shadowAttenuation*_GlossStrength;
+    half3 color=albedo*light+rim*half3(.40,.72,1)+gloss*lerp(albedo,half3(1,.96,.83),.45)*sunTint;
     return half4(MixFog(color,i.fog),1);
    }
    ENDHLSL

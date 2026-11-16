@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 namespace Brainrot
 {
     public sealed class MenuBootstrap:MonoBehaviour
@@ -38,6 +39,9 @@ namespace Brainrot
             continueButton=MainButton(root,"ПРОДОЛЖИТЬ ИГРУ",.149f,()=>SceneFlow.Instance.Play(false));
             newButton=MainButton(root,"НОВАЯ ИГРА",.291f,()=>SceneFlow.Instance.Play(true));
             MainButton(root,"РЕКОРДЫ",.429f,Records);MainButton(root,"НАСТРОЙКИ",.568f,Settings);MainButton(root,"ВЫХОД",.707f,()=>Application.Quit());
+            continueButton.interactable=!SceneFlow.Instance.Busy&&((GameManager.Instance!=null&&GameManager.Instance.CanContinue)||RunPersistence.HasSavedRun);
+            newButton.interactable=!SceneFlow.Instance.Busy;
+            if(EventSystem.current!=null)EventSystem.current.SetSelectedGameObject(continueButton.interactable?continueButton.gameObject:newButton.gameObject);
         }
         Button MainButton(Transform root,string title,float y,UnityEngine.Events.UnityAction action){
             var b=ReferenceScreens.Hotspot(root,"",.621f,y,.31f,.12f,action);
@@ -58,7 +62,8 @@ namespace Brainrot
             Button replay=null;replay=ReferenceScreens.Hotspot(frame,"ПОВТОРИТЬ ОБУЧЕНИЕ",.20f,.72f,.60f,.087f,()=>{
                 SaveSystem.Data.TutorialCompleted=false;SaveSystem.Save();if(GameManager.Instance!=null&&GameManager.Instance.Goals!=null)GameManager.Instance.Goals.ReplayTutorial();replay.GetComponentInChildren<Text>().text="ОБУЧЕНИЕ ВКЛЮЧЕНО";
             },23);
-            ReferenceScreens.Hotspot(frame,"НАЗАД",.323f,.867f,.357f,.09f,Main,29);
+            var back=ReferenceScreens.Hotspot(frame,"НАЗАД",.323f,.867f,.357f,.09f,Main,29);
+            if(EventSystem.current!=null)EventSystem.current.SetSelectedGameObject(back.gameObject);
         }
         static void Shade(Transform parent){CartoonUI.Image("Затемнение",parent,Vector2.zero,Vector2.one,new Color(.025f,.06f,.09f,.30f));}
     }

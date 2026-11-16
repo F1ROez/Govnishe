@@ -12,14 +12,14 @@ namespace Brainrot
         DepthOfField pauseFocus;
         bool blurred,originalDepth;
         UniversalAdditionalCameraData cameraData;int quality=-1;
-        public const string PresetName="Сочный остров — цвет, объём и мягкое солнце — v4";
+        public const string PresetName="Сочный остров — цвет, объём и мягкое солнце — v5";
         static T Component<T>(VolumeProfile profile) where T:VolumeComponent {if(profile.TryGet<T>(out var value))return value;return profile.Add<T>(true);}
         public static void ApplyDaylight(VolumeProfile profile,bool bloomAllowed=true)
         {
             profile.name=PresetName;
             var tone=Component<Tonemapping>(profile);tone.active=true;tone.mode.Override(TonemappingMode.Neutral);
-            var color=Component<ColorAdjustments>(profile);color.active=true;color.postExposure.Override(.04f);color.contrast.Override(10);color.saturation.Override(13);color.colorFilter.Override(Color.white);
-            var balance=Component<WhiteBalance>(profile);balance.active=true;balance.temperature.Override(3);balance.tint.Override(0);
+            var color=Component<ColorAdjustments>(profile);color.active=true;color.postExposure.Override(.02f);color.contrast.Override(7);color.saturation.Override(9);color.colorFilter.Override(Color.white);
+            var balance=Component<WhiteBalance>(profile);balance.active=true;balance.temperature.Override(2);balance.tint.Override(0);
             var vignette=Component<Vignette>(profile);vignette.active=false;vignette.intensity.Override(0);vignette.smoothness.Override(.7f);
             var bloom=Component<Bloom>(profile);bloom.active=bloomAllowed;bloom.intensity.Override(.12f);bloom.threshold.Override(1.55f);bloom.scatter.Override(.45f);bloom.highQualityFiltering.Override(false);
         }

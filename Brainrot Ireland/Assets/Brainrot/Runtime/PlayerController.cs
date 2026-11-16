@@ -28,6 +28,9 @@ namespace Brainrot {
   CharacterController motor; CharacterVisual visual; CombatSystem combat; Camera cam;CameraCollision cameraCollision;
   float yaw,pitch,dashUntil,nextDash,invulnerableUntil,trauma;
   float chargeCameraBlend;Vector3 externalVelocity;
+  readonly CombatCameraFeedback combatCamera=new CombatCameraFeedback();
+  const float BaseFieldOfView=62;
+  public float CombatCameraImpact=>combatCamera.Impact;
   void Awake(){
    motor=gameObject.AddComponent<CharacterController>();motor.height=2.5f;motor.center=Vector3.up*1.25f;motor.radius=.48f;
    Character=Character!=null?Character:PlayerCharacterDefinition.Default;
@@ -44,7 +47,7 @@ namespace Brainrot {
    foreach(var ability in abilities)ability.Dispose();abilities.Clear();
    if(Character!=null&&Character.Abilities!=null)foreach(var definition in Character.Abilities)if(definition!=null){var runtime=definition.CreateRuntime(this);if(runtime!=null)abilities.Add(runtime);}
    motor.enabled=false;transform.position=IslandMap.StartPosition;transform.rotation=Quaternion.identity;motor.enabled=true;
-   yaw=0;pitch=GameBalance.Current.Camera.ClampPitch(GameBalance.Current.Camera.InitialPitch);dashUntil=nextDash=invulnerableUntil=0;DashDirection=Vector3.zero;externalVelocity=Vector3.zero;chargeCameraBlend=0;trauma=0;
+   yaw=0;pitch=GameBalance.Current.Camera.ClampPitch(GameBalance.Current.Camera.InitialPitch);dashUntil=nextDash=invulnerableUntil=0;DashDirection=Vector3.zero;externalVelocity=Vector3.zero;chargeCameraBlend=0;trauma=0;combatCamera.Reset();if(cam!=null)cam.fieldOfView=BaseFieldOfView;
    combat?.ResetRun();visual?.ResetFeedback();cameraCollision?.Reset();
   }
   public PlayerRunSnapshot CaptureRunState(){
@@ -98,13 +101,18 @@ namespace Brainrot {
   void LateUpdate(){
    float visualScale=Mathf.Max(.1f,Character!=null?Character.VisualScale:1)*Mathf.Max(.1f,GameBalance.Current.PlayerModelScale);
    if(visual!=null)visual.transform.localScale=Vector3.one*visualScale;
-   if(cam==null)return;var settings=GameBalance.Current.Camera;pitch=settings.ClampPitch(pitch);Quaternion rot=Quaternion.Euler(pitch,yaw,0);
+   if(cam==null)return;var settings=GameBalance.Current.Camera;var feedback=GameBalance.Current.Feedback;pitch=settings.ClampPitch(pitch);Quaternion rot=Quaternion.Euler(pitch,yaw,0);
+   bool playing=GameManager.Instance!=null&&GameManager.Instance.IsPlaying&&Health>0;
+   if(!playing){combatCamera.Reset();chargeCameraBlend=trauma=0;}
    float zoomTarget=combat!=null&&combat.IsCharging&&combat.HeavyReady?Mathf.SmoothStep(0,1,combat.ChargeProgress):0;
+   combatCamera.Tick(playing?zoomTarget:0,playing?Time.deltaTime:0,feedback);
+   cam.fieldOfView=combatCamera.FieldOfView(BaseFieldOfView,feedback,SaveSystem.Data.CameraShakeStrength);
    float zoomSpeed=zoomTarget>chargeCameraBlend?settings.ChargeZoomInSpeed:settings.ChargeZoomOutSpeed;
    chargeCameraBlend=Mathf.Lerp(chargeCameraBlend,zoomTarget,1-Mathf.Exp(-Mathf.Max(.1f,zoomSpeed)*Time.deltaTime));
    Vector3 target=transform.position+Vector3.up*(1.9f*visualScale+Mathf.Max(0,settings.HeightAboveHead));
    float distance=Mathf.Max(2,settings.Distance-Mathf.Max(0,settings.ChargeZoomDistance)*chargeCameraBlend);
-   Vector3 desired=target+rot*Vector3.right*settings.ShoulderOffset-rot*Vector3.forward*distance+Random.insideUnitSphere*trauma;
+   Vector3 shake=combatCamera.Offset(feedback,SaveSystem.Data.CameraShakeStrength)+new Vector3(Mathf.Sin(Time.unscaledTime*71),Mathf.Sin(Time.unscaledTime*83),Mathf.Sin(Time.unscaledTime*59))*trauma*Mathf.Clamp01(SaveSystem.Data.CameraShakeStrength);
+   Vector3 desired=target+rot*Vector3.right*settings.ShoulderOffset-rot*Vector3.forward*distance+shake;
    if(settings.ObstacleCollision&&cameraCollision!=null){
     float nearHalfHeight=cam.nearClipPlane*Mathf.Tan(cam.fieldOfView*.5f*Mathf.Deg2Rad);
     float nearCorner=nearHalfHeight*Mathf.Sqrt(1+cam.aspect*cam.aspect);
@@ -119,7 +127,9 @@ namespace Brainrot {
    if(knockbackSpeed>0){Vector3 away=transform.position-source;away.y=0;if(away.sqrMagnitude<.001f)away=-transform.forward;externalVelocity=away.normalized*Mathf.Clamp(knockbackSpeed,0,40);}
    invulnerableUntil=Time.time+.5f;trauma=.18f;HitEffects.Burst(transform.position+Vector3.up,new Color(1,.2f,.1f));GameAudio.Play(130,.1f,.15f);if(Health<=0)GameManager.Instance.Die();
   }
-  public void CancelAttacks(){combat?.CancelPendingSwings();chargeCameraBlend=0;}
+  public void CancelAttacks(){combat?.CancelPendingSwings();ResetCombatCamera();}
+  public void ResetCombatCamera(){chargeCameraBlend=trauma=0;combatCamera.Reset();if(cam!=null)cam.fieldOfView=BaseFieldOfView;}
+  public void ConfirmBatHit(bool heavy,int hits){if(hits<=0)return;combatCamera.ConfirmHit(transform.forward,heavy,GameBalance.Current.Feedback);}
   public void NotifyAttack(){foreach(var ability in abilities)ability.OnAttack();}
   void OnDestroy(){cameraCollision?.Dispose();foreach(var ability in abilities)ability.Dispose();abilities.Clear();if(cam!=null)Destroy(cam.gameObject);}
  }

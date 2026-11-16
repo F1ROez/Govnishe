@@ -120,16 +120,17 @@ namespace Brainrot
         public void Tick(float delta){
             if(delta<=0)return;
             var visual=VisualTarget!=null?VisualTarget:transform;
-            bool active=button!=null&&button.interactable;
+            bool active=button!=null&&button.IsActive()&&button.IsInteractable();
             float target=active?(pressed?.96f:hover||selected?1.065f:1):1;
             scale=Mathf.SmoothDamp(scale,target,ref velocity,pressed?.045f:.085f,Mathf.Infinity,Mathf.Min(.1f,Mathf.Max(0,delta)));
-            visual.localScale=Vector3.one*scale;
+            if(Mathf.Abs(scale-target)<.0001f){scale=target;velocity=0;}
+            if(!Mathf.Approximately(visual.localScale.x,scale))visual.localScale=Vector3.one*scale;
             if(face==null&&button!=null)face=button.targetGraphic;
             if(face!=null&&VisualTarget!=null)face.color=active?Color.white:new Color(.64f,.64f,.64f,.90f);
         }
         void Update(){Tick(Time.unscaledDeltaTime);}
         public void OnPointerEnter(PointerEventData data){hover=true;}
-        public void OnPointerExit(PointerEventData data){hover=pressed=selected=false;}
+        public void OnPointerExit(PointerEventData data){hover=pressed=false;}
         public void OnPointerDown(PointerEventData data){pressed=true;}
         public void OnPointerUp(PointerEventData data){pressed=false;}
         public void OnSelect(BaseEventData data){selected=true;}

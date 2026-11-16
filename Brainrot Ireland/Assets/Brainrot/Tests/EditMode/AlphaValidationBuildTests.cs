@@ -5,6 +5,16 @@ namespace Brainrot.Tests
 {
     public sealed class AlphaValidationBuildTests
     {
+        [TestCase("BrainrotIreland.exe",true)]
+        [TestCase("BrainrotIreland_Data/Managed/Brainrot.Runtime.dll",true)]
+        [TestCase("BrainrotIreland_BackUpThisFolder_ButDontShipItWithYourGame/source.cpp",false)]
+        [TestCase("Symbols/Assembly.pdb",false)]
+        [TestCase("Symbols/Assembly.mdb",false)]
+        [TestCase("alpha-build-report.json",false)]
+        public void BuildManifestIncludesOnlyFilesThePackagerShips(string path,bool included)
+        {
+            Assert.AreEqual(included,Brainrot.Editor.AlphaValidationBuild.IsShippingPath(path));
+        }
         [Test] public void EnabledBuildScenesStartWithMenuThenArena()
         {
             var scenes=EditorBuildSettings.scenes;

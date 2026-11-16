@@ -60,8 +60,10 @@ namespace Brainrot
                 Directory.CreateDirectory(Path.GetDirectoryName(path));
                 using(var stream=new FileStream(temporary,FileMode.Create,FileAccess.Write,FileShare.None)){stream.Write(bytes,0,bytes.Length);stream.Flush(true);}
                 if(File.Exists(path)){
-                    try{File.Replace(temporary,path,Backup);}
-                    catch(PlatformNotSupportedException){File.Copy(path,Backup,true);File.Copy(temporary,path,true);File.Delete(temporary);}
+                    // Never replace a known-good backup with a corrupt primary recovered during load.
+                    bool primaryValid=Read(path,out _);
+                    try{File.Replace(temporary,path,primaryValid?Backup:null);}
+                    catch(PlatformNotSupportedException){if(primaryValid)File.Copy(path,Backup,true);File.Copy(temporary,path,true);File.Delete(temporary);}
                 }else File.Move(temporary,path);
                 if(File.Exists(Cleared))File.Delete(Cleared);
                 return true;
@@ -82,6 +84,9 @@ namespace Brainrot
             if(w.Number<1||w.Number>1000000||!Finite(w.Time,0,86400)||!Finite(w.RestTime,0,86400)||w.WaitingForClear&&!w.Resting)return false;
             var spawn=s.Spawner;
             if(!Finite(spawn.SpawnClock,0,86400)||spawn.AnnouncedWave<0||spawn.AnnouncedWave>w.Number||spawn.Enemies==null||spawn.Enemies.Length>100)return false;
+            bool legacyBudget=spawn.BudgetWave==0&&spawn.PlannedCount==0&&spawn.SpawnedCount==0&&spawn.ResolvedCount==0;
+            if(!legacyBudget&&(spawn.BudgetWave!=w.Number||spawn.PlannedCount<1||spawn.PlannedCount>10000||spawn.SpawnedCount<0||spawn.SpawnedCount>spawn.PlannedCount||spawn.ResolvedCount<0||spawn.ResolvedCount>spawn.SpawnedCount||spawn.SpawnedCount-spawn.ResolvedCount!=spawn.Enemies.Length))return false;
+            if(s.ChallengeMaskEarnedThisRun<0)return false;
             foreach(var enemy in spawn.Enemies){
                 if(enemy==null||enemy.Kind!=0&&enemy.Kind!=9&&enemy.Kind!=10||!Position(enemy.Position,100)||!Angle(enemy.RotationYaw)||!Finite(enemy.MaxHealth,.001f,1000000)||!Finite(enemy.Health,.001f,enemy.MaxHealth))return false;
             }

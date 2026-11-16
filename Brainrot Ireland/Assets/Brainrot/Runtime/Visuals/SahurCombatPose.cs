@@ -51,8 +51,8 @@ namespace Brainrot
             if(arm<.00001f){Restore();return;}
             Quaternion rightWrist=rightHand.rotation,leftWrist=leftHand!=null?leftHand.rotation:Quaternion.identity;
             Quaternion headWorld=head!=null?head.rotation:Quaternion.identity;
-            float twist=twoHands?Mathf.Lerp(10,-14,before)+after*5:Mathf.Lerp(tuning.TorsoTwistDegrees,0,before)-after*tuning.TorsoTwistDegrees*.8f;
-            float lean=twoHands?Mathf.Lerp(-7,12,before)+after*5:Mathf.Lerp(-2,5,before);
+            float twist=twoHands?Mathf.Lerp(16,-19,before)+after*7:Mathf.Lerp(tuning.TorsoTwistDegrees,0,before)-after*tuning.TorsoTwistDegrees*.8f;
+            float lean=twoHands?Mathf.Lerp(-9,15,before)+after*3:Mathf.Lerp(-2,5,before);
             if(chest!=null)chest.rotation=Quaternion.AngleAxis(twist,up)*Quaternion.AngleAxis(lean,right)*chest.rotation;
             if(head!=null)head.rotation=Quaternion.Slerp(head.rotation,headWorld,.7f);
             Vector3 center=leftUpper!=null?(rightUpper.position+leftUpper.position)*.5f:rightUpper.position-right*arm*.4f;

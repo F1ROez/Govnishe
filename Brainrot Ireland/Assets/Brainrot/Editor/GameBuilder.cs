@@ -8,7 +8,8 @@ using UnityEditor.SceneManagement;
 namespace Brainrot.Editor {
  [InitializeOnLoad] public static class GameBuilder {
   const string Root="Assets/Brainrot/Generated"; public const string ScenePath="Assets/Scenes/BrainrotIreland.unity";
-  static GameBuilder(){EditorApplication.delayCall+=ConfigureFirstImport;}
+  static GameBuilder(){EditorApplication.delayCall+=ConfigureFirstImport;EditorApplication.playModeStateChanged+=OnPlayModeChanged;}
+  static void OnPlayModeChanged(PlayModeStateChange state){if(state==PlayModeStateChange.ExitingPlayMode)GameQuality.Release();}
   static void ConfigureFirstImport(){if(EditorApplication.isPlayingOrWillChangePlaymode||SessionState.GetBool("BrainrotConfigured",false))return;SessionState.SetBool("BrainrotConfigured",true);Configure();}
   static void Folder(string path){if(!Directory.Exists(path))Directory.CreateDirectory(path);}
   public static GameBalance EnsureBalance(){
@@ -58,11 +59,11 @@ namespace Brainrot.Editor {
   }
   static void EnsureAtmosphere(){
    const string path=Root+"/Resources/IslandAtmosphere.asset";
-   var profile=AssetDatabase.LoadAssetAtPath<VolumeProfile>(path);const string marker="Brainrot.DaylightPreset=4";
+   var profile=AssetDatabase.LoadAssetAtPath<VolumeProfile>(path);const string marker="Brainrot.DaylightPreset=5";
    var settings=AssetImporter.GetAtPath(path);
    if(profile!=null&&settings!=null&&(settings.userData??"").Contains(marker))return;
    if(profile==null){profile=WorldAtmosphere.CreateProfile(true);AssetDatabase.CreateAsset(profile,path);}
-   else WorldAtmosphere.ApplyDaylight(profile,true);
+   else {bool bloomAllowed=!profile.TryGet<Bloom>(out var authoredBloom)||authoredBloom.active;WorldAtmosphere.ApplyDaylight(profile,bloomAllowed);}
    foreach(var component in profile.components){if(!AssetDatabase.Contains(component))AssetDatabase.AddObjectToAsset(component,profile);EditorUtility.SetDirty(component);}
    EditorUtility.SetDirty(profile);AssetDatabase.SaveAssets();
    settings=AssetImporter.GetAtPath(path);if(settings!=null){settings.userData=(settings.userData??"")+"\n"+marker;AssetDatabase.WriteImportSettingsIfDirty(path);}

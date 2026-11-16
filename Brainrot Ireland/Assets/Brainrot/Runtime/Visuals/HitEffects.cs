@@ -6,6 +6,9 @@ namespace Brainrot
     public sealed class HitEffects : MonoBehaviour
     {
         static readonly Queue<HitEffects> pool=new Queue<HitEffects>();
+        static readonly List<HitEffects> effects=new List<HitEffects>();
+        public static int AllocatedCount=>effects.Count;
+        bool showRing;
         static Material particleMaterial,ringMaterial;
         static Texture2D sparkle;
         LineRenderer ring;
@@ -19,10 +22,17 @@ namespace Brainrot
         {
             HitEffects effect=null;
             while(pool.Count>0 && effect==null)effect=pool.Dequeue();
+            int budget=Mathf.Clamp(GameBalance.Current.Feedback.EffectsBudget,4,48);
+            if(effect==null&&effects.Count>=budget){
+                // Reuse the oldest active effect rather than allocating a burst for every enemy in a crowd.
+                float oldest=float.PositiveInfinity;
+                for(int i=effects.Count-1;i>=0;i--){var candidate=effects[i];if(candidate==null){effects.RemoveAt(i);continue;}if(candidate.started<oldest){oldest=candidate.started;effect=candidate;}}
+                if(effect!=null)effect.particles.Stop(true,ParticleSystemStopBehavior.StopEmittingAndClear);
+            }
             if(effect==null)
             {
                 var go=new GameObject("Pooled hit sparks");
-                effect=go.AddComponent<HitEffects>();
+                effect=go.AddComponent<HitEffects>();effects.Add(effect);
                 effect.particles=go.AddComponent<ParticleSystem>();
                 effect.particles.Stop(true,ParticleSystemStopBehavior.StopEmittingAndClear);
                 var main=effect.particles.main;main.playOnAwake=false;main.loop=false;main.duration=.7f;
@@ -54,7 +64,7 @@ namespace Brainrot
             }
             effect.transform.position=position;effect.gameObject.SetActive(true);
             var options=new ParticleSystem.EmitParams{startColor=color};
-            effect.particles.Emit(options,Mathf.Clamp(count,1,80));effect.recycleAt=Time.time+.8f;effect.started=Time.time;effect.ringColor=color;effect.ringRadius=Mathf.Clamp(groundRingRadius,.1f,12);effect.ring.enabled=true;effect.live=true;
+            effect.particles.Emit(options,Mathf.Clamp(count,1,80));effect.recycleAt=Time.time+.8f;effect.started=Time.time;effect.ringColor=color;effect.ringRadius=Mathf.Clamp(groundRingRadius,.1f,12);effect.showRing=groundRingRadius>0;effect.ring.enabled=effect.showRing;effect.live=true;
             effect.ring.transform.position=new Vector3(position.x,.07f,position.z);effect.TickRing();
         }
         static Texture2D SparkleTexture(){
@@ -64,14 +74,33 @@ namespace Brainrot
                 float alpha=Mathf.Clamp01((1.12f-diamond)*8);float halo=Mathf.Exp(-(u*u+v*v)*14)*.23f;pixels[y*n+x]=new Color(1,1,1,Mathf.Max(alpha,halo));
             }texture.SetPixels(pixels);texture.Apply(false,true);return texture;
         }
-        void TickRing(){float t=(Time.time-started)/.3f;ring.enabled=t<1;if(t>=1)return;ring.transform.localScale=Vector3.one*Mathf.Lerp(.16f,ringRadius,Mathf.Clamp01(t));var color=ringColor;color.a=(1-t)*.48f;ringBlock.SetColor(BaseColor,color);ring.SetPropertyBlock(ringBlock);}
+        void TickRing(){float t=(Time.time-started)/.3f;ring.enabled=showRing&&t<1;if(!showRing||t>=1)return;ring.transform.localScale=Vector3.one*Mathf.Lerp(.16f,ringRadius,Mathf.Clamp01(t));var color=ringColor;color.a=(1-t)*.48f;ringBlock.SetColor(BaseColor,color);ring.SetPropertyBlock(ringBlock);}
         void Update()
         {
             if(!live)return;TickRing();
             if(Time.time<recycleAt)return;
             live=false;particles.Stop(true,ParticleSystemStopBehavior.StopEmittingAndClear);gameObject.SetActive(false);pool.Enqueue(this);
         }
+        public static void HeavyImpact(Vector3 position,Vector3 forward)
+        {
+            // One modest shock ring for a confirmed heavy contact, independent of the number of victims.
+            Burst(position+Vector3.up*.4f,new Color(1,.97f,.81f),18,1.9f);
+        }
+        public static void ClearAll()
+        {
+            pool.Clear();BatSwingArc.ClearAll();
+            for(int i=effects.Count-1;i>=0;i--){var effect=effects[i];if(effect==null){effects.RemoveAt(i);continue;}
+                effect.live=false;effect.particles.Stop(true,ParticleSystemStopBehavior.StopEmittingAndClear);effect.ring.enabled=false;effect.gameObject.SetActive(false);pool.Enqueue(effect);
+            }
+        }
+        void OnDestroy(){
+            effects.Remove(this);
+            if(effects.Count!=0)return;
+            pool.Clear();
+            if(particleMaterial!=null)Destroy(particleMaterial);if(ringMaterial!=null)Destroy(ringMaterial);if(sparkle!=null)Destroy(sparkle);
+            particleMaterial=ringMaterial=null;sparkle=null;
+        }
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetPool(){pool.Clear();particleMaterial=null;ringMaterial=null;sparkle=null;}
+        static void ResetPool(){pool.Clear();effects.Clear();particleMaterial=null;ringMaterial=null;sparkle=null;}
     }
 }

@@ -6,7 +6,7 @@ namespace Brainrot
     /// <summary>Self-contained, deterministic tropical arena. Gameplay surface is the y=0 plane.</summary>
     public static class WorldBuilder
     {
-        static Material sand, grass, bark, leaf, stone, foam, coral, leafLight, flower, flowerGold, shellMaterial;
+        static Material sand, grass, bark, leaf, stone, foam, coral, leafLight, flower, flowerGold, shellMaterial, coconut;
         static Mesh beachRock,beachPlant,shellMesh;
         static WorldGeneratedResources resources;
         static T Own<T>(T value) where T:Object { if(resources!=null)resources.Own(value);return value; }
@@ -30,11 +30,13 @@ namespace Brainrot
             grass = WorldMaterial(new Color(.51f,.78f,.10f), "Lime vegetation");
             bark = WorldMaterial(Color.white, "Golden ringed palm bark");bark.SetTexture("_BaseMap",BarkPalette());
             leaf = WorldMaterial(Color.white, "Glossy emerald palm leaves");leaf.SetTexture("_BaseMap",LeafPalette());leaf.SetFloat("_Smoothness",.34f);
-            stone = WorldMaterial(new Color(.68f,.66f,.61f), "Warm coastal granite");
+            stone = WorldMaterial(Color.white, "Warm coastal granite with painted facets");
+            stone.SetTexture("_BaseMap",StonePalette());stone.SetFloat("_Smoothness",.18f);
             foam = WorldMaterial(new Color(.96f,1,.96f), "Foam");
             coral=WorldMaterial(new Color(1,.30f,.075f),"Tangerine starfish");
             flower=WorldMaterial(new Color(1,.065f,.09f),"Red hibiscus petals");flowerGold=WorldMaterial(new Color(1,.71f,.03f),"Golden flower stamens");
-            shellMaterial=WorldMaterial(new Color(1,.86f,.69f),"Cream seashells");
+            shellMaterial=WorldMaterial(Color.white,"Cream seashells with peach growth bands");shellMaterial.SetTexture("_BaseMap",ShellPalette());
+            coconut=WorldMaterial(new Color(.64f,.32f,.09f),"Golden coconut husks");
             leafLight=WorldMaterial(new Color(.91f,1,.55f),"Young lime leaves");leafLight.SetTexture("_BaseMap",LeafPalette());leafLight.SetFloat("_Smoothness",.28f);
             beachRock=BeachRockMesh();beachPlant=PalmCrown(0,.9f,6);shellMesh=ShellMesh();
             leaf.SetFloat("_Cull",0);leafLight.SetFloat("_Cull",0);grass.SetFloat("_Cull",0);
@@ -91,16 +93,16 @@ namespace Brainrot
             foreach(var light in Object.FindObjectsByType<Light>(FindObjectsSortMode.None))if(light.type==LightType.Directional&&(old==null||!light.transform.IsChildOf(old.transform))){sun=light;break;}
             if(sun==null){sun=new GameObject("Тропическое солнце").AddComponent<Light>();sun.transform.SetParent(root,false);sun.type=LightType.Directional;}
             sun.name="Персиковое тропическое солнце";
-            sun.color=new Color(1,.94f,.83f);sun.intensity=1.48f;
+            sun.color=new Color(1,.95f,.86f);sun.intensity=1.32f;
             sun.shadows=LightShadows.Soft;sun.shadowStrength=.65f;sun.shadowBias=.025f;sun.shadowNormalBias=.13f;
             sun.transform.rotation=Quaternion.Euler(51,-38,0);RenderSettings.sun=sun;
             // Sky and sand bounce light keep silhouettes readable without extra shadow maps.
             var fill=new GameObject("Небесный заполняющий свет").AddComponent<Light>();fill.transform.SetParent(root,false);
-            fill.type=LightType.Directional;fill.color=new Color(.66f,.84f,1);fill.intensity=.25f;fill.shadows=LightShadows.None;fill.transform.rotation=Quaternion.Euler(28,142,0);
+            fill.type=LightType.Directional;fill.color=new Color(.66f,.84f,1);fill.intensity=.22f;fill.shadows=LightShadows.None;fill.transform.rotation=Quaternion.Euler(28,142,0);
             RenderSettings.ambientMode=AmbientMode.Trilight;RenderSettings.ambientIntensity=1;
             RenderSettings.ambientSkyColor=new Color(.54f,.74f,.95f);
-            RenderSettings.ambientEquatorColor=new Color(.58f,.73f,.75f);
-            RenderSettings.ambientGroundColor=new Color(.65f,.53f,.32f);
+            RenderSettings.ambientEquatorColor=new Color(.50f,.67f,.73f);
+            RenderSettings.ambientGroundColor=new Color(.57f,.43f,.25f);
             RenderSettings.fog=true;RenderSettings.fogMode=FogMode.ExponentialSquared;
             RenderSettings.fogColor=new Color(.43f,.81f,.99f);RenderSettings.fogDensity=.0015f;
             RenderSettings.reflectionIntensity=.52f;
@@ -129,6 +131,7 @@ namespace Brainrot
             go.transform.SetParent(parent,false); go.GetComponent<MeshFilter>().sharedMesh=mesh;
             go.GetComponent<MeshRenderer>().sharedMaterial=sand; go.GetComponent<MeshCollider>().sharedMesh=mesh;
             Primitive("Island foundation",PrimitiveType.Cylinder,parent,new Vector3(0,-1.2f,0),new Vector3(44,1.08f,44),sand);
+            ShoreSlope(parent);
         }
         static void Ring(Transform root,string name,float radius,float width,float y,Material mat,int segments)
         {
@@ -168,7 +171,7 @@ namespace Brainrot
             crownObject.AddComponent<WorldPalmSway>().Phase=angle;
             var young=MeshObject("Светлые молодые листья",crownObject.transform,Vector3.up*.18f,PalmCrown(angle+.4f,1.85f,6),leafLight);
             young.transform.localRotation=Quaternion.Euler(0,24,0);
-            for(int j=0;j<4;j++){float a=j*2.4f;Primitive("Кокос",PrimitiveType.Sphere,tree,crown+new Vector3(Mathf.Cos(a)*.24f,-.22f,Mathf.Sin(a)*.24f),new Vector3(.38f,.48f,.38f),bark);}
+            for(int j=0;j<4;j++){float a=j*2.4f;Primitive("Кокос",PrimitiveType.Sphere,tree,crown+new Vector3(Mathf.Cos(a)*.24f,-.22f,Mathf.Sin(a)*.24f),new Vector3(.38f,.48f,.38f),coconut);}
             BeachPlants(tree,new Vector3(0,.02f,0),angle);
         }
         static GameObject MeshObject(string name,Transform parent,Vector3 position,Mesh mesh,Material material)
@@ -178,19 +181,62 @@ namespace Brainrot
         }
         static Texture2D SandPalette()
         {
-            const int n=1024;var texture=Own(new Texture2D(n,n,TextureFormat.RGB24,false){name="Golden sand with wet coast and fine grains",wrapMode=TextureWrapMode.Clamp,filterMode=FilterMode.Bilinear});
-            var pixels=new Color[n*n];
+            // Half the former dimensions, packed upload and mipmaps: no 16 MB float-colour array
+            // or unmipped grains shimmering as the camera moves. A quiet centre keeps telegraphs readable.
+            const int n=512;var texture=Own(new Texture2D(n,n,TextureFormat.RGBA32,true){name="Warm fine sand with wet shoreline",wrapMode=TextureWrapMode.Clamp,filterMode=FilterMode.Trilinear,anisoLevel=2});
+            var pixels=new Color32[n*n];
             for(int y=0;y<n;y++)for(int x=0;x<n;x++){
                 float u=(x+.5f)/n,v=(y+.5f)/n;float r=Vector2.Distance(new Vector2(u,v),Vector2.one*.5f)*2;
-                float wet=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.8f,1,r));float patches=Mathf.PerlinNoise(x*.008f+13,y*.008f+7);
-                var color=Color.Lerp(new Color(1,.80f,.47f),new Color(.83f,.60f,.30f),wet*.50f);
-                color*=.94f+patches*.10f;
-                // Rare tiny darker grains, restrained enough to stay soft at gameplay distance.
-                float grain=Mathf.PerlinNoise(x*.83f,y*.89f);color*=Mathf.Lerp(.92f,1.075f,grain);
-                float ripple=Mathf.Sin(x*.22f+Mathf.PerlinNoise(x*.012f,y*.012f)*8+y*.05f);color*=1+ripple*.012f;
+                float wet=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.82f,1.03f,r));
+                float patches=Mathf.PerlinNoise(x*.014f+13,y*.014f+7);
+                var color=Color.Lerp(new Color(1,.81f,.51f),new Color(.69f,.48f,.25f),wet*.56f);
+                color*=.95f+patches*.08f;
+                float grain=Mathf.PerlinNoise(x*1.63f,y*1.71f);color*=Mathf.Lerp(.95f,1.045f,grain);
+                float ripple=Mathf.Sin(x*.36f+Mathf.PerlinNoise(x*.024f,y*.024f)*8+y*.08f);color*=1+ripple*.011f;
                 pixels[y*n+x]=color;
             }
-            texture.SetPixels(pixels);texture.Apply(false,true);return texture;
+            texture.SetPixels32(pixels);texture.Apply(true,true);return texture;
+        }
+        static Texture2D StonePalette()
+        {
+            const int n=128;var texture=Own(new Texture2D(n,n,TextureFormat.RGBA32,true){name="Warm granite with lavender mineral flecks",wrapMode=TextureWrapMode.Repeat,filterMode=FilterMode.Trilinear});
+            var pixels=new Color32[n*n];
+            for(int y=0;y<n;y++)for(int x=0;x<n;x++){
+                float t=y/(float)(n-1),cloud=Mathf.PerlinNoise(x*.048f+3,y*.051f+8),grain=Mathf.PerlinNoise(x*.7f,y*.7f);
+                Color color=Color.Lerp(new Color(.43f,.48f,.52f),new Color(.78f,.74f,.65f),Mathf.SmoothStep(0,1,t));
+                color=Color.Lerp(color,new Color(.61f,.55f,.67f),Mathf.SmoothStep(0,1,Mathf.InverseLerp(.62f,.88f,cloud))*.24f);
+                color*=.93f+cloud*.10f+grain*.06f;pixels[y*n+x]=color;
+            }
+            texture.SetPixels32(pixels);texture.Apply(true,true);return texture;
+        }
+        static Texture2D ShellPalette()
+        {
+            const int n=128;var texture=Own(new Texture2D(n,n,TextureFormat.RGBA32,true){name="Peach scallop growth rings",wrapMode=TextureWrapMode.Clamp,filterMode=FilterMode.Trilinear});
+            var pixels=new Color32[n*n];
+            for(int y=0;y<n;y++)for(int x=0;x<n;x++){
+                float u=x/(float)(n-1),v=y/(float)(n-1);
+                float ring=Mathf.Pow(Mathf.Max(0,Mathf.Sin(v*Mathf.PI*12)),5)*.24f;
+                float ridge=Mathf.Pow(Mathf.Abs(Mathf.Sin(u*Mathf.PI*12)),6)*.09f;
+                Color color=Color.Lerp(new Color(1,.92f,.76f),new Color(.93f,.60f,.44f),ring+ridge+(1-v)*.12f);
+                pixels[y*n+x]=color;
+            }
+            texture.SetPixels32(pixels);texture.Apply(true,true);return texture;
+        }
+        static void ShoreSlope(Transform parent)
+        {
+            // The arena remains the existing plane. This visual-only skirt hides its vertical foundation
+            // and actually meets the sea, so the foam is no longer drawn underneath an opaque beach rim.
+            const int segments=128,rings=3;var vertices=new Vector3[(segments+1)*rings];var uv=new Vector2[vertices.Length];var tris=new int[segments*(rings-1)*6];
+            for(int j=0;j<rings;j++)for(int i=0;i<=segments;i++){
+                float a=i*Mathf.PI*2/segments,coast=22+Mathf.Sin(a*5)*.3f+Mathf.Cos(a*9)*.17f;
+                float radius=coast+(j==0?-.03f:j==1?.45f:1.5f),height=j==0?-.109f:j==1?-.39f:-.70f;
+                int id=j*(segments+1)+i;vertices[id]=new Vector3(Mathf.Cos(a)*radius,height,Mathf.Sin(a)*radius);
+                uv[id]=new Vector2(vertices[id].x/45+.5f,vertices[id].z/45+.5f);
+                if(i==segments||j==rings-1)continue;int k=(j*segments+i)*6,next=id+segments+1;
+                tris[k]=id;tris[k+1]=id+1;tris[k+2]=next;tris[k+3]=id+1;tris[k+4]=next+1;tris[k+5]=next;
+            }
+            var mesh=Own(new Mesh{name="Smooth wet sand shore slope",vertices=vertices,triangles=tris,uv=uv});mesh.RecalculateNormals();mesh.RecalculateBounds();
+            MeshObject("Пологий мокрый берег",parent,Vector3.zero,mesh,sand);
         }
         static Mesh PalmCrown(float angle,float length,int count)
         {
@@ -248,7 +294,8 @@ namespace Brainrot
                 for(int ring=0;ring<2;ring++){int k=1+ring*sides+j,n=1+ring*sides+next;t.Add(k);t.Add(k+sides);t.Add(n);t.Add(n);t.Add(k+sides);t.Add(n+sides);}
                 t.Add(vertices.Length-1);t.Add(1+2*sides+next);t.Add(1+2*sides+j);
             }
-            var mesh=Own(new Mesh{name="Rounded coastal boulder",vertices=vertices,triangles=t.ToArray()});mesh.RecalculateNormals();mesh.RecalculateBounds();return mesh;
+            var uv=new Vector2[vertices.Length];for(int i=0;i<vertices.Length;i++)uv[i]=new Vector2(Mathf.Atan2(vertices[i].z,vertices[i].x)/(Mathf.PI*2)+.5f,vertices[i].y+.5f);
+            var mesh=Own(new Mesh{name="Rounded coastal boulder",vertices=vertices,triangles=t.ToArray(),uv=uv});mesh.RecalculateNormals();mesh.RecalculateBounds();return mesh;
         }
         static void BeachPlants(Transform root,Vector3 position,float angle)
         {
@@ -266,15 +313,15 @@ namespace Brainrot
         }
         static Mesh ShellMesh()
         {
-            const int rows=8,sides=24;var v=new Vector3[(rows+1)*(sides+1)];var tri=new int[(rows*2-1)*sides*3];int nextTriangle=0;
+            const int rows=8,sides=24;var v=new Vector3[(rows+1)*(sides+1)];var tri=new int[(rows*2-1)*sides*3];var uv=new Vector2[v.Length];int nextTriangle=0;
             for(int j=0;j<=rows;j++)for(int k=0;k<=sides;k++){
                 float t=j/(float)rows,a=(k/(float)sides-.5f)*Mathf.PI*1.2f,r=t*(1+.035f*Mathf.Cos(k*Mathf.PI));int id=j*(sides+1)+k;
-                v[id]=new Vector3(Mathf.Sin(a)*r,Mathf.Sin(t*Mathf.PI)*.43f*(.90f+.10f*Mathf.Cos(k*Mathf.PI)),Mathf.Cos(a)*r-.3f);
+                v[id]=new Vector3(Mathf.Sin(a)*r,Mathf.Sin(t*Mathf.PI)*.43f*(.90f+.10f*Mathf.Cos(k*Mathf.PI)),Mathf.Cos(a)*r-.3f);uv[id]=new Vector2(k/(float)sides,t);
                 if(j==rows||k==sides)continue;
                 if(j>0){tri[nextTriangle++]=id;tri[nextTriangle++]=id+sides+1;tri[nextTriangle++]=id+1;}
                 tri[nextTriangle++]=id+1;tri[nextTriangle++]=id+sides+1;tri[nextTriangle++]=id+sides+2;
             }
-            var m=Own(new Mesh{name="Scalloped sculpted seashell",vertices=v,triangles=tri});m.RecalculateNormals();m.RecalculateBounds();return m;
+            var m=Own(new Mesh{name="Scalloped sculpted seashell",vertices=v,triangles=tri,uv=uv});m.RecalculateNormals();m.RecalculateBounds();return m;
         }
         static void Hibiscus(Transform root,Vector3 p,float angle)
         {

@@ -11,6 +11,7 @@ namespace Brainrot
         [Range(0,.6f),Tooltip("Дополнительный зазор вокруг игрока, м.")]public float PlayerClearance=.15f;
         [Range(1,3),Tooltip("Число ограниченных проходов раздвижения за кадр.")]public int Iterations=2;
         [Range(4,32),Tooltip("Максимум соседей, проверяемых для одного врага за проход.")]public int MaxNeighbours=16;
+        [Range(1,8),Tooltip("Максимум одновременно готовящихся или выполняемых укусов. Остальные акулы продолжают подходить, оставляя окно для ответа.")]public int MaxSimultaneousMelee=3;
         [Range(1,12),Tooltip("Максимум одновременно видимых обычных предупреждений укуса. Особые атаки показываются всегда.")]public int MaxMeleeWarnings=6;
     }
 

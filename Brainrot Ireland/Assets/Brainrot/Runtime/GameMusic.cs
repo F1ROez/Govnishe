@@ -36,7 +36,7 @@ namespace Brainrot
             menuClip=Resources.Load<AudioClip>("Audio/Menu");buttonClip=Resources.Load<AudioClip>("Audio/Button");
             tracks=Resources.LoadAll<AudioClip>("Audio/Gameplay");
             Array.Sort(tracks,(a,b)=>StringComparer.Ordinal.Compare(a.name,b.name));order=new MusicShuffleBag(tracks.Length);
-            menuSource.clip=menuClip;
+            menuSource.clip=menuClip;menuSource.volume=gameplaySource.volume=0;
         }
         AudioSource Source(string title,float gain,bool loop)
         {
@@ -65,7 +65,7 @@ namespace Brainrot
         {
             ApplyVolume();
             if(Mode==PlaybackMode.Gameplay)return;
-            menuSource.Pause();Mode=PlaybackMode.Gameplay;
+            Mode=PlaybackMode.Gameplay;
             if(gameplayPaused&&gameplaySource.clip!=null){gameplaySource.UnPause();gameplayPaused=false;waitingForStart=true;startDeadline=Time.unscaledTime+3;}
             else StartNextTrack();
         }
@@ -77,6 +77,7 @@ namespace Brainrot
         void PauseGameplay(){HoldGameplay();menuSource.Pause();Mode=PlaybackMode.Paused;}
         void StartNextTrack()
         {
+            gameplaySource.volume=0;
             int next=order!=null?order.Next():-1;
             if(next<0)return;
             gameplaySource.clip=tracks[next];gameplaySource.Play();gameplayPaused=false;waitingForStart=true;startDeadline=Time.unscaledTime+3;
@@ -84,6 +85,11 @@ namespace Brainrot
         void Update()
         {
             float target=muted?0:Mathf.Clamp01(SaveSystem.Data.Volume);if(!Mathf.Approximately(AudioListener.volume,target))AudioListener.volume=target;
+            // Fade music using real time so opening a paused menu never freezes the transition.
+            float blend=1-Mathf.Exp(-Time.unscaledDeltaTime*8);
+            menuSource.volume=Mathf.Lerp(menuSource.volume,Mode==PlaybackMode.Menu?.75f:0,blend);
+            gameplaySource.volume=Mathf.Lerp(gameplaySource.volume,Mode==PlaybackMode.Gameplay?.62f:0,blend);
+            if(Mode!=PlaybackMode.Menu&&menuSource.isPlaying&&menuSource.volume<.003f)menuSource.Pause();
             if(Mode!=PlaybackMode.Gameplay||tracks.Length==0)return;
             if(gameplaySource.isPlaying){waitingForStart=false;return;}
             // A streaming clip may need several frames before it can start; do not skip every frame while loading.

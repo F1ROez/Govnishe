@@ -166,7 +166,7 @@ namespace Brainrot
                 visual.Animate(0, true);
                 return;
             }
-            if (distance <= AttackRange && attackClock <= 0)
+            if (distance <= AttackRange && attackClock <= 0 && (owner==null||owner.CanBeginMeleeAttack(this)))
             {
                 committedDirection = direction;
                 transform.rotation = Quaternion.LookRotation(direction);
@@ -317,7 +317,7 @@ namespace Brainrot
             if (Action != EnemyAction.Charging)
             {
                 telegraph.Hide();visual.ResetBite();Action = EnemyAction.Staggered;
-                stateClock = Mathf.Max(.02f, tuning.HitStagger);attackClock = .2f;
+                stateClock = Mathf.Max(.02f, tuning.HitStagger);attackClock = Mathf.Max(attackClock,.35f);
             }
             if (Health > 0){if(knockback.sqrMagnitude>.01f)Tumble(knockback);return;}
             Alive = false;IsAlerted = false;telegraph.Hide();
@@ -381,12 +381,12 @@ namespace Brainrot
             for(int i=0;i<cone.Length;i++)points[i+1]=origin+(side*cone[i].x+direction*cone[i].y)*radius;
             points[26]=origin;Show(27,progress);
         }
-        public void ChargeStraight(Vector3 origin,Vector3 direction,float length,float width){
+        public void ChargeStraight(Vector3 origin,Vector3 direction,float length,float width,float progress=1){
             origin=Ground(origin);Vector3 side=Vector3.Cross(Vector3.up,direction)*width,end=origin+direction*length;
-            points[0]=origin-side;points[1]=end-side;points[2]=end+direction*.5f;points[3]=end+side;points[4]=origin+side;points[5]=origin-side;Show(6,1,true);
+            points[0]=origin-side;points[1]=end-side;points[2]=end+direction*.5f;points[3]=end+side;points[4]=origin+side;points[5]=origin-side;Show(6,progress,true);
         }
-        public void Circle(Vector3 origin,float radius){
-            origin=Ground(origin);for(int i=0;i<=32;i++){float angle=i*Mathf.PI*2/32;points[i]=origin+new Vector3(Mathf.Cos(angle),0,Mathf.Sin(angle))*radius;}Show(33,1,true);
+        public void Circle(Vector3 origin,float radius,float progress=1){
+            origin=Ground(origin);for(int i=0;i<=32;i++){float angle=i*Mathf.PI*2/32;points[i]=origin+new Vector3(Mathf.Cos(angle),0,Mathf.Sin(angle))*radius;}Show(33,progress,true);
         }
     }
 }

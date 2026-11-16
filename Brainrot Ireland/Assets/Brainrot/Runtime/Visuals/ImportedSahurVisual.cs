@@ -23,7 +23,7 @@ namespace Brainrot
         public bool ChargePoseActive=>charging;
         public bool HeavyAttackActive=>AttackActive&&heavyAttack;
         float remaining, duration=.32f, reach=3.2f,contactSeconds=.09f,attackStartedTime;
-        float chargeProgress;
+        float chargeProgress,impactPause,pausedAttackTime;
         bool charging,heavyAttack,fromCharge;
         SahurCombatPose procedural;
         Transform[] cachedBones;
@@ -94,7 +94,7 @@ namespace Brainrot
         public void SetChargePose(float progress,bool active){charging=active&&remaining<=0;chargeProgress=Mathf.Clamp01(progress);if(!charging)procedural?.Restore();}
         public void PlayAttack(float seconds,float contactTime=.09f,bool heavy=false){
             bool charged=charging&&chargeProgress>.05f;
-            ResetAttack();heavyAttack=heavy;fromCharge=charged&&heavy;duration=Mathf.Max(.15f,seconds);contactSeconds=Mathf.Clamp(contactTime,0,duration*.95f);remaining=duration;attackStartedTime=Time.time;
+            ResetAttack();heavyAttack=heavy;fromCharge=charged&&heavy;impactPause=pausedAttackTime=0;duration=Mathf.Max(.15f,seconds);contactSeconds=Mathf.Clamp(contactTime,0,duration*.95f);remaining=duration;attackStartedTime=Time.time;
             EnsurePoseCache();
         }
         /// <summary>Keep the animation's strike pose aligned with CombatSystem's existing contact time.</summary>
@@ -149,23 +149,25 @@ namespace Brainrot
             if(Weapon!=null){Weapon.localPosition=Vector3.Lerp(baseWeaponPosition,Weapon.localPosition,weight);Weapon.localRotation=Quaternion.Slerp(baseWeaponRotation,Weapon.localRotation,weight);}
             sampledPose=true;ApplyReach();
         }
+        public void HoldImpact(float seconds){if(remaining>0)impactPause=Mathf.Max(impactPause,Mathf.Clamp(seconds,0,.08f));}
         void LateUpdate(){
             if(GameManager.Instance!=null&&!GameManager.Instance.IsPlaying){ResetAttack();return;}
             bool swing=remaining>0;
-            if(swing)remaining=Mathf.Max(0,duration-(Time.time-attackStartedTime));
+            float held=Mathf.Min(Time.deltaTime,impactPause);impactPause=Mathf.Max(0,impactPause-held);pausedAttackTime+=held;
+            if(swing)remaining=Mathf.Max(0,duration-(Time.time-attackStartedTime-pausedAttackTime));
             float elapsed=duration-remaining,progress=elapsed/duration;
             if(UsesProceduralAttack){
                 if(procedural==null)procedural=new SahurCombatPose(this);
                 PoseReadyWeapon();
                 if(swing){procedural.Swing(elapsed,duration,contactSeconds,heavyAttack,fromCharge);ApplyReach();}
                 else if(charging)procedural.Charge(chargeProgress);
-                if(Trail!=null)Trail.emitting=swing&&progress>.02f&&progress<.88f;
+                if(Trail!=null)Trail.emitting=swing&&impactPause<=0&&progress>.02f&&progress<.88f;
                 if(swing&&remaining<=0){procedural.Restore();PoseReadyWeapon();if(Trail!=null)Trail.emitting=false;}
                 return;
             }
             if(UsesRetargetedAttack){
                 if(swing)SampleRetargetedPose(elapsed);else PoseReadyWeapon();
-                if(Trail!=null)Trail.emitting=swing&&progress>.03f&&progress<.86f;
+                if(Trail!=null)Trail.emitting=swing&&impactPause<=0&&progress>.03f&&progress<.86f;
                 if(swing&&remaining<=0){RestoreSampledPose();PoseReadyWeapon();if(Trail!=null)Trail.emitting=false;}
                 return;
             }
@@ -180,11 +182,11 @@ namespace Brainrot
             Weapon.position=Grip.position+transform.forward*.045f;
             if(swing){Weapon.rotation=Quaternion.AngleAxis(yaw,transform.up)*Quaternion.LookRotation(transform.forward,transform.up)*Quaternion.Euler(90,0,0);ApplyReach();}
             else PoseReadyWeapon();
-            if(Trail!=null)Trail.emitting=swing&&progress>.03f&&progress<.86f;
+            if(Trail!=null)Trail.emitting=swing&&impactPause<=0&&progress>.03f&&progress<.86f;
             if(swing&&remaining<=0)RestoreArms();
         }
         void RestoreArms(){if(RightUpperArm!=null)RightUpperArm.localRotation=upperRest;if(RightForearm!=null)RightForearm.localRotation=foreRest;}
-        public void ResetAttack(){bool retargeted=UsesRetargetedAttack;RestoreSampledPose();procedural?.Restore();remaining=0;charging=heavyAttack=fromCharge=false;chargeProgress=0;if(!retargeted&&!UsesProceduralAttack)RestoreArms();if(Weapon!=null)Weapon.localScale=Vector3.one;if(Trail!=null){Trail.emitting=false;Trail.Clear();}}
+        public void ResetAttack(){bool retargeted=UsesRetargetedAttack;RestoreSampledPose();procedural?.Restore();remaining=impactPause=pausedAttackTime=0;charging=heavyAttack=fromCharge=false;chargeProgress=0;if(!retargeted&&!UsesProceduralAttack)RestoreArms();if(Weapon!=null)Weapon.localScale=Vector3.one;if(Trail!=null){Trail.emitting=false;Trail.Clear();}}
         void OnDisable(){ResetAttack();}
     }
 }

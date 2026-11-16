@@ -16,8 +16,10 @@ namespace Brainrot
         GameObject hud, overlay, mobile, fullMap, controlsLegend;
         bool mapExpanded;
         Text waveTitle,stageText,soundMute;Text stats, healthText, xpText, notification, aimHint, hitMarker, hitLabel,chargeLabel;
-        Text goalLabel,tutorialLabel;GameObject tutorialPanel;
-        string shownGoal,shownTutorial;
+        Text tutorialLabel,waveProgressText;GameObject tutorialPanel,questBoard;
+        HudProgressMeter waveMeter;HudWaveNotice waveNotice;readonly HudQuestCard[] questCards=new HudQuestCard[3];
+        int shownWaveResolved=-1,shownWavePlanned=-1,shownAlive=-1,announcedWave=-1;bool announcedClear;
+        string shownTutorial;
         float hitUntil;
         bool lastHitCritical,hitVisible;
         Image healthFill, xpFill,screenShade;
@@ -61,14 +63,18 @@ namespace Brainrot
             var soundButton=RoundButton("Звук",new Vector2(.891f,.905f),new Vector2(.936f,.985f),"SoundIcon",()=>GameMusic.ToggleMute());
             soundMute=Label(soundButton.transform,"×",19,TextAnchor.MiddleCenter,new Vector2(.55f,.01f),new Vector2(.99f,.46f));soundMute.color=new Color(1,.35f,.25f);
             RoundButton("Пауза",new Vector2(.943f,.905f),new Vector2(.988f,.985f),"PauseIcon",()=>GameManager.Instance.Pause());
-            notification=Label(hud.transform,"",25,TextAnchor.MiddleCenter,new Vector2(.20f,.68f),new Vector2(.88f,.76f));notification.color=gold;
+            waveMeter=QuestHUD.Meter(hud.transform,"Ход волны",new Vector2(.397f,.779f),new Vector2(.603f,.794f),new Color(.08f,.88f,1));
+            waveProgressText=Label(hud.transform,"",12,TextAnchor.MiddleCenter,new Vector2(.385f,.752f),new Vector2(.615f,.779f));waveProgressText.color=CartoonUI.Cream;
+            var waveBanner=Box("Событие волны",hud.transform,new Vector2(.325f,.66f),new Vector2(.675f,.75f),Color.clear);
+            waveNotice=waveBanner.AddComponent<HudWaveNotice>();waveNotice.Build();
+            notification=Label(hud.transform,"",20,TextAnchor.MiddleCenter,new Vector2(.20f,.60f),new Vector2(.80f,.66f));notification.color=gold;
             var controls=TropicalUIArt.Place("Подсказки управления",hud.transform,new Vector2(.135f,.018f),new Vector2(.865f,.085f),"ControlsPanel").gameObject;
             controlsLegend=controls;ControlsLegend(controls.transform);
             controls.SetActive(!Application.isMobilePlatform);
             aimHint=Label(hud.transform,"",12,TextAnchor.LowerCenter,new Vector2(.32f,.09f),new Vector2(.76f,.115f));
-            goalLabel=Label(hud.transform,"",14,TextAnchor.MiddleCenter,new Vector2(.24f,.205f),new Vector2(.79f,.24f));goalLabel.color=CartoonUI.Cream;
-            tutorialPanel=Box("Короткое обучение",hud.transform,new Vector2(.24f,.12f),new Vector2(.80f,.195f),new Color(.015f,.19f,.28f,.86f));
-            tutorialLabel=Label(tutorialPanel.transform,"",15,TextAnchor.MiddleCenter,new Vector2(.02f,.06f),new Vector2(.80f,.94f));
+            BuildQuestBoard();
+            tutorialPanel=TropicalUIArt.Place("Короткое обучение",hud.transform,new Vector2(.24f,.12f),new Vector2(.80f,.195f),"StatsStrip").gameObject;
+            tutorialLabel=Label(tutorialPanel.transform,"",14,TextAnchor.MiddleCenter,new Vector2(.04f,.15f),new Vector2(.79f,.85f));tutorialLabel.color=new Color(.06f,.18f,.25f);tutorialLabel.GetComponent<Outline>().effectColor=new Color(1,1,.85f,.8f);
             var skip=Button(tutorialPanel.transform,"СКРЫТЬ",new Vector2(.82f,.20f),new Vector2(.98f,.80f),()=>GameManager.Instance.Goals.SkipTutorial());skip.GetComponentInChildren<Text>().fontSize=11;
             Label(hud.transform,"+",18,TextAnchor.MiddleCenter,new Vector2(.49f,.49f),new Vector2(.51f,.53f)).color=new Color(1,1,1,.5f);
             hitMarker=Label(hud.transform,"",36,TextAnchor.MiddleCenter,new Vector2(.47f,.46f),new Vector2(.53f,.56f));
@@ -83,6 +89,15 @@ namespace Brainrot
             BuildMobile(root.transform);
             BuildFullMap(root.transform);
             Refresh();
+        }
+
+        public void ResetRunPresentation()
+        {
+            announcedWave=-1;announcedClear=false;
+            waveMeter?.Set(0,true);waveNotice?.Hide();
+            foreach(var card in questCards)if(card!=null)card.ResetPresentation();
+            hitVisible=false;hitUntil=0;if(hitMarker!=null)hitMarker.text="";if(hitLabel!=null)hitLabel.text="";
+            shownChargeMode=-1;shownChargePercent=-1;
         }
 
         public void Refresh()
@@ -100,6 +115,7 @@ namespace Brainrot
             int level=gm.Upgrades!=null?gm.Upgrades.Level:0;
             if(shownState!=gm.State || (gm.State==GameState.Upgrade && shownLevel!=level))
             {
+                if(gm.State==GameState.Dead){announcedWave=-1;shownWaveResolved=-1;}
                 shownState=gm.State;shownLevel=level;
                 MobileInput.Clear();
                 if(gm.State!=GameState.Playing) BuildScreen();
@@ -120,17 +136,27 @@ namespace Brainrot
             int wave=gm.Wave;
             if(wave!=shownWave){shownWave=wave;waveTitle.text=$"ВОЛНА {wave}";}
             string stage=gm.Spawner.Waves.Stage;int remaining=Mathf.CeilToInt(gm.Spawner.Waves.Remaining);
-            if(stage!=shownStage||remaining!=shownRemaining){shownStage=stage;shownRemaining=remaining;stageText.text=$"{stage} · {remaining} с";}
+            int alive=gm.Spawner.Active.Count;
+            bool clearing=gm.Spawner.Waves.WaitingForClear;
+            if(stage!=shownStage||remaining!=shownRemaining||alive!=shownAlive){shownStage=stage;shownRemaining=remaining;shownAlive=alive;stageText.text=clearing?$"ЗАЧИСТКА · ОСТАЛОСЬ {alive}":$"{stage} · {remaining} с";}
+            int resolved=gm.Spawner.WaveResolved,planned=gm.Spawner.WavePlanned;
+            if(resolved!=shownWaveResolved||planned!=shownWavePlanned){shownWaveResolved=resolved;shownWavePlanned=planned;waveProgressText.text=planned>0?$"УСТРАНЕНО {Mathf.Min(resolved,planned)} / {planned}":"ОКЕАН ГОТОВИТ НОВУЮ ВОЛНУ";}
+            waveMeter.Set(gm.Spawner.WaveCompletion);
+            if(gm.IsPlaying){
+                if(announcedWave!=wave){announcedWave=wave;announcedClear=false;waveMeter.Set(gm.Spawner.WaveCompletion,true);waveNotice.Show(wave,false,gm.Goals!=null?gm.Goals.WaveEventText:"");GameAudio.PlayWave();}
+                bool complete=gm.Spawner.Waves.Resting&&!clearing;
+                if(complete&&!announcedClear){announcedClear=true;waveNotice.Show(wave,true,"");GameAudio.PlayWave(true);}
+            }
             int seconds=Mathf.Max(0,Mathf.FloorToInt(gm.Elapsed));
             if(seconds!=shownSeconds||gm.Kills!=shownKills){shownSeconds=seconds;shownKills=gm.Kills;stats.text=$"{TimeLabel(seconds)}   |   Побеждено: {gm.Kills}";}
             SetActive(capturePanel,player!=null&&player.IsCaptured);if(player!=null)escapeFill.fillAmount=player.EscapeProgress;
             notification.text=gm.Notification ?? "";SetActive(soundMute.gameObject,GameMusic.IsMuted);
             SetActive(controlsLegend,gm.IsPlaying&&!Application.isMobilePlatform);SetActive(aimHint.gameObject,gm.IsPlaying);SetActive(notification.gameObject,gm.IsPlaying);
-            string goal=gm.Goals!=null?gm.Goals.GoalText:"",hint=gm.Goals!=null?gm.Goals.TutorialText:"";
-            if(goal!=shownGoal){shownGoal=goal;goalLabel.text=goal;}
+            string hint=gm.Goals!=null?gm.Goals.TutorialText:"";
+            if(gm.Goals!=null)for(int i=0;i<questCards.Length;i++)questCards[i].Present(gm.Goals.GetCard(i));
             if(hint!=shownTutorial){shownTutorial=hint;tutorialLabel.text=hint;}
             bool guidance=gm.IsPlaying&&(player==null||!player.IsCaptured);
-            SetActive(tutorialPanel,guidance&&!string.IsNullOrEmpty(hint));SetActive(goalLabel.gameObject,guidance);
+            SetActive(tutorialPanel,guidance&&!string.IsNullOrEmpty(hint));SetActive(questBoard,guidance);
             if(player!=null){heavyAbility.Update(player.Combat.HeavyCooldownRemaining,player.Combat.HeavyCooldownDuration);dashAbility.Update(player.DashCooldownRemaining,player.DashCooldownDuration);}
             var combat=player!=null?player.Combat:null;
             int chargeMode=combat==null||!combat.IsCharging?0:!combat.HeavyReady?1:combat.ChargeProgress>=1?3:2;
@@ -149,6 +175,16 @@ namespace Brainrot
             }
         }
 
+        void BuildQuestBoard(){
+            questBoard=Box("Испытания",hud.transform,new Vector2(.805f,.50f),new Vector2(.985f,.86f),Color.clear);
+            var heading=TropicalUIArt.Place("Заголовок испытаний",questBoard.transform,new Vector2(.07f,.885f),new Vector2(.93f,1),"StageRibbon");
+            Label(heading.transform,"ИСПЫТАНИЯ",14,TextAnchor.MiddleCenter,new Vector2(.12f,.08f),new Vector2(.88f,.92f));
+            for(int i=0;i<questCards.Length;i++){
+                float top=.865f-i*.293f;
+                var card=Box("Испытание "+(i+1),questBoard.transform,new Vector2(0,top-.265f),new Vector2(1,top),Color.clear);
+                questCards[i]=card.AddComponent<HudQuestCard>();questCards[i].Build();
+            }
+        }
         void BuildAbilityIcons(){
             var strong=AbilityCard("Сильный удар",new Vector2(.025f,.635f),new Vector2(.097f,.79f),"HeavyCard","HeavyIcon","СИЛЬНЫЙ\nУДАР","ЛКМ · удержать");
             heavyAbility=new AbilityDisplay(CooldownShade(strong.transform),ReadyBadge(strong.transform));
@@ -177,7 +213,8 @@ namespace Brainrot
         }
         Image RoundButton(string name,Vector2 min,Vector2 max,string icon,UnityEngine.Events.UnityAction action){
             if(Application.isMobilePlatform){float right=name=="Пауза" ? .987f : .895f;min=new Vector2(right-.075f,.86f);max=new Vector2(right,.99f);}
-            var face=TropicalUIArt.Place(name,hud.transform,min,max,icon);face.preserveAspect=true;face.raycastTarget=true;var button=face.gameObject.AddComponent<Button>();button.targetGraphic=face;button.onClick.AddListener(GameMusic.PlayButtonClick);button.onClick.AddListener(action);face.gameObject.AddComponent<CartoonButtonMotion>();CartoonUI.EnsureTouchTarget(button);
+            var hitbox=Box(name,hud.transform,min,max,Color.clear);hitbox.GetComponent<Image>().raycastTarget=true;
+            var face=TropicalUIArt.Place(name+" — оформление",hitbox.transform,Vector2.zero,Vector2.one,icon);face.preserveAspect=true;var button=hitbox.AddComponent<Button>();button.targetGraphic=face;button.transition=Selectable.Transition.None;button.onClick.AddListener(GameMusic.PlayButtonClick);button.onClick.AddListener(action);hitbox.AddComponent<CartoonButtonMotion>().VisualTarget=face.transform;CartoonUI.EnsureTouchTarget(button);
             // Atlas sound/pause sprites already include their circular rim; avoid a second nested button.
             return face;
         }
@@ -204,7 +241,8 @@ namespace Brainrot
             {
                 Title("ЗАБЕГ ОКОНЧЕН");
                 Label(overlay.transform,$"Выживание: {TimeLabel(gm.Elapsed)} · Волна: {gm.Wave}\nПобеждено: {gm.Kills}\n\nЛИЧНЫЙ РЕКОРД · ВОЛНА {SaveSystem.Data.BestWave}\n{TimeLabel(SaveSystem.Data.BestTime)}   /   {SaveSystem.Data.BestKills} ПОБЕД",21,TextAnchor.MiddleCenter,new Vector2(.29f,.39f),new Vector2(.71f,.66f));
-                MenuButton("ЕЩЁ ОДИН ЗАБЕГ",.25f,()=>gm.StartRun());MenuButton("ГЛАВНОЕ МЕНЮ",.13f,()=>gm.MainMenu());
+                if(gm.Goals!=null)Label(overlay.transform,"ИСПЫТАНИЯ ЗАБЕГА\n"+gm.Goals.CompletedThisRunSummary,15,TextAnchor.MiddleCenter,new Vector2(.29f,.30f),new Vector2(.71f,.385f));
+                MenuButton("ЕЩЁ ОДИН ЗАБЕГ",.19f,()=>gm.StartRun());MenuButton("ГЛАВНОЕ МЕНЮ",.075f,()=>gm.MainMenu());
             }
             else if(gm.State==GameState.Upgrade)
             {
@@ -257,7 +295,7 @@ namespace Brainrot
             hitMarker.text="";hitLabel.text="ПРОМАХ";
         }
 
-        void Quality(int quality) {SaveSystem.Data.Quality=quality;QualitySettings.SetQualityLevel(Mathf.Min(quality,QualitySettings.names.Length-1),true);SaveSystem.Save();ShowSettings();}
+        void Quality(int quality) {SaveSystem.Data.Quality=quality;GameQuality.Apply(quality);SaveSystem.Save();ShowSettings();}
         void QualityButton(string title,float left,float right,int quality){
             var button=Button(overlay.transform,title,new Vector2(left,.175f),new Vector2(right,.23f),()=>Quality(quality));
             if(SaveSystem.Data.Quality==quality)CartoonUI.MarkSelected(button);
@@ -336,8 +374,7 @@ namespace Brainrot
         }
         Button Button(Transform parent,string title,Vector2 min,Vector2 max,UnityEngine.Events.UnityAction action)
         {
-            var obj=Box(title,parent,min,max,cyan);var button=obj.AddComponent<Button>();button.targetGraphic=obj.GetComponent<Image>();CartoonUI.StyleButton(button,true);button.onClick.AddListener(action);
-            var text=Label(obj.transform,title,21,TextAnchor.MiddleCenter,new Vector2(.06f,.15f),new Vector2(.94f,.85f));text.color=CartoonUI.Cream;text.fontStyle=FontStyle.Bold;return button;
+            return ReferenceScreens.Hotspot(parent,title,min.x,1-max.y,max.x-min.x,max.y-min.y,action,21);
         }
         Image Bar(Transform parent,Vector2 min,Vector2 max,Color color)
         {

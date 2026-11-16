@@ -14,6 +14,7 @@ namespace Brainrot
         float attackRemaining, attackDuration = .32f,attackContact=.09f;
         float chargePose;
         bool chargeActive,heavySwing;
+        float impactPause;
         Vector3 weaponRestPosition;
         Quaternion weaponRestRotation;
         static Material trailMaterial;
@@ -45,7 +46,7 @@ namespace Brainrot
             if(prefab!=null){
                 var go=Object.Instantiate(prefab,parent,false);go.name="Тун-Тун Сахур — модель владельца";go.transform.localScale=Vector3.one*size;
                 var c=go.AddComponent<CharacterVisual>();c.imported=go.GetComponent<ImportedSahurVisual>();
-                if(c.imported!=null){c.Weapon=c.imported.Weapon;c.WeaponTip=c.imported.WeaponTip;c.CacheFeedbackRenderers();return c;}
+                if(c.imported!=null){c.Weapon=c.imported.Weapon;c.WeaponTip=c.imported.WeaponTip;ConfigureBatTrail(c.imported.Trail);c.CacheFeedbackRenderers();return c;}
                 Object.Destroy(go);
             }
             Debug.LogWarning("Импортированная модель Сахура ещё не создана. Выполните Tools → TungTung → Создать или обновить игру. Пока используется временная модель.");
@@ -128,6 +129,25 @@ namespace Brainrot
             var gradient=new Gradient();gradient.SetKeys(new[]{new GradientColorKey(Color.white,0),new GradientColorKey(Color.white,1)},new[]{new GradientAlphaKey(.92f,0),new GradientAlphaKey(0,1)});
             batTrail.colorGradient=gradient;batTrail.emitting=false;batTrail.minVertexDistance=.025f;batTrail.numCornerVertices=2;batTrail.numCapVertices=2;
             batTrail.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;batTrail.receiveShadows=false;
+        }
+        static void ConfigureBatTrail(TrailRenderer trail)
+        {
+            if(trail==null)return;
+            trail.sharedMaterial=TrailMaterial();trail.time=.14f;trail.minVertexDistance=.018f;
+            trail.numCornerVertices=4;trail.numCapVertices=3;trail.widthMultiplier=1;
+            trail.widthCurve=new AnimationCurve(new Keyframe(0,.26f),new Keyframe(.35f,.18f),new Keyframe(1,0));
+            var gradient=new Gradient();gradient.SetKeys(new[]{new GradientColorKey(Color.white,0),new GradientColorKey(new Color(.8f,.96f,1),1)},new[]{new GradientAlphaKey(.95f,0),new GradientAlphaKey(0,1)});
+            trail.colorGradient=gradient;trail.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;trail.receiveShadows=false;
+        }
+        /// <summary>Visual-only contact hold: movement, input, cooldowns and wave time remain responsive.</summary>
+        public void HoldImpact(float seconds)
+        {
+            if(imported!=null){imported.HoldImpact(seconds);return;}
+            impactPause=Mathf.Max(impactPause,Mathf.Clamp(seconds,0,.08f));
+        }
+        public void ChargeReady()
+        {
+            if(WeaponTip!=null)HitEffects.Burst(WeaponTip.position,new Color(1,.94f,.65f),6,0);
         }
         static Material TrailMaterial()
         {
@@ -333,9 +353,9 @@ namespace Brainrot
         }
         public void PlayAttack(float duration=.32f,float contactTime=.09f,bool heavy=false)
         {
-            if(imported!=null){imported.PlayAttack(duration,contactTime,heavy);return;}
+            if(imported!=null){if(imported.Trail!=null)imported.Trail.widthMultiplier=heavy?1.35f:1;imported.PlayAttack(duration,contactTime,heavy);return;}
             if(Weapon==null)return;
-            heavySwing=heavy;chargeActive=false;chargePose=0;
+            heavySwing=heavy;chargeActive=false;chargePose=0;impactPause=0;if(batTrail!=null)batTrail.widthMultiplier=heavy?1.35f:1;
             attackDuration=Mathf.Max(.15f,duration);attackContact=Mathf.Clamp(contactTime,0,attackDuration*.95f);attackRemaining=attackDuration;
             if(batTrail!=null){batTrail.emitting=false;batTrail.Clear();}
             TickAttack(0);
@@ -348,7 +368,8 @@ namespace Brainrot
                 if(chargeActive){float w=Mathf.SmoothStep(0,1,chargePose);Weapon.localPosition=Vector3.Lerp(weaponRestPosition,new Vector3(.12f,1.5f,.02f),w);Weapon.localRotation=Quaternion.Slerp(weaponRestRotation,Quaternion.Euler(-112,12,0),w);if(rightArm!=null)rightArm.localRotation=Quaternion.Euler(-72*w,0,-15);if(leftArm!=null)leftArm.localRotation=Quaternion.Euler(-70*w,25*w,20*w);}
                 return;
             }
-            attackRemaining=Mathf.Max(0,attackRemaining-dt);
+            float held=Mathf.Min(Mathf.Max(0,dt),impactPause);impactPause=Mathf.Max(0,impactPause-held);
+            attackRemaining=Mathf.Max(0,attackRemaining-(dt-held));
             float elapsed=attackDuration-attackRemaining;
             float contact=Mathf.Min(attackContact,attackDuration*.65f);
             float yaw;
@@ -368,7 +389,7 @@ namespace Brainrot
                 Weapon.localRotation=Quaternion.Euler(0,yaw,-5+Mathf.Sin(progress*Mathf.PI)*8);
                 if(rightArm!=null)rightArm.localRotation=Quaternion.Euler(-70,yaw*.65f,-15);
             }
-            if(batTrail!=null)batTrail.emitting=progress>.03f&&progress<.86f;
+            if(batTrail!=null)batTrail.emitting=impactPause<=0&&progress>.03f&&progress<.86f;
             if(attackRemaining<=0){Weapon.localPosition=weaponRestPosition;Weapon.localRotation=weaponRestRotation;if(batTrail!=null)batTrail.emitting=false;}
         }
         void Update()
@@ -400,7 +421,7 @@ namespace Brainrot
         public void ResetAttack()
         {
             if(imported!=null){imported.ResetAttack();return;}
-            attackRemaining=0;chargeActive=heavySwing=false;chargePose=0;
+            attackRemaining=impactPause=0;chargeActive=heavySwing=false;chargePose=0;
             if(Weapon!=null){Weapon.localPosition=weaponRestPosition;Weapon.localRotation=weaponRestRotation;Weapon.localScale=Vector3.one;}
             if(rightArm!=null)rightArm.localRotation=Quaternion.Euler(0,0,-10);
             if(leftArm!=null)leftArm.localRotation=Quaternion.Euler(0,0,-10);
