@@ -31,6 +31,9 @@ namespace Brainrot.Tests
         }
         [UnityTest]public IEnumerator CachedHudStillUpdatesChangedVitalsWaveAndCooldown(){
             Text health=LabelStartingWith("ЗДОРОВЬЕ"),stamina=LabelStartingWith("ВЫНОСЛИВОСТЬ"),wave=LabelStartingWith("ВОЛНА ");
+            Canvas.ForceUpdateCanvases();
+            var glyphs=new TextGenerator();glyphs.Populate(wave.text,wave.GetGenerationSettings(wave.rectTransform.rect.size));
+            Assert.Greater(glyphs.characterCountVisible,0,"Заголовок волны должен помещаться и создавать видимые символы.");
             game.Player.TakeDamage(20,game.Player.transform.position-Vector3.right);
             game.Player.Stamina.Tick(true,true,false,1,profile.Stamina);
             Assert.IsTrue(game.Player.Combat.ExecuteAttack(true));ui.Refresh();

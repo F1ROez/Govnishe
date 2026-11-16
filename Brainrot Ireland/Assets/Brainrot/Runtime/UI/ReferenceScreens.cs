@@ -25,9 +25,12 @@ namespace Brainrot
         }
         public static Button Hotspot(Transform parent,string title,float x,float y,float w,float h,UnityAction action,int size=28){
             var image=CartoonUI.Image(title,parent,Vector2.zero,Vector2.one,Color.white);Rect(image.rectTransform,x,y,w,h);image.raycastTarget=true;
-            var button=image.gameObject.AddComponent<Button>();button.targetGraphic=image;
-            var colors=button.colors;colors.normalColor=Color.clear;colors.highlightedColor=new Color(1,1,.7f,.12f);colors.pressedColor=new Color(.25f,.10f,0,.24f);colors.disabledColor=new Color(.08f,.08f,.08f,.42f);colors.fadeDuration=.08f;button.colors=colors;
-            Text(image.transform,title,size,.025f,.12f,.95f,.76f);button.onClick.AddListener(GameMusic.PlayButtonClick);button.onClick.AddListener(action);CartoonUI.EnsureTouchTarget(button);return button;
+            image.color=Color.clear;
+            var button=image.gameObject.AddComponent<Button>();button.transition=Selectable.Transition.None;
+            var visual=Art(image.transform,"GoldButton",0,0,1,1);visual.type=Image.Type.Simple;button.targetGraphic=visual;
+            Text(visual.transform,title,size,.06f,.15f,.88f,.70f);
+            image.gameObject.AddComponent<CartoonButtonMotion>().VisualTarget=visual.transform;
+            button.onClick.AddListener(GameMusic.PlayButtonClick);button.onClick.AddListener(action);CartoonUI.EnsureTouchTarget(button);return button;
         }
         public static void Pause(Transform viewport,UnityAction resume,UnityAction settings,UnityAction menu){
             var frame=Art(viewport,"ReferencePause",.215f,.165f,.57f,.76f);
@@ -54,11 +57,11 @@ namespace Brainrot
             var buttons=new Button[3];string[] titles={"НИЗКОЕ","СРЕДНЕЕ","ВЫСОКОЕ"};
             for(int i=0;i<3;i++){
                 int level=i;float left=.19f+i*.215f;
-                var art=Art(frame,SaveSystem.Data.Quality==i?"BlueButton":"GoldButton",left,.799f,.20f,.06f);
-                buttons[i]=Hotspot(art.transform,titles[i],0,0,1,1,()=>{
+                buttons[i]=Hotspot(frame,titles[i],left,.799f,.20f,.06f,()=>{
                     SaveSystem.Data.Quality=level;QualitySettings.SetQualityLevel(Mathf.Clamp(level,0,Mathf.Max(0,QualitySettings.names.Length-1)),true);SaveSystem.Save();
-                    for(int j=0;j<buttons.Length;j++){var image=buttons[j].transform.parent.GetComponent<Image>();image.sprite=TropicalUIArt.Get(j==level?"BlueButton":"GoldButton");}
+                    for(int j=0;j<buttons.Length;j++)buttons[j].targetGraphic.GetComponent<Image>().sprite=TropicalUIArt.Get(j==level?"BlueButton":"GoldButton");
                 },16);
+                buttons[i].targetGraphic.GetComponent<Image>().sprite=TropicalUIArt.Get(SaveSystem.Data.Quality==i?"BlueButton":"GoldButton");
             }
             Hotspot(frame,"НАЗАД",.323f,.867f,.357f,.09f,back,29);
         }

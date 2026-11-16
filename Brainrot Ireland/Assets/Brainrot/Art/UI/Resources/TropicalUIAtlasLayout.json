@@ -65,11 +65,11 @@
     },
     {
       "name": "WavePlaque",
-      "resource": "TropicalPanels",
-      "x": 8,
-      "y": 266,
-      "width": 752,
-      "height": 246,
+      "resource": "WaveTitleClean",
+      "x": 0,
+      "y": 0,
+      "width": 2172,
+      "height": 724,
       "border": 0
     },
     {
@@ -189,11 +189,11 @@
     },
     {
       "name": "HeaderPlaque",
-      "resource": "TropicalPanels",
-      "x": 8,
-      "y": 266,
-      "width": 752,
-      "height": 246,
+      "resource": "WaveTitleClean",
+      "x": 0,
+      "y": 0,
+      "width": 2172,
+      "height": 724,
       "border": 0
     },
     {
@@ -261,7 +261,7 @@
     },
     {
       "name": "ReferenceMainMenu",
-      "resource": "ReferenceMainMenu",
+      "resource": "ReferenceMenuClean",
       "x": 0,
       "y": 0,
       "width": 1672,
@@ -270,7 +270,7 @@
     },
     {
       "name": "ReferencePause",
-      "resource": "ReferencePause",
+      "resource": "ReferencePauseClean",
       "x": 0,
       "y": 0,
       "width": 1448,
@@ -279,7 +279,7 @@
     },
     {
       "name": "ReferenceSettings",
-      "resource": "ReferenceSettings",
+      "resource": "ReferenceSettingsClean",
       "x": 0,
       "y": 0,
       "width": 1448,

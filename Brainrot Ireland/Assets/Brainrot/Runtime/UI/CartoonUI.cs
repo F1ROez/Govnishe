@@ -112,16 +112,29 @@ namespace Brainrot
         void Awake(){rect=(RectTransform)transform;canvas=GetComponentInParent<Canvas>();}
         void LateUpdate(){if(canvas==null)return;float minimum=52/Mathf.Max(.1f,canvas.scaleFactor);if(rect.rect.width<minimum)rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal,minimum);if(rect.rect.height<minimum)rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical,minimum);}
     }
-    public sealed class CartoonButtonMotion:MonoBehaviour,IPointerEnterHandler,IPointerExitHandler,IPointerDownHandler,IPointerUpHandler
+    public sealed class CartoonButtonMotion:MonoBehaviour,IPointerEnterHandler,IPointerExitHandler,IPointerDownHandler,IPointerUpHandler,ISelectHandler,IDeselectHandler
     {
-        bool hover,pressed;Button button;
+        public Transform VisualTarget;
+        bool hover,pressed,selected;Button button;float scale=1,velocity;Graphic face;
         void Awake(){button=GetComponent<Button>();}
-        void Update(){float target=button!=null&&button.interactable? (pressed ? .96f : hover ? 1.025f : 1) : 1;transform.localScale=Vector3.Lerp(transform.localScale,Vector3.one*target,1-Mathf.Exp(-22*Time.unscaledDeltaTime));}
+        public void Tick(float delta){
+            if(delta<=0)return;
+            var visual=VisualTarget!=null?VisualTarget:transform;
+            bool active=button!=null&&button.interactable;
+            float target=active?(pressed?.96f:hover||selected?1.065f:1):1;
+            scale=Mathf.SmoothDamp(scale,target,ref velocity,pressed?.045f:.085f,Mathf.Infinity,Mathf.Min(.1f,Mathf.Max(0,delta)));
+            visual.localScale=Vector3.one*scale;
+            if(face==null&&button!=null)face=button.targetGraphic;
+            if(face!=null&&VisualTarget!=null)face.color=active?Color.white:new Color(.64f,.64f,.64f,.90f);
+        }
+        void Update(){Tick(Time.unscaledDeltaTime);}
         public void OnPointerEnter(PointerEventData data){hover=true;}
-        public void OnPointerExit(PointerEventData data){hover=false;pressed=false;}
+        public void OnPointerExit(PointerEventData data){hover=pressed=selected=false;}
         public void OnPointerDown(PointerEventData data){pressed=true;}
         public void OnPointerUp(PointerEventData data){pressed=false;}
-        void OnDisable(){hover=pressed=false;transform.localScale=Vector3.one;}
+        public void OnSelect(BaseEventData data){selected=true;}
+        public void OnDeselect(BaseEventData data){selected=false;pressed=false;}
+        void OnDisable(){hover=pressed=selected=false;scale=1;velocity=0;if(VisualTarget!=null)VisualTarget.localScale=Vector3.one;else transform.localScale=Vector3.one;}
     }
     /// <summary>Uses Image.fillAmount as its value while preserving nine-sliced rounded caps.</summary>
     public sealed class CartoonBarFill:MonoBehaviour

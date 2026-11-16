@@ -6,7 +6,7 @@ namespace Brainrot.Editor
     public static class TropicalUIImporter
     {
         public const string Root="Assets/Brainrot/Art/UI/Resources/";
-        static readonly string[] Files={"TropicalUIAtlas.png","TropicalMenuBackdrop.png","TropicalPanels.png","TropicalIcons.png","TropicalBoard.png","ReferenceMainMenu.png","ReferencePause.png","ReferenceSettings.png"};
+        static readonly string[] Files={"TropicalUIAtlas.png","TropicalMenuBackdrop.png","TropicalPanels.png","TropicalIcons.png","TropicalBoard.png","ReferenceMainMenu.png","ReferencePause.png","ReferenceSettings.png","ReferenceMenuClean.png","ReferencePauseClean.png","ReferenceSettingsClean.png","WaveTitleClean.png"};
         internal static bool IsArt(string path){foreach(var file in Files)if(path==Root+file)return true;return false;}
         public static void ConfigureAll(){foreach(string file in Files){var importer=AssetImporter.GetAtPath(Root+file) as TextureImporter;if(importer!=null&&Configure(importer))importer.SaveAndReimport();}}
         internal static bool Configure(TextureImporter importer){

@@ -10,27 +10,33 @@ namespace Brainrot
         [Serializable] sealed class Layout {public Entry[] sprites;}
         [Serializable] sealed class Entry {public string name,resource;public float x,y,width,height,border;}
         static readonly Dictionary<string,Sprite> sprites=new Dictionary<string,Sprite>();
+        static readonly Dictionary<string,Entry> entries=new Dictionary<string,Entry>();
+        static readonly Dictionary<string,Texture2D> textures=new Dictionary<string,Texture2D>();
         static bool loaded;
         static Sprite wood,blue;
         public static Sprite Get(string name){
-            if(!loaded){loaded=true;var json=Resources.Load<TextAsset>("TropicalUIAtlasLayout");
-                if(json!=null){try{
-                    var textures=new Dictionary<string,Texture2D>();
+            if(!loaded){
+                loaded=true;var json=Resources.Load<TextAsset>("TropicalUIAtlasLayout");
+                if(json!=null)try{
                     var layout=JsonUtility.FromJson<Layout>(json.text);
-                    if(layout!=null&&layout.sprites!=null)foreach(var entry in layout.sprites){
-                        if(string.IsNullOrEmpty(entry.name)||entry.width<=0||entry.height<=0)continue;
-                        string resource=string.IsNullOrEmpty(entry.resource)?"TropicalUIAtlas":entry.resource;
-                        if(!textures.TryGetValue(resource,out var texture)){texture=Resources.Load<Texture2D>(resource);textures[resource]=texture;}
-                        if(texture==null){Debug.LogWarning("Не найден лист оформления: "+resource);continue;}
-                        var rect=new Rect(entry.x,texture.height-entry.y-entry.height,entry.width,entry.height);
-                        if(rect.xMin<0||rect.yMin<0||rect.xMax>texture.width||rect.yMax>texture.height){Debug.LogWarning("Рамка за пределами листа: "+entry.name);continue;}
-                        var border=Vector4.one*Mathf.Clamp(entry.border,0,Mathf.Min(entry.width,entry.height)*.5f);
-                        var sprite=Sprite.Create(texture,rect,new Vector2(.5f,.5f),100,0,SpriteMeshType.FullRect,border);
-                        sprite.name=entry.name;sprites[entry.name]=sprite;
-                    }
-                }catch(Exception e){Debug.LogWarning("Не удалось прочитать оформление UI: "+e.Message);}}
+                    if(layout!=null&&layout.sprites!=null)foreach(var entry in layout.sprites)
+                        if(!string.IsNullOrEmpty(entry.name))entries[entry.name]=entry;
+                }catch(Exception exception){Debug.LogWarning("Не удалось прочитать оформление UI: "+exception.Message);}
             }
             if(sprites.TryGetValue(name,out var found))return found;
+            if(entries.TryGetValue(name,out var data)){
+                string resource=string.IsNullOrEmpty(data.resource)?"TropicalUIAtlas":data.resource;
+                if(!textures.TryGetValue(resource,out var texture)){texture=Resources.Load<Texture2D>(resource);textures[resource]=texture;}
+                if(texture!=null&&data.width>0&&data.height>0){
+                    var rect=new Rect(data.x,texture.height-data.y-data.height,data.width,data.height);
+                    if(rect.xMin>=0&&rect.yMin>=0&&rect.xMax<=texture.width&&rect.yMax<=texture.height){
+                        var border=Vector4.one*Mathf.Clamp(data.border,0,Mathf.Min(data.width,data.height)*.5f);
+                        var sprite=Sprite.Create(texture,rect,new Vector2(.5f,.5f),100,0,SpriteMeshType.FullRect,border);
+                        sprite.name=name;sprites[name]=sprite;return sprite;
+                    }
+                }
+                Debug.LogWarning("Не удалось загрузить элемент оформления: "+name);
+            }
             if(name=="HeavyIcon")return CartoonUI.Heavy;if(name=="DashIcon")return CartoonUI.Dash;
             bool timber=name.Contains("Wood")||name=="WavePlaque"||name=="LogoPlaque"||name=="ControlsPanel"||name=="StatsStrip";
             if(timber)return wood!=null?wood:wood=Fallback(true);

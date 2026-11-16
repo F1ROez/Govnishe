@@ -51,7 +51,7 @@ namespace Brainrot
             xpText=Label(plate.transform,"ВЫНОСЛИВОСТЬ",13,TextAnchor.MiddleCenter,new Vector2(.28f,.19f),new Vector2(.94f,.49f));
             TropicalUIArt.Place("Портрет Сахура",plate.transform,new Vector2(.012f,.01f),new Vector2(.275f,.99f),"Portrait",true);
             var wave=TropicalUIArt.Place("Деревянная табличка волны",hud.transform,new Vector2(.355f,.895f),new Vector2(.645f,.999f),"WavePlaque").gameObject;
-            waveTitle=Label(wave.transform,"",29,TextAnchor.MiddleCenter,new Vector2(.24f,.20f),new Vector2(.76f,.62f));waveTitle.color=CartoonUI.Cream;
+            waveTitle=Label(wave.transform,"ВОЛНА 1",29,TextAnchor.MiddleCenter,new Vector2(.18f,.15f),new Vector2(.82f,.85f));waveTitle.color=CartoonUI.Cream;waveTitle.resizeTextMinSize=14;
             var stage=TropicalUIArt.Place("Лента этапа",hud.transform,new Vector2(.374f,.842f),new Vector2(.626f,.904f),"StageRibbon").gameObject;
             stageText=Label(stage.transform,"",18,TextAnchor.MiddleCenter,new Vector2(.14f,.12f),new Vector2(.86f,.88f));
             var score=TropicalUIArt.Place("Время и победы",hud.transform,new Vector2(.379f,.794f),new Vector2(.621f,.845f),"StatsStrip").gameObject;

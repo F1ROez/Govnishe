@@ -9,9 +9,10 @@ namespace Brainrot
         Button continueButton,newButton;
         Image backdrop;
         void Awake(){
-            SaveSystem.Load();GameMusic.ApplyVolume();GameMusic.SetMenu();Time.timeScale=0;Cursor.lockState=CursorLockMode.None;Cursor.visible=true;
+            SaveSystem.Load();Time.timeScale=0;Cursor.lockState=CursorLockMode.None;Cursor.visible=true;
             var camera=new GameObject("Камера меню",typeof(Camera),typeof(AudioListener));camera.transform.SetParent(transform,false);
             var view=camera.GetComponent<Camera>();view.cullingMask=0;view.clearFlags=CameraClearFlags.SolidColor;view.backgroundColor=new Color(.015f,.15f,.25f);
+            GameMusic.ApplyVolume();GameMusic.SetMenu();
             var root=new GameObject("Главное меню",typeof(RectTransform),typeof(Canvas),typeof(CanvasScaler),typeof(GraphicRaycaster));root.transform.SetParent(transform,false);
             root.GetComponent<Canvas>().renderMode=RenderMode.ScreenSpaceOverlay;root.GetComponent<Canvas>().sortingOrder=100;
             var scaler=root.GetComponent<CanvasScaler>();scaler.uiScaleMode=CanvasScaler.ScaleMode.ScaleWithScreenSize;scaler.referenceResolution=new Vector2(1280,720);scaler.matchWidthOrHeight=.5f;
@@ -40,6 +41,9 @@ namespace Brainrot
         }
         Button MainButton(Transform root,string title,float y,UnityEngine.Events.UnityAction action){
             var b=ReferenceScreens.Hotspot(root,"",.621f,y,.31f,.12f,action);
+            var face=b.targetGraphic.GetComponent<Image>();face.sprite=TropicalUIArt.Get(title=="ПРОДОЛЖИТЬ ИГРУ"?"GoldButton":"WoodButton");
+            string icon=title=="ПРОДОЛЖИТЬ ИГРУ"?"MenuPlay":title=="НОВАЯ ИГРА"?"MenuNew":title=="РЕКОРДЫ"?"MenuRecords":title=="НАСТРОЙКИ"?"MenuSettings":"MenuExit";
+            ReferenceScreens.Art(face.transform,icon,.09f,.18f,.16f,.64f).preserveAspect=true;
             var text=b.GetComponentInChildren<Text>();text.text=title;text.fontSize=title=="ПРОДОЛЖИТЬ ИГРУ"?24:29;text.resizeTextMaxSize=text.fontSize;ReferenceScreens.Rect((RectTransform)text.transform,.265f,.12f,.69f,.76f);return b;
         }
         void Settings(){backdrop.sprite=TropicalUIArt.Get("ReferenceMenuScene");var root=Clear();Shade(root);ReferenceScreens.Settings(root,Main);}

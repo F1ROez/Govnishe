@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 namespace Brainrot.Tests
 {
     public sealed class ReferenceScreenTests
@@ -15,6 +16,23 @@ namespace Brainrot.Tests
                 var viewport=ReferenceScreens.Viewport(rect,"Reference");viewport.GetComponent<ReferenceViewport>().Fit();
                 Assert.AreEqual(scale,viewport.localScale.x,.001f);Assert.AreEqual(viewport.localScale.x,viewport.localScale.y,.001f);
                 Assert.LessOrEqual(viewport.rect.width*scale,width+.01f);Assert.LessOrEqual(viewport.rect.height*scale,height+.01f);
+            }finally{Object.DestroyImmediate(parent);}
+        }
+        [Test]public void HoverScalesArtAndTextWhileHitboxRemainsStable(){
+            var parent=new GameObject("Buttons",typeof(RectTransform));
+            try{
+                parent.GetComponent<RectTransform>().sizeDelta=new Vector2(1280,720);
+                var button=ReferenceScreens.Hotspot(parent.transform,"ПРОДОЛЖИТЬ",.2f,.2f,.3f,.1f,()=>{});
+                var bounds=(RectTransform)button.transform;var before=bounds.rect;
+                var motion=button.GetComponent<CartoonButtonMotion>();motion.OnPointerEnter(null);
+                for(int i=0;i<60;i++)motion.Tick(1/60f);
+                Assert.Greater(button.targetGraphic.transform.localScale.x,1.05f);
+                Assert.AreEqual(Vector3.one,button.transform.localScale);Assert.AreEqual(before,bounds.rect);
+                Assert.IsTrue(button.GetComponentInChildren<Text>().transform.IsChildOf(button.targetGraphic.transform));
+                motion.OnPointerExit(null);for(int i=0;i<60;i++)motion.Tick(1/60f);
+                Assert.AreEqual(1,button.targetGraphic.transform.localScale.x,.001f);
+                button.interactable=false;motion.OnPointerEnter(null);for(int i=0;i<60;i++)motion.Tick(1/60f);
+                Assert.AreEqual(1,button.targetGraphic.transform.localScale.x,.001f);
             }finally{Object.DestroyImmediate(parent);}
         }
         [Test]public void PauseButtonsKeepSeparateActionsAndStayOnPaintedButtonRows(){
