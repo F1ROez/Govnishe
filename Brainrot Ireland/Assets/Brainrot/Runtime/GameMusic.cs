@@ -8,6 +8,7 @@ namespace Brainrot
         public enum PlaybackMode { Silent, Menu, Gameplay, Paused }
         static GameMusic instance;
         static bool muted;
+        static bool focused=true,applicationPaused;
         public static bool IsMuted=>muted;
         AudioSource menuSource,gameplaySource,buttonSource;
         AudioClip menuClip,buttonClip;
@@ -40,7 +41,7 @@ namespace Brainrot
         AudioSource Source(string title,float gain,bool loop)
         {
             var child=new GameObject(title);child.transform.SetParent(transform,false);var source=child.AddComponent<AudioSource>();
-            source.playOnAwake=false;source.spatialBlend=0;source.volume=gain;source.loop=loop;source.ignoreListenerPause=true;return source;
+            source.playOnAwake=false;source.spatialBlend=0;source.volume=gain;source.loop=loop;source.ignoreListenerPause=false;return source;
         }
         public static void ToggleMute(){muted=!muted;ApplyVolume();}
         public static void ApplyVolume(){AudioListener.volume=muted?0:Mathf.Clamp01(SaveSystem.Data.Volume);}
@@ -90,7 +91,9 @@ namespace Brainrot
             waitingForStart=false;StartNextTrack();
         }
         void OnDestroy(){if(instance==this)instance=null;}
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]static void ResetStatic(){instance=null;muted=false;}
+        void OnApplicationFocus(bool value){focused=value;AudioListener.pause=!focused||applicationPaused;}
+        void OnApplicationPause(bool value){applicationPaused=value;AudioListener.pause=!focused||applicationPaused;}
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]static void ResetStatic(){instance=null;muted=false;focused=true;applicationPaused=false;AudioListener.pause=false;}
     }
 
     /// <summary>Visits every track once per cycle, without repeating at cycle boundaries.</summary>

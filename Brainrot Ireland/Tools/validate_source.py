@@ -2,12 +2,27 @@
 Optional syntax parser: pip install tree-sitter tree-sitter-c-sharp
 """
 from pathlib import Path
-import json,sys,re
+import json,sys,re,struct
 root=Path(__file__).resolve().parents[1]
 errors=[]
 for f in [root/'Packages/manifest.json',*root.glob('Assets/**/*.asmdef')]:
  try:json.loads(f.read_text())
  except Exception as e:errors.append(f'{f}: {e}')
+# Validate atlas crop metadata before Unity import; wrong coordinates otherwise trigger fallback art.
+art=root/'Assets/Brainrot/Art/UI/Resources'
+try:
+ names=set()
+ for entry in json.loads((art/'TropicalUIAtlasLayout.json').read_text())['sprites']:
+  name=entry['name']
+  if name in names:errors.append('Duplicate UI sprite '+name)
+  names.add(name)
+  image=art/(entry.get('resource','TropicalUIAtlas')+'.png')
+  with image.open('rb') as stream:header=stream.read(24)
+  if header[:8]!=b'\x89PNG\r\n\x1a\n':raise ValueError('Invalid PNG '+str(image))
+  width,height=struct.unpack('>II',header[16:24])
+  x,y,w,h=(entry[key] for key in ('x','y','width','height'))
+  if x<0 or y<0 or w<=0 or h<=0 or x+w>width or y+h>height:errors.append('UI sprite outside texture: '+name)
+except Exception as e:errors.append('UI metadata: '+str(e))
 try:
  import tree_sitter,tree_sitter_c_sharp
  parser=tree_sitter.Parser(tree_sitter.Language(tree_sitter_c_sharp.language()))

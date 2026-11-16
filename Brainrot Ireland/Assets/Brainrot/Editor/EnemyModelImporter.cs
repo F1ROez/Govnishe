@@ -42,7 +42,7 @@ namespace Brainrot.Editor
                 string materialPath=output+"OrcaladonToon.mat";var material=AssetDatabase.LoadAssetAtPath<Material>(materialPath);
                 var shader=Shader.Find("Brainrot/ToonCharacter");if(material==null){material=new Material(shader);AssetDatabase.CreateAsset(material,materialPath);}else material.shader=shader;
                 material.name="Оркаладон — мягкий морской мультяшный";material.SetTexture("_BaseMap",texture);material.SetColor("_BaseColor",new Color(.91f,.97f,1));
-                material.SetFloat("_Brightness",1.4f);material.SetFloat("_Saturation",1.25f);material.SetFloat("_TextureSoftening",.19f);material.renderQueue=2000;EditorUtility.SetDirty(material);
+                material.SetFloat("_Brightness",1.12f);material.SetFloat("_Saturation",1.22f);material.SetFloat("_TextureSoftening",.06f);material.renderQueue=2000;EditorUtility.SetDirty(material);
                 foreach(var renderer in model.GetComponentsInChildren<Renderer>(true)){renderer.sharedMaterials=Enumerable.Repeat(material,Mathf.Max(1,renderer.sharedMaterials.Length)).ToArray();renderer.shadowCastingMode=ShadowCastingMode.On;renderer.receiveShadows=true;
                     if(renderer is SkinnedMeshRenderer skin){skin.enabled=true;skin.forceRenderingOff=false;skin.updateWhenOffscreen=true;}}
                 if(!bridge.CalibrateModel())throw new InvalidOperationException("Не удалось измерить скелетную модель Оркаладона.");
@@ -171,9 +171,9 @@ namespace Brainrot.Editor
                 var slots=renderer.sharedMaterials;
                 for(int i=0;i<slots.Length;i++){
                     string sourceName=slots[i]!=null?slots[i].name:"Default";string safe=new string(sourceName.Select(c=>char.IsLetterOrDigit(c)||c=='_'?c:'_').ToArray());string path=output+safe+".mat";var material=AssetDatabase.LoadAssetAtPath<Material>(path);if(material==null){material=new Material(Shader.Find("Universal Render Pipeline/Lit")){name=sourceName};AssetDatabase.CreateAsset(material,path);}
-                    Color color=toy?new Color(.40f,.82f,1):Color.white;if(octopus&&!toy){string n=sourceName.ToLowerInvariant();color=n.Contains("black")?new Color(.018f,.035f,.065f):n.Contains("white")?new Color(.96f,.99f,1):n.Contains("sucker")?new Color(.97f,.52f,.44f):n.Contains("light")?new Color(.30f,.66f,.85f):n.Contains("gray")?new Color(.15f,.24f,.33f):new Color(.13f,.45f,.72f);}
+                    Color color=toy?new Color(.34f,.78f,1):new Color(.80f,.94f,1);if(octopus&&!toy){string n=sourceName.ToLowerInvariant();color=n.Contains("black")?new Color(.018f,.035f,.065f):n.Contains("white")?new Color(.96f,.99f,1):n.Contains("sucker")?new Color(.97f,.52f,.44f):n.Contains("light")?new Color(.30f,.66f,.85f):n.Contains("gray")?new Color(.15f,.24f,.33f):new Color(.13f,.45f,.72f);}
                     material.shader=Shader.Find("Brainrot/ToonCharacter");
-                    material.SetFloat("_Brightness",toy?1.35f:1.25f);material.SetFloat("_Saturation",toy?1.65f:1.5f);material.SetFloat("_TextureSoftening",toy?.20f:.16f);
+                    material.SetFloat("_Brightness",toy?1.15f:1.10f);material.SetFloat("_Saturation",toy?1.42f:1.28f);material.SetFloat("_TextureSoftening",toy?.08f:.05f);
                     material.SetColor("_BaseColor",color);material.SetTexture("_BaseMap",texture);if(material.HasProperty("_MainTex"))material.SetTexture("_MainTex",texture);material.renderQueue=2000;EditorUtility.SetDirty(material);slots[i]=material;
                 }
                 renderer.sharedMaterials=slots;

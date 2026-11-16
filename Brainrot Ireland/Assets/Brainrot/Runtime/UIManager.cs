@@ -13,9 +13,11 @@ namespace Brainrot
         Font font;
         Sprite solid;
         Canvas canvas;
-        GameObject hud, overlay, mobile, fullMap;
+        GameObject hud, overlay, mobile, fullMap, controlsLegend;
         bool mapExpanded;
         Text waveTitle,stageText,soundMute;Text stats, healthText, xpText, notification, aimHint, hitMarker, hitLabel,chargeLabel;
+        Text goalLabel,tutorialLabel;GameObject tutorialPanel;
+        string shownGoal,shownTutorial;
         float hitUntil;
         bool lastHitCritical,hitVisible;
         Image healthFill, xpFill,screenShade;
@@ -61,9 +63,13 @@ namespace Brainrot
             RoundButton("Пауза",new Vector2(.943f,.905f),new Vector2(.988f,.985f),"PauseIcon",()=>GameManager.Instance.Pause());
             notification=Label(hud.transform,"",25,TextAnchor.MiddleCenter,new Vector2(.20f,.68f),new Vector2(.88f,.76f));notification.color=gold;
             var controls=TropicalUIArt.Place("Подсказки управления",hud.transform,new Vector2(.135f,.018f),new Vector2(.865f,.085f),"ControlsPanel").gameObject;
-            ControlsLegend(controls.transform);
+            controlsLegend=controls;ControlsLegend(controls.transform);
             controls.SetActive(!Application.isMobilePlatform);
             aimHint=Label(hud.transform,"",12,TextAnchor.LowerCenter,new Vector2(.32f,.09f),new Vector2(.76f,.115f));
+            goalLabel=Label(hud.transform,"",14,TextAnchor.MiddleCenter,new Vector2(.24f,.205f),new Vector2(.79f,.24f));goalLabel.color=CartoonUI.Cream;
+            tutorialPanel=Box("Короткое обучение",hud.transform,new Vector2(.24f,.12f),new Vector2(.80f,.195f),new Color(.015f,.19f,.28f,.86f));
+            tutorialLabel=Label(tutorialPanel.transform,"",15,TextAnchor.MiddleCenter,new Vector2(.02f,.06f),new Vector2(.80f,.94f));
+            var skip=Button(tutorialPanel.transform,"СКРЫТЬ",new Vector2(.82f,.20f),new Vector2(.98f,.80f),()=>GameManager.Instance.Goals.SkipTutorial());skip.GetComponentInChildren<Text>().fontSize=11;
             Label(hud.transform,"+",18,TextAnchor.MiddleCenter,new Vector2(.49f,.49f),new Vector2(.51f,.53f)).color=new Color(1,1,1,.5f);
             hitMarker=Label(hud.transform,"",36,TextAnchor.MiddleCenter,new Vector2(.47f,.46f),new Vector2(.53f,.56f));
             chargeLabel=Label(hud.transform,"",19,TextAnchor.MiddleCenter,new Vector2(.2f,.32f),new Vector2(.8f,.39f));chargeLabel.color=gold;
@@ -119,6 +125,12 @@ namespace Brainrot
             if(seconds!=shownSeconds||gm.Kills!=shownKills){shownSeconds=seconds;shownKills=gm.Kills;stats.text=$"{TimeLabel(seconds)}   |   Побеждено: {gm.Kills}";}
             SetActive(capturePanel,player!=null&&player.IsCaptured);if(player!=null)escapeFill.fillAmount=player.EscapeProgress;
             notification.text=gm.Notification ?? "";SetActive(soundMute.gameObject,GameMusic.IsMuted);
+            SetActive(controlsLegend,gm.IsPlaying&&!Application.isMobilePlatform);SetActive(aimHint.gameObject,gm.IsPlaying);SetActive(notification.gameObject,gm.IsPlaying);
+            string goal=gm.Goals!=null?gm.Goals.GoalText:"",hint=gm.Goals!=null?gm.Goals.TutorialText:"";
+            if(goal!=shownGoal){shownGoal=goal;goalLabel.text=goal;}
+            if(hint!=shownTutorial){shownTutorial=hint;tutorialLabel.text=hint;}
+            bool guidance=gm.IsPlaying&&(player==null||!player.IsCaptured);
+            SetActive(tutorialPanel,guidance&&!string.IsNullOrEmpty(hint));SetActive(goalLabel.gameObject,guidance);
             if(player!=null){heavyAbility.Update(player.Combat.HeavyCooldownRemaining,player.Combat.HeavyCooldownDuration);dashAbility.Update(player.DashCooldownRemaining,player.DashCooldownDuration);}
             var combat=player!=null?player.Combat:null;
             int chargeMode=combat==null||!combat.IsCharging?0:!combat.HeavyReady?1:combat.ChargeProgress>=1?3:2;
@@ -191,7 +203,7 @@ namespace Brainrot
             else if(gm.State==GameState.Dead)
             {
                 Title("ЗАБЕГ ОКОНЧЕН");
-                Label(overlay.transform,$"Выживание: {TimeLabel(gm.Elapsed)}\nПобеждено: {gm.Kills}\n\nЛИЧНЫЙ РЕКОРД\n{TimeLabel(SaveSystem.Data.BestTime)}   /   {SaveSystem.Data.BestKills} ПОБЕД",23,TextAnchor.MiddleCenter,new Vector2(.29f,.39f),new Vector2(.71f,.66f));
+                Label(overlay.transform,$"Выживание: {TimeLabel(gm.Elapsed)} · Волна: {gm.Wave}\nПобеждено: {gm.Kills}\n\nЛИЧНЫЙ РЕКОРД · ВОЛНА {SaveSystem.Data.BestWave}\n{TimeLabel(SaveSystem.Data.BestTime)}   /   {SaveSystem.Data.BestKills} ПОБЕД",21,TextAnchor.MiddleCenter,new Vector2(.29f,.39f),new Vector2(.71f,.66f));
                 MenuButton("ЕЩЁ ОДИН ЗАБЕГ",.25f,()=>gm.StartRun());MenuButton("ГЛАВНОЕ МЕНЮ",.13f,()=>gm.MainMenu());
             }
             else if(gm.State==GameState.Upgrade)

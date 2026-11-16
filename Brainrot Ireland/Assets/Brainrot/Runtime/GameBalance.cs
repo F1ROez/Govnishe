@@ -24,6 +24,7 @@ namespace Brainrot
         [Min(.1f),Tooltip("Общий размер моделей всех врагов. Умножается на размер выбранного типа врага.")]
         public float EnemyModelScale=1;
         public ThirdPersonCameraTuning Camera = new ThirdPersonCameraTuning();
+        public CrowdTuning Crowd = new CrowdTuning();
         public StaminaTuning Stamina = new StaminaTuning();
         public CombatTuning Combat = new CombatTuning();
         public SahurAnimationTuning SahurAnimation = new SahurAnimationTuning();
@@ -50,7 +51,7 @@ namespace Brainrot
         public EnemyTuning Crocodilo = new EnemyTuning {Health=210,Speed=2.6f,Damage=28,CanCharge=true,ChargeWindup=1.3f,ChargeSpeed=12,ChargeDuration=.65f,ChargeCooldown=7,AttackRange=2.5f,KnockbackResistance=2,Experience=40};
 
         void OnEnable(){EnsureExploration();}
-        public void EnsureExploration(){if(Camera==null)Camera=new ThirdPersonCameraTuning();if(Camera.MaxPitch<=0){Camera.MinPitch=-20;Camera.MaxPitch=65;}if(Stamina==null)Stamina=new StaminaTuning();if(Exploration==null)Exploration=new ExplorationTuning();if(Waves==null)Waves=new WaveTuning();if(Bodies==null)Bodies=new BodyTuning();if(Octopus==null)Octopus=new OctopusTuning();if(Orcaladon==null)Orcaladon=new OrcaladonTuning();if(OrcaladonEnemy==null)OrcaladonEnemy=new EnemyTuning {Health=100,Speed=2.2f,Damage=30,AttackRange=3.8f,MeleeWindup=.85f,Recovery=.65f,KnockbackResistance=4,HitStagger=.1f,Experience=0};if(SahurAnimation==null)SahurAnimation=new SahurAnimationTuning();}
+        public void EnsureExploration(){if(Crowd==null)Crowd=new CrowdTuning();if(Camera==null)Camera=new ThirdPersonCameraTuning();if(Camera.MaxPitch<=0){Camera.MinPitch=-20;Camera.MaxPitch=65;}if(Stamina==null)Stamina=new StaminaTuning();if(Exploration==null)Exploration=new ExplorationTuning();if(Waves==null)Waves=new WaveTuning();if(Bodies==null)Bodies=new BodyTuning();if(Octopus==null)Octopus=new OctopusTuning();if(Orcaladon==null)Orcaladon=new OrcaladonTuning();if(OrcaladonEnemy==null)OrcaladonEnemy=new EnemyTuning {Health=100,Speed=2.2f,Damage=30,AttackRange=3.8f,MeleeWindup=.85f,Recovery=.65f,KnockbackResistance=4,HitStagger=.1f,Experience=0};if(SahurAnimation==null)SahurAnimation=new SahurAnimationTuning();}
         public EnemyTuning Enemy(EnemyKind kind) {
             switch (kind) { case EnemyKind.Orcaladon:return OrcaladonEnemy;case EnemyKind.BlueberrinniOctopusini:return BlueOctopus;case EnemyKind.LiriliLarila:return Lirili;case EnemyKind.BrrBrrPatapim:return Patapim;case EnemyKind.CappuccinoAssassino:return Cappuccino;case EnemyKind.BombardiroCrocodilo:return Crocodilo;case EnemyKind.Fast:return Fast;case EnemyKind.Tank:return Tank;case EnemyKind.MiniBoss:return MiniBoss;case EnemyKind.King:return King;default:return Normal; }
         }
@@ -63,6 +64,11 @@ namespace Brainrot
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)] static void ResetCached(){fallback=null;}
     }
     [Serializable] public sealed class ThirdPersonCameraTuning {
+        [Tooltip("Приближать камеру перед препятствиями.")]public bool ObstacleCollision=true;
+        [Range(.08f,.6f),Tooltip("Радиус проверки свободного места вокруг камеры.")]public float CollisionRadius=.24f;
+        [Range(.01f,.3f),Tooltip("Отступ камеры от препятствия.")]public float CollisionPadding=.08f;
+        [Range(1,20),Tooltip("Плавность возврата камеры после препятствия.")]public float CollisionReturnSpeed=7;
+        [Tooltip("Слои препятствий камеры; игрок, враги и триггеры исключаются автоматически.")]public LayerMask CollisionMask=~0;
         [Min(2),Tooltip("Расстояние камеры за правым плечом.")]public float Distance=4.5f;
         [Range(-3,3),Tooltip("Смещение к правому плечу; отрицательное значение — слева.")]public float ShoulderOffset=.8f;
         [Range(0,2),Tooltip("Высота точки камеры над головой с учётом размера модели.")]public float HeightAboveHead=.25f;

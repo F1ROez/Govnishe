@@ -14,6 +14,8 @@ namespace Brainrot.Editor
             "m_Script", "Spawning", "Bosses", "Fast", "Tank", "MiniBoss", "King", "Exploration", "Progression", "CorpseSeconds", "ChainPush", "HeavyDamageMultiplier", "HeavyCooldownMultiplier", "Lirili", "Patapim", "Cappuccino", "Crocodilo"
         };
         static readonly Dictionary<string, string> Labels = new Dictionary<string, string> {
+            {"Crowd","Толпа врагов и предупреждения"},{"Enabled","Включено"},{"Padding","Зазор между врагами"},{"MaxCorrectionSpeed","Скорость раздвижения"},{"PlayerClearance","Зазор вокруг игрока"},{"Iterations","Проходов раздвижения"},{"MaxNeighbours","Максимум соседей"},{"MaxMeleeWarnings","Максимум предупреждений укуса"},
+            {"ObstacleCollision","Камера избегает препятствий"},{"CollisionPadding","Отступ камеры от препятствия"},{"CollisionReturnSpeed","Плавность возврата камеры"},{"CollisionMask","Слои препятствий камеры"},
             {"SahurAnimation","Сахур: анимации биты"},{"NormalArcDegrees","Размах обычного одноручного удара"},{"HeavyArcDegrees","Размах сильного двуручного удара"},{"TorsoTwistDegrees","Поворот корпуса при замахе"},{"ChargeLift","Высота подготовки сильного удара"},{"SwingStretch","Выразительность движения рук"},
             {"ChargeZoomDistance","Приближение камеры при замахе, м"},{"ChargeZoomInSpeed","Скорость плавного приближения"},{"ChargeZoomOutSpeed","Скорость возврата камеры после удара"},
             {"Orcaladon","Оркаладон: разгон и удар по земле"},{"OrcaladonEnemy","Оркаладон: размер, здоровье и движение"},{"CollisionRadius","Радиус тела и столкновения рывка, м"},
@@ -111,6 +113,7 @@ namespace Brainrot.Editor
         {
             string title;
             if (!Labels.TryGetValue(property.name, out title)) title = property.displayName;
+            if(property.propertyPath=="Camera.CollisionRadius")title="Радиус проверки камеры, м";
             string tooltip;
             if (!Tips.TryGetValue(property.name, out tooltip)){
                 var field=FindField(property);

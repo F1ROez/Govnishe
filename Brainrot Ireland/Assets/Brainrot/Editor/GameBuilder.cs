@@ -58,7 +58,7 @@ namespace Brainrot.Editor {
   }
   static void EnsureAtmosphere(){
    const string path=Root+"/Resources/IslandAtmosphere.asset";
-   var profile=AssetDatabase.LoadAssetAtPath<VolumeProfile>(path);const string marker="Brainrot.DaylightPreset=3";
+   var profile=AssetDatabase.LoadAssetAtPath<VolumeProfile>(path);const string marker="Brainrot.DaylightPreset=4";
    var settings=AssetImporter.GetAtPath(path);
    if(profile!=null&&settings!=null&&(settings.userData??"").Contains(marker))return;
    if(profile==null){profile=WorldAtmosphere.CreateProfile(true);AssetDatabase.CreateAsset(profile,path);}
@@ -97,7 +97,7 @@ namespace Brainrot.Editor {
   [MenuItem("Tools/TungTung/Build Windows")] public static void BuildWindows(){BuildGame();Build(BuildTarget.StandaloneWindows64,"Builds/Windows/BrainrotIreland.exe");}
   [MenuItem("Tools/TungTung/Собрать для Android")]
   [MenuItem("Tools/TungTung/Build Android")] public static void BuildAndroid(){BuildGame();PlayerSettings.Android.minSdkVersion=AndroidSdkVersions.AndroidApiLevel26;Build(BuildTarget.Android,"Builds/Android/BrainrotIreland.apk");}
-  static void Build(BuildTarget target,string destination){Directory.CreateDirectory(Path.GetDirectoryName(destination));var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions{scenes=new[]{SceneFlow.MenuPath,ScenePath},target=target,locationPathName=destination,options=BuildOptions.None});if(report.summary.result!=UnityEditor.Build.Reporting.BuildResult.Succeeded)throw new Exception("Build failed: "+report.summary.result);}
+  static void Build(BuildTarget target,string destination){Directory.CreateDirectory(Path.GetDirectoryName(destination));var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions{scenes=new[]{SceneFlow.MenuPath,ScenePath},target=target,locationPathName=destination,options=System.Array.IndexOf(System.Environment.GetCommandLineArgs(),"--brainrot-development")>=0?BuildOptions.Development|BuildOptions.AllowDebugging:BuildOptions.None});if(report.summary.result!=UnityEditor.Build.Reporting.BuildResult.Succeeded)throw new Exception("Build failed: "+report.summary.result);}
   public static void Validate(){BuildGame();if(AssetDatabase.LoadAssetAtPath<SceneAsset>(ScenePath)==null)throw new Exception("Scene missing");if(GraphicsSettings.defaultRenderPipeline==null)throw new Exception("URP missing");Debug.Log("BRAINROT_VALIDATION_OK");}
  }
 }

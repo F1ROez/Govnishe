@@ -17,6 +17,13 @@ namespace Brainrot {
    time+=dt;float duration=Mathf.Max(10,t.Duration);Progress=Mathf.Clamp01(time/duration);Remaining=Mathf.Max(0,duration-time);
    if(time>=duration){Resting=true;WaitingForClear=alive>0;restTime=0;Remaining=Mathf.Max(0,t.Rest);}
   }
+  public WaveRunSnapshot CaptureRunState()=>new WaveRunSnapshot {Number=Number,Time=time,RestTime=restTime,Resting=Resting,WaitingForClear=WaitingForClear};
+  public void RestoreRunState(WaveRunSnapshot state){
+   var t=GameBalance.Current.Waves;float duration=Mathf.Max(10,t.Duration);
+   Number=Mathf.Clamp(state.Number,1,1000000);time=Mathf.Clamp(state.Time,0,duration);restTime=Mathf.Clamp(state.RestTime,0,Mathf.Max(0,t.Rest));
+   Resting=state.Resting;WaitingForClear=state.WaitingForClear&&Resting;Progress=Mathf.Clamp01(time/duration);
+   Remaining=Resting?Mathf.Max(0,t.Rest-restTime):Mathf.Max(0,duration-time);
+  }
   public string Stage=>WaitingForClear?"УНИЧТОЖЬТЕ ОСТАВШИХСЯ":Resting?"ПЕРЕДЫШКА":Progress<.25f?"НАЧАЛО":Progress>.75f?"СПАД":"ПИК";
  }
 }

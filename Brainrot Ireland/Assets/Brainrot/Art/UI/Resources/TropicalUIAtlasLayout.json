@@ -20,12 +20,12 @@
     },
     {
       "name": "WoodButtonGold",
-      "resource": "TropicalPanels",
-      "x": 782,
-      "y": 60,
-      "width": 740,
-      "height": 181,
-      "border": 30
+      "resource": "AlphaButtons",
+      "x": 30,
+      "y": 120,
+      "width": 1470,
+      "height": 405,
+      "border": 0
     },
     {
       "name": "StatsStrip",
@@ -180,12 +180,12 @@
     },
     {
       "name": "GoldButton",
-      "resource": "TropicalPanels",
-      "x": 782,
-      "y": 60,
-      "width": 740,
-      "height": 181,
-      "border": 30
+      "resource": "AlphaButtons",
+      "x": 30,
+      "y": 120,
+      "width": 1470,
+      "height": 405,
+      "border": 0
     },
     {
       "name": "HeaderPlaque",
@@ -198,12 +198,12 @@
     },
     {
       "name": "BlueButton",
-      "resource": "TropicalPanels",
-      "x": 800,
-      "y": 547,
-      "width": 704,
-      "height": 204,
-      "border": 35
+      "resource": "AlphaButtons",
+      "x": 30,
+      "y": 568,
+      "width": 1470,
+      "height": 405,
+      "border": 0
     },
     {
       "name": "MenuPlay",
@@ -270,7 +270,7 @@
     },
     {
       "name": "ReferencePause",
-      "resource": "ReferencePauseClean",
+      "resource": "AlphaPauseFrame",
       "x": 0,
       "y": 0,
       "width": 1448,
@@ -279,7 +279,7 @@
     },
     {
       "name": "ReferenceSettings",
-      "resource": "ReferenceSettingsClean",
+      "resource": "AlphaSettingsFrame",
       "x": 0,
       "y": 0,
       "width": 1448,

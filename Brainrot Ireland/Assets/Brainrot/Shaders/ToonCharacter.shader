@@ -4,9 +4,9 @@ Shader "Brainrot/ToonCharacter"
  {
   [MainTexture] _BaseMap("Текстура",2D)="white"{}
   [MainColor] _BaseColor("Цвет",Color)=(1,1,1,1)
-  _Brightness("Яркость",Range(.5,2))=1.18
-  _Saturation("Насыщенность",Range(0,2))=1.4
-  _TextureSoftening("Мягкость текстуры",Range(0,1))=.16
+  _Brightness("Яркость",Range(.5,2))=1.10
+  _Saturation("Насыщенность",Range(0,2))=1.25
+  _TextureSoftening("Мягкость текстуры",Range(0,1))=.08
   _Cull("Стороны",Float)=2
   _Cutoff("Порог",Range(0,1))=.5
  }
@@ -43,14 +43,22 @@ Shader "Brainrot/ToonCharacter"
    {
     UNITY_SETUP_INSTANCE_ID(i);UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
     half3 texColor=SAMPLE_TEXTURE2D(_BaseMap,sampler_BaseMap,i.uv).rgb;
-    half luma=dot(texColor,half3(.2126,.7152,.0722));texColor=lerp(luma.xxx,texColor,_Saturation);
-    half3 albedo=saturate(lerp(texColor,half3(1,1,1),_TextureSoftening)*_BaseColor.rgb*_Brightness);
+    half luma=dot(texColor,half3(.2126,.7152,.0722));texColor=max(0,lerp(luma.xxx,texColor,_Saturation));
+    // Preserve dark pupils, mouth and painted wood grain. Mixing towards white erased
+    // those features, while an early saturate flattened bright texture colours to one value.
+    texColor=max(0,(texColor-.18)*1.08+.18);
+    texColor+=texColor*(1-saturate(texColor))*saturate(_TextureSoftening)*.45;
+    half3 albedo=texColor*_BaseColor.rgb*_Brightness;
     half3 n=normalize(i.normal);Light sun=GetMainLight(TransformWorldToShadowCoord(i.world));
-    half diffuse=dot(n,sun.direction)*.5+.5;half band=smoothstep(.36,.63,diffuse);
-    half shadow=lerp(.88,1,sun.shadowAttenuation);half3 light=lerp(half3(.78,.85,.96),half3(1.15,1.14,1.06),band)*shadow;
-    light+=saturate(SampleSH(n))*.12;
-    half rim=pow(1-saturate(dot(n,SafeNormalize(GetWorldSpaceViewDir(i.world)))),3)*.16;
-    half3 color=albedo*light+rim*half3(.55,.78,1);
+    half ndotl=dot(n,sun.direction);half band=smoothstep(-.12,.64,ndotl);
+    half shadow=lerp(.72,1,sun.shadowAttenuation);
+    half3 light=lerp(half3(.48,.63,.82),half3(1.08,1.04,.91),band)*shadow;
+    light+=saturate(SampleSH(n))*.065+half3(.045,.065,.075)*saturate(n.y);
+    float3 view=SafeNormalize(GetWorldSpaceViewDir(i.world));
+    half rim=pow(1-saturate(dot(n,view)),3)*.075;
+    // A broad restrained highlight reads like polished painted toys, rather than white plastic.
+    half gloss=pow(saturate(dot(n,SafeNormalize(view+sun.direction))),28)*saturate(ndotl)*sun.shadowAttenuation*.20;
+    half3 color=albedo*light+rim*half3(.40,.72,1)+gloss*lerp(albedo,half3(1,.96,.83),.45);
     return half4(MixFog(color,i.fog),1);
    }
    ENDHLSL

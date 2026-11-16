@@ -10,6 +10,9 @@ namespace Brainrot
         public float BestTime;
         public int BestKills;
         public int BestLevel;
+        public int BestWave;
+        public bool TutorialCompleted;
+        public int UnlockedChallengeMask;
         public float Volume = .7f;
         public float Sensitivity = 1f;
         public int Quality = 1;
@@ -21,19 +24,33 @@ namespace Brainrot
     public static class SaveSystem
     {
         public static SaveData Data { get; private set; } = new SaveData();
-        private static string SavePath => Path.Combine(Application.persistentDataPath, "brainrot-save.json");
+        static string storageDirectory;
+        private static string SavePath => Path.Combine(storageDirectory??Application.persistentDataPath, "brainrot-save.json");
+        /// <summary>Scoped storage sandbox for automated validation, without touching a player's real saves.</summary>
+        public static IDisposable UseStorageDirectory(string directory){return new StorageScope(directory);}
+        sealed class StorageScope:IDisposable {
+            readonly string previousDirectory;readonly SaveData previousData;readonly IDisposable runScope;bool disposed;
+            public StorageScope(string directory){
+                if(string.IsNullOrEmpty(directory))throw new ArgumentException("Storage directory missing.",nameof(directory));
+                directory=Path.GetFullPath(directory);Directory.CreateDirectory(directory);
+                previousDirectory=storageDirectory;previousData=Data;
+                runScope=RunPersistence.UsePath(Path.Combine(directory,"brainrot-run.json"));storageDirectory=directory;Load();
+            }
+            public void Dispose(){if(disposed)return;disposed=true;storageDirectory=previousDirectory;Data=previousData;runScope.Dispose();}
+        }
 
         public static void Load()
         {
             Data = new SaveData();
             if (TryLoad(SavePath) || TryLoad(SavePath + ".bak")) Sanitize();
+            RunPersistence.Refresh();
         }
 
         private static bool TryLoad(string path)
         {
             try
             {
-                if (!File.Exists(path)) return false;
+                if (!File.Exists(path) || new FileInfo(path).Length>64*1024) return false;
                 string json = File.ReadAllText(path);
                 if (string.IsNullOrWhiteSpace(json) || !json.TrimStart().StartsWith("{")) return false;
                 var restored = JsonUtility.FromJson<SaveData>(json);
@@ -56,8 +73,8 @@ namespace Brainrot
             try
             {
                 Sanitize();
-                Directory.CreateDirectory(Application.persistentDataPath);
                 string path = SavePath;
+                Directory.CreateDirectory(Path.GetDirectoryName(path));
                 string temporary = path + ".tmp";
                 File.WriteAllText(temporary, JsonUtility.ToJson(Data, true));
                 if (File.Exists(path))
@@ -79,11 +96,12 @@ namespace Brainrot
             }
         }
 
-        public static void Record(float time,int kills,int level)
+        public static void Record(float time,int kills,int level,int wave=0)
         {
             Data.BestTime = Mathf.Max(Data.BestTime, time);
             Data.BestKills = Mathf.Max(Data.BestKills, kills);
             Data.BestLevel = Mathf.Max(Data.BestLevel, level);
+            Data.BestWave = Mathf.Max(Data.BestWave, wave);
             Save();
         }
 
@@ -92,6 +110,8 @@ namespace Brainrot
             Data.BestTime = Finite(Data.BestTime) ? Mathf.Max(0, Data.BestTime) : 0;
             Data.BestKills = Mathf.Max(0, Data.BestKills);
             Data.BestLevel = Mathf.Max(0, Data.BestLevel);
+            Data.BestWave = Mathf.Clamp(Data.BestWave,0,1000000);
+            Data.UnlockedChallengeMask = Mathf.Max(0,Data.UnlockedChallengeMask);
             Data.Volume = Finite(Data.Volume) ? Mathf.Clamp01(Data.Volume) : .7f;
             Data.Sensitivity = Finite(Data.Sensitivity) ? Mathf.Clamp(Data.Sensitivity,.2f,3f) : 1f;
             Data.Quality = Mathf.Clamp(Data.Quality, 0, 2);

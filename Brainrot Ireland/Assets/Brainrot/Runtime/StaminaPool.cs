@@ -6,6 +6,7 @@ namespace Brainrot {
   public bool Exhausted{get;private set;}
   float recovery;
   public void Reset(StaminaTuning t){Maximum=Mathf.Max(1,t.Maximum);Value=Maximum;Exhausted=false;recovery=0;}
+  public void Restore(float value,StaminaTuning t){Reset(t);Value=Mathf.Clamp(float.IsNaN(value)||float.IsInfinity(value)?Maximum:value,0,Maximum);Exhausted=Value<=0;recovery=Mathf.Max(0,t.RestoreDelay);}
   public bool Tick(bool sprintRequested,bool moving,bool dashing,float dt,StaminaTuning t){
    dt=Mathf.Max(0,dt);Maximum=Mathf.Max(1,t.Maximum);Value=Mathf.Min(Value,Maximum);
    if(Exhausted&&Value>=Mathf.Min(Maximum,Mathf.Max(1,t.RestartThreshold)))Exhausted=false;

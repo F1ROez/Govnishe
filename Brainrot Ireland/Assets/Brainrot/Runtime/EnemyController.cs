@@ -27,10 +27,24 @@ namespace Brainrot
         CharacterVisual visual;
         EnemyTelegraph telegraph;
         EnemyTuning tuning;
-        float speed, damage, stateClock, attackClock, chargeClock;
+        float speed, damage, stateClock, attackClock, chargeClock, restoredGrace;
         bool attackHit;
         Vector3 knockVelocity, committedDirection, wanderTarget;
         float Radius => Kind == EnemyKind.Orcaladon ? Mathf.Max(.1f,GameBalance.Current.Orcaladon.CollisionRadius) : Kind == EnemyKind.LiriliLarila ? 1.15f : Kind == EnemyKind.BrrBrrPatapim ? 1.05f : Kind == EnemyKind.BombardiroCrocodilo ? .95f : Kind == EnemyKind.CappuccinoAssassino ? .55f : .7f;
+        public float CrowdRadius=>Mathf.Clamp(Radius*Mathf.Max(.1f,GameBalance.Current.EnemyModelScale)*Mathf.Max(.1f,tuning!=null?tuning.ModelScale:1),.2f,3);
+        public bool CrowdParticipant=>Alive&&gameObject.activeInHierarchy&&(PhysicsBody==null||!PhysicsBody.IsPhysical)&&
+            (octopus==null||octopus.Phase==OctopusPhase.Approach||octopus.Phase==OctopusPhase.Aiming);
+        public bool CrowdMovable=>CrowdParticipant&&(octopus==null||octopus.Phase==OctopusPhase.Approach)&&
+            (orcaladon==null||orcaladon.Phase==OrcaladonPhase.Approach||orcaladon.Phase==OrcaladonPhase.Recovery)&&
+            Action!=EnemyAction.Charging&&Action!=EnemyAction.ChargeWindup;
+        public void ApplyCrowdCorrection(Vector3 correction){
+            if(!CrowdMovable)return;correction.y=0;MoveWithinZone(correction);
+            if(Action==EnemyAction.MeleeWindup)ShowMeleeWarning();
+        }
+        void ShowMeleeWarning(){
+            if(owner==null||owner.IsMeleeWarningVisible(this))telegraph.Cone(transform.position,committedDirection,AttackRange,1-stateClock/Mathf.Max(.15f,tuning.MeleeWindup));
+            else telegraph.Hide();
+        }
         float AttackRange => Mathf.Max(Radius + .5f, tuning.AttackRange);
 
         public void Initialize(EnemySpawner owner, EnemyKind kind, float difficulty, Vector3 position)
@@ -52,7 +66,7 @@ namespace Brainrot
             committedDirection = transform.forward;
             knockVelocity = Vector3.zero;
             wanderTarget = HomePosition;
-            attackClock = .6f; chargeClock = .8f;
+            attackClock = .6f; chargeClock = .8f;restoredGrace=0;
             attackHit = IsAlerted = false;
             Alive = true;
             EnterIdle();
@@ -82,6 +96,7 @@ namespace Brainrot
             var game = GameManager.Instance;
             if (!Alive || game == null || !game.IsPlaying || game.Player == null || game.Player.Health <= 0 || dt <= 0) return;
             if(PhysicsBody!=null&&PhysicsBody.IsPhysical)return;
+            if(restoredGrace>0){restoredGrace=Mathf.Max(0,restoredGrace-dt);visual.Animate(0,false);return;}
             if(Kind==EnemyKind.BlueberrinniOctopusini){octopus.Tick(dt);visual.Animate(octopus.Phase==OctopusPhase.Approach||octopus.Phase==OctopusPhase.Retreat?speed:0,false);return;}
             if(Kind==EnemyKind.Orcaladon){
                 ApplyKnockback(dt);
@@ -112,9 +127,9 @@ namespace Brainrot
                     stateClock-=dt;
                     float windupSpeed=FollowPlayer(direction,distance,dt);
                     Face(direction,dt);committedDirection=direction;
-                    telegraph.Cone(transform.position,direction,AttackRange);visual.Animate(windupSpeed,true);
+                    ShowMeleeWarning();visual.Animate(windupSpeed,true);
                     if(stateClock<=0){
-                        visual.PlayBite(.32f);Action=EnemyAction.Biting;stateClock=.32f;attackHit=false;
+                        telegraph.Hide();visual.PlayBite(.32f);Action=EnemyAction.Biting;stateClock=.32f;attackHit=false;
                     }
                     return;
                 case EnemyAction.Biting:
@@ -157,7 +172,7 @@ namespace Brainrot
                 transform.rotation = Quaternion.LookRotation(direction);
                 Action = EnemyAction.MeleeWindup;
                 stateClock = Mathf.Max(.15f, tuning.MeleeWindup);
-                telegraph.Cone(transform.position, direction, AttackRange);
+                ShowMeleeWarning();
                 visual.Animate(0, true);
                 return;
             }
@@ -262,6 +277,24 @@ namespace Brainrot
             telegraph.Hide();Action = EnemyAction.Recovery;stateClock = Mathf.Max(.1f, duration);
         }
 
+        public EnemyRunSnapshot CaptureRunState(){
+            return new EnemyRunSnapshot{Kind=(int)Kind,Position=transform.position,RotationYaw=transform.eulerAngles.y,Health=Health,MaxHealth=MaxHealth};
+        }
+        public void RestoreRunState(EnemyRunSnapshot snapshot){
+            if(snapshot==null||!Alive)return;
+            var position=snapshot.Position;position.y=0;
+            if(float.IsNaN(position.x)||float.IsInfinity(position.x)||float.IsNaN(position.z)||float.IsInfinity(position.z)||Mathf.Abs(position.x)>100||Mathf.Abs(position.z)>100)return;
+            float yaw=float.IsNaN(snapshot.RotationYaw)||float.IsInfinity(snapshot.RotationYaw)?0:snapshot.RotationYaw;
+            PhysicsBody.PrepareSpawn(position,Quaternion.Euler(0,yaw,0));
+            MaxHealth=float.IsNaN(snapshot.MaxHealth)||float.IsInfinity(snapshot.MaxHealth)?Mathf.Max(1,tuning.Health):Mathf.Clamp(snapshot.MaxHealth,1,1000000);
+            Health=float.IsNaN(snapshot.Health)||float.IsInfinity(snapshot.Health)?MaxHealth:Mathf.Clamp(snapshot.Health,.001f,MaxHealth);
+            if(HomePosition.sqrMagnitude<.01f)HomePosition=EnemySpawner.OceanSpawnPoint(yaw*Mathf.Deg2Rad);
+            knockVelocity=Vector3.zero;attackHit=false;restoredGrace=.8f;attackClock=.8f;chargeClock=.8f;
+            committedDirection=transform.forward;telegraph.Hide();visual.ResetBite();visual.ResetFeedback();Action=EnemyAction.Chasing;
+            if(octopus!=null)octopus.Initialize(this,owner);
+            if(orcaladon!=null)orcaladon.ResetAttack();
+        }
+
         public void TakeDamage(float amount, Vector3 knockback)
         {
             if (!Alive || amount <= 0) return;
@@ -299,44 +332,61 @@ namespace Brainrot
         void OnDisable() { IsAlerted = false;if (telegraph != null) telegraph.Hide();if (orcaladon != null) orcaladon.ResetAttack();if (visual != null) visual.ResetFeedback(); }
     }
 
-    /// <summary>Reusable attack outlines. No opaque warning discs cover the terrain.</summary>
+    /// <summary>Shared material and pooled geometry: high-contrast borders without opaque ground discs.</summary>
     sealed class EnemyTelegraph
     {
         static Material material;
-        readonly LineRenderer line;
-        readonly Vector3[] points = new Vector3[35];
+        static readonly int BaseColor=Shader.PropertyToID("_BaseColor"),ColorId=Shader.PropertyToID("_Color");
+        static readonly Vector2[] cone=BuildCone();
+        readonly LineRenderer line,border;
+        readonly MaterialPropertyBlock block=new MaterialPropertyBlock();
+        readonly Vector3[] points=new Vector3[35];
         public EnemyTelegraph(Transform owner)
         {
-            var go = new GameObject("Предупреждение атаки");go.transform.SetParent(owner, false);line = go.AddComponent<LineRenderer>();
-            if (material == null)
-            {
-                var shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Color");
-                material = new Material(shader) { name = "Контур атаки врага", color = new Color(1,.36f,.08f) };
+            if(material==null){
+                var shader=Shader.Find("Universal Render Pipeline/Unlit")??Shader.Find("Unlit/Color");
+                material=new Material(shader){name="Читаемые предупреждения атак",color=Color.white,renderQueue=3000};
+                if(material.HasProperty("_Surface")){
+                    material.SetFloat("_Surface",1);material.SetFloat("_ZWrite",0);
+                    material.SetInt("_SrcBlend",(int)UnityEngine.Rendering.BlendMode.SrcAlpha);material.SetInt("_DstBlend",(int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                    material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");material.SetOverrideTag("RenderType","Transparent");
+                }
             }
-            line.sharedMaterial = material;line.useWorldSpace = true;line.widthMultiplier = .07f;line.numCapVertices = 2;
-            line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;line.receiveShadows = false;Hide();
+            border=Create(owner,"Тёмная кайма предупреждения",1);line=Create(owner,"Предупреждение атаки",2);Hide();
         }
-        public void Hide() { line.enabled = false; }
-        void Show(int count)
-        {
-            line.enabled = true;line.positionCount = count;
-            for (int i = 0; i < count; i++) line.SetPosition(i, points[i]);
+        static Vector2[] BuildCone(){
+            var result=new Vector2[25];float angle=Mathf.Acos(.3f)*Mathf.Rad2Deg;
+            for(int i=0;i<result.Length;i++){float a=Mathf.Lerp(-angle,angle,i/24f)*Mathf.Deg2Rad;result[i]=new Vector2(Mathf.Sin(a),Mathf.Cos(a));}
+            return result;
         }
-        static Vector3 Ground(Vector3 point) { point.y = .075f;return point; }
-        public void Cone(Vector3 origin, Vector3 direction, float radius)
-        {
-            origin = Ground(origin);points[0] = origin;
-            for (int i = 0; i <= 24; i++) points[i + 1] = origin + Quaternion.Euler(0, Mathf.Lerp(-72, 72, i / 24f), 0) * direction * radius;
-            points[26] = origin;Show(27);
+        static LineRenderer Create(Transform owner,string title,int order){
+            var go=new GameObject(title);go.transform.SetParent(owner,false);var renderer=go.AddComponent<LineRenderer>();
+            renderer.sharedMaterial=material;renderer.useWorldSpace=true;renderer.numCapVertices=2;renderer.numCornerVertices=2;renderer.sortingOrder=order;
+            renderer.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;renderer.receiveShadows=false;return renderer;
         }
-        public void ChargeStraight(Vector3 origin,Vector3 direction,float length,float width)
-        {
+        public void Hide(){line.enabled=false;border.enabled=false;}
+        void Colorize(LineRenderer renderer,Color color){block.SetColor(BaseColor,color);block.SetColor(ColorId,color);renderer.SetPropertyBlock(block);}
+        void Show(int count,float progress=0,bool special=false){
+            float width=special?.075f:Mathf.Lerp(.045f,.065f,Mathf.Clamp01(progress));
+            line.widthMultiplier=width;border.widthMultiplier=width*2.2f;
+            Colorize(border,new Color(.32f,.035f,.015f,.72f));
+            Colorize(line,Color.Lerp(new Color(1,.72f,.12f,.95f),new Color(1,.23f,.08f,1),Mathf.Clamp01(progress)));
+            line.enabled=border.enabled=true;if(line.positionCount!=count)line.positionCount=count;if(border.positionCount!=count)border.positionCount=count;
+            for(int i=0;i<count;i++){line.SetPosition(i,points[i]);border.SetPosition(i,points[i]);}
+        }
+        static Vector3 Ground(Vector3 point){point.y=.075f;return point;}
+        public void Cone(Vector3 origin,Vector3 direction,float radius,float progress=0){
+            origin=Ground(origin);direction.y=0;direction=direction.sqrMagnitude>.0001f?direction.normalized:Vector3.forward;
+            var side=Vector3.Cross(Vector3.up,direction);points[0]=origin;
+            for(int i=0;i<cone.Length;i++)points[i+1]=origin+(side*cone[i].x+direction*cone[i].y)*radius;
+            points[26]=origin;Show(27,progress);
+        }
+        public void ChargeStraight(Vector3 origin,Vector3 direction,float length,float width){
             origin=Ground(origin);Vector3 side=Vector3.Cross(Vector3.up,direction)*width,end=origin+direction*length;
-            points[0]=origin-side;points[1]=end-side;points[2]=end+direction*.5f;points[3]=end+side;points[4]=origin+side;points[5]=origin-side;Show(6);
+            points[0]=origin-side;points[1]=end-side;points[2]=end+direction*.5f;points[3]=end+side;points[4]=origin+side;points[5]=origin-side;Show(6,1,true);
         }
-        public void Circle(Vector3 origin,float radius)
-        {
-            origin=Ground(origin);for(int i=0;i<=32;i++){float angle=i*Mathf.PI*2/32;points[i]=origin+new Vector3(Mathf.Cos(angle),0,Mathf.Sin(angle))*radius;}Show(33);
+        public void Circle(Vector3 origin,float radius){
+            origin=Ground(origin);for(int i=0;i<=32;i++){float angle=i*Mathf.PI*2/32;points[i]=origin+new Vector3(Mathf.Cos(angle),0,Mathf.Sin(angle))*radius;}Show(33,1,true);
         }
     }
 }

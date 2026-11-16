@@ -91,16 +91,16 @@ namespace Brainrot
             foreach(var light in Object.FindObjectsByType<Light>(FindObjectsSortMode.None))if(light.type==LightType.Directional&&(old==null||!light.transform.IsChildOf(old.transform))){sun=light;break;}
             if(sun==null){sun=new GameObject("Тропическое солнце").AddComponent<Light>();sun.transform.SetParent(root,false);sun.type=LightType.Directional;}
             sun.name="Персиковое тропическое солнце";
-            sun.color=new Color(1,.94f,.80f);sun.intensity=1.65f;
-            sun.shadows=LightShadows.Soft;sun.shadowStrength=.52f;sun.shadowBias=.035f;sun.shadowNormalBias=.18f;
+            sun.color=new Color(1,.94f,.83f);sun.intensity=1.48f;
+            sun.shadows=LightShadows.Soft;sun.shadowStrength=.65f;sun.shadowBias=.025f;sun.shadowNormalBias=.13f;
             sun.transform.rotation=Quaternion.Euler(51,-38,0);RenderSettings.sun=sun;
             // Sky and sand bounce light keep silhouettes readable without extra shadow maps.
             var fill=new GameObject("Небесный заполняющий свет").AddComponent<Light>();fill.transform.SetParent(root,false);
-            fill.type=LightType.Directional;fill.color=new Color(.73f,.88f,1);fill.intensity=.34f;fill.shadows=LightShadows.None;fill.transform.rotation=Quaternion.Euler(28,142,0);
+            fill.type=LightType.Directional;fill.color=new Color(.66f,.84f,1);fill.intensity=.25f;fill.shadows=LightShadows.None;fill.transform.rotation=Quaternion.Euler(28,142,0);
             RenderSettings.ambientMode=AmbientMode.Trilight;RenderSettings.ambientIntensity=1;
-            RenderSettings.ambientSkyColor=new Color(.66f,.84f,1);
-            RenderSettings.ambientEquatorColor=new Color(.73f,.83f,.82f);
-            RenderSettings.ambientGroundColor=new Color(.77f,.66f,.43f);
+            RenderSettings.ambientSkyColor=new Color(.54f,.74f,.95f);
+            RenderSettings.ambientEquatorColor=new Color(.58f,.73f,.75f);
+            RenderSettings.ambientGroundColor=new Color(.65f,.53f,.32f);
             RenderSettings.fog=true;RenderSettings.fogMode=FogMode.ExponentialSquared;
             RenderSettings.fogColor=new Color(.43f,.81f,.99f);RenderSettings.fogDensity=.0015f;
             RenderSettings.reflectionIntensity=.52f;

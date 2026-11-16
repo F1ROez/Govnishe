@@ -16,6 +16,7 @@ namespace Brainrot {
   public void SetRangeVisual(AttackRangeVisual value){rangeVisual=value;}
   public void CancelPendingSwings(){contacts.Clear();charging=false;inputSuppressed=true;if(visual!=null)visual.ResetAttack();}
   public void ResetRun(){nextAttack=nextHeavyAttack=0;CancelPendingSwings();}
+  public void RestoreHeavyCooldown(float remaining){CancelPendingSwings();nextAttack=Time.time+.2f;nextHeavyAttack=Time.time+Mathf.Clamp(float.IsNaN(remaining)||float.IsInfinity(remaining)?0:remaining,0,HeavyCooldownDuration);}
   public void UpdateAttackInput(bool held){
    var game=GameManager.Instance;if(!isActiveAndEnabled||game==null||!game.IsPlaying||player==null||visual==null||player.IsCaptured||player.Health<=0)return;
    if(inputSuppressed){if(!held)inputSuppressed=false;return;}

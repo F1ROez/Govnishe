@@ -23,7 +23,7 @@ namespace Brainrot
         void Start(){UIInputRouter.EnsureForScene(gameObject.scene);}
         void Update(){
             bool ready=!SceneFlow.Instance.Busy;
-            if(continueButton!=null)continueButton.interactable=ready&&GameManager.Instance!=null&&GameManager.Instance.HasRun;
+            if(continueButton!=null)continueButton.interactable=ready&&((GameManager.Instance!=null&&GameManager.Instance.CanContinue)||RunPersistence.HasSavedRun);
             if(newButton!=null)newButton.interactable=ready;
         }
         RectTransform Clear(){
@@ -53,8 +53,11 @@ namespace Brainrot
             ReferenceScreens.Text(frame,"РЕКОРДЫ",43,.24f,.12f,.52f,.12f);var data=SaveSystem.Data;
             ReferenceScreens.Text(frame,"ЛУЧШЕЕ ВРЕМЯ",23,.20f,.33f,.60f,.06f);
             ReferenceScreens.Text(frame,$"{Mathf.FloorToInt(data.BestTime/60):00}:{Mathf.FloorToInt(data.BestTime%60):00}",38,.20f,.40f,.60f,.09f);
-            ReferenceScreens.Hotspot(frame,"ПОБЕЖДЕНО: "+data.BestKills,.20f,.552f,.60f,.087f,()=>{},25).interactable=false;
-            ReferenceScreens.Hotspot(frame,"ДЕРЖИ БИТУ КРЕПЧЕ!",.20f,.654f,.60f,.087f,()=>{},23).interactable=false;
+            ReferenceScreens.Text(frame,"ПОБЕЖДЕНО: "+data.BestKills,24,.20f,.51f,.60f,.07f);
+            ReferenceScreens.Text(frame,"ЛУЧШАЯ ВОЛНА: "+data.BestWave,24,.20f,.60f,.60f,.07f);
+            Button replay=null;replay=ReferenceScreens.Hotspot(frame,"ПОВТОРИТЬ ОБУЧЕНИЕ",.20f,.72f,.60f,.087f,()=>{
+                SaveSystem.Data.TutorialCompleted=false;SaveSystem.Save();if(GameManager.Instance!=null&&GameManager.Instance.Goals!=null)GameManager.Instance.Goals.ReplayTutorial();replay.GetComponentInChildren<Text>().text="ОБУЧЕНИЕ ВКЛЮЧЕНО";
+            },23);
             ReferenceScreens.Hotspot(frame,"НАЗАД",.323f,.867f,.357f,.09f,Main,29);
         }
         static void Shade(Transform parent){CartoonUI.Image("Затемнение",parent,Vector2.zero,Vector2.one,new Color(.025f,.06f,.09f,.30f));}
