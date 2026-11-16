@@ -24,6 +24,10 @@ class AlphaToolTests(unittest.TestCase):
         with self.assertRaises(ValueError):runner.test_result(self.xml('<test-run result="Passed"><test-case result="Passed"/><test-case result="Failed" fullname="regression"/></test-run>'))
     def test_actual_passing_case_is_counted(self):
         self.assertEqual(1,runner.test_result(self.xml('<test-run result="Passed"><test-case result="Passed"/></test-run>'))['passed'])
+    def test_unfinished_case_cannot_be_counted_as_skipped(self):
+        with self.assertRaises(ValueError):runner.test_result(self.xml('<test-run result="Passed"><test-case result="Passed"/><test-case name="unfinished"/></test-run>'))
+    def test_unfinished_root_cannot_pass(self):
+        with self.assertRaises(ValueError):runner.test_result(self.xml('<test-run result="Running"><test-case result="Passed"/></test-run>'))
     def test_archive_path_traversal_rejected(self):
         result=inspector.inspect(self.archive({'../outside.txt':b'bad'}));self.assertEqual('failed',result['status']);self.assertTrue(any('Unsafe' in e for e in result['errors']))
     def test_source_archive_is_not_a_player(self):
@@ -41,5 +45,31 @@ class AlphaToolTests(unittest.TestCase):
     def test_synthetic_structure_pass_is_not_execution_claim(self):
         p=self.root/'metadata.json';p.write_text(json.dumps({'sourceRevision':'fake','playerSha256':hashlib.sha256(b'fake-unit-test-only').hexdigest()}))
         result=inspector.inspect(self.archive(),p);self.assertEqual('structure-passed',result['status']);self.assertIn('Game execution',result['scope'])
+    def manifest(self):
+        contents={'BrainrotIreland.exe':b'fake-unit-test-only','UnityPlayer.dll':b'fake-dll','BrainrotIreland_Data/globalgamemanagers':b'data'}
+        return {'sourceRevision':'fake','playerSha256':hashlib.sha256(contents['BrainrotIreland.exe']).hexdigest(),'shippingFiles':[{'path':name,'bytes':len(value),'sha256':hashlib.sha256(value).hexdigest()} for name,value in contents.items()]}
+    def metadata(self,data):
+        path=self.root/'metadata.json';path.write_text(json.dumps(data));return path
+    def test_shipping_manifest_matches_all_player_files(self):
+        self.assertEqual('structure-passed',inspector.inspect(self.archive(),self.metadata(self.manifest()))['status'])
+    def test_shipping_manifest_detects_modified_data_even_with_valid_zip_crc(self):
+        result=inspector.inspect(self.archive({'BrainrotIreland_Data/globalgamemanagers':b'changed'}),self.metadata(self.manifest()))
+        self.assertEqual('failed',result['status']);self.assertTrue(any('Build file hash differs' in error for error in result['errors']))
+    def test_shipping_manifest_detects_unlisted_and_missing_files(self):
+        data=self.manifest();data['shippingFiles'].append({'path':'missing.dll','bytes':1,'sha256':'0'*64})
+        result=inspector.inspect(self.archive({'extra.dll':b'extra'}),self.metadata(data))
+        self.assertEqual('failed',result['status']);self.assertTrue(any('missing from package' in error for error in result['errors']));self.assertTrue(any('absent from build manifest' in error for error in result['errors']))
+    def test_package_adds_instructions_license_and_excludes_debug_backups(self):
+        build=self.root/'build';build.mkdir();(build/'BrainrotIreland.exe').write_bytes(b'fake-unit-test-only');(build/'UnityPlayer.dll').write_bytes(b'fake-dll')
+        (build/'BrainrotIreland_Data').mkdir();(build/'BrainrotIreland_Data/globalgamemanagers').write_bytes(b'data')
+        backup=build/'BrainrotIreland_BackUpThisFolder_ButDontShipItWithYourGame';backup.mkdir();(backup/'source.cpp').write_text('private')
+        (build/'debug.pdb').write_text('debug');(build/'alpha-build-report.json').write_text('{}')
+        package=self.root/'package.zip';runner.package_windows(build,package)
+        with zipfile.ZipFile(package) as archive:
+            self.assertIn('README_ALPHA.txt',archive.namelist());self.assertIn('LICENSES/IslandRounded-OFL.txt',archive.namelist());self.assertNotIn('debug.pdb',archive.namelist());self.assertFalse(any('DontShip' in name for name in archive.namelist()))
+        self.assertEqual('structure-passed',inspector.inspect(package,self.metadata(self.manifest()))['status'])
+    def test_empty_player_data_cannot_be_packaged(self):
+        build=self.root/'build';build.mkdir();(build/'BrainrotIreland.exe').write_bytes(b'fake');(build/'UnityPlayer.dll').write_bytes(b'fake');(build/'BrainrotIreland_Data').mkdir()
+        with self.assertRaises(ValueError):runner.package_windows(build,self.root/'empty.zip')
 
 if __name__=='__main__':unittest.main()

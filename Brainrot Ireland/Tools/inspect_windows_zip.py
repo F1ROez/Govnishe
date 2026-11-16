@@ -2,6 +2,11 @@
 """Check Windows player ZIP structure and its matching build metadata. Does not launch the game."""
 import argparse, hashlib, json, pathlib, sys, zipfile
 
+def stream_sha256(stream):
+    digest=hashlib.sha256()
+    for block in iter(lambda:stream.read(1024*1024),b''):digest.update(block)
+    return digest.hexdigest()
+
 def inspect(path, metadata=None):
     errors=[]; warnings=[]
     with zipfile.ZipFile(path) as archive:
@@ -30,9 +35,24 @@ def inspect(path, metadata=None):
         if metadata:
             data=json.loads(pathlib.Path(metadata).read_text(encoding='utf-8-sig'))
             if 'BrainrotIreland.exe' in names:
-                actual=hashlib.sha256(archive.read('BrainrotIreland.exe')).hexdigest()
+                with archive.open('BrainrotIreland.exe') as stream:actual=stream_sha256(stream)
                 if data.get('playerSha256')!=actual: errors.append('EXE hash differs from build metadata.')
             if not data.get('sourceRevision') or data.get('sourceRevision')=='unknown': warnings.append('Build source revision is unknown.')
+            manifest=data.get('shippingFiles')
+            if manifest is None:warnings.append('Legacy build metadata has no shipping-file manifest; only the EXE can be matched.')
+            elif not isinstance(manifest,list) or not manifest:errors.append('Shipping-file manifest is empty or malformed.')
+            else:
+                expected=set()
+                for record in manifest:
+                    if not isinstance(record,dict) or not isinstance(record.get('path'),str):errors.append('Malformed shipping-file record.');continue
+                    name=record['path']
+                    if name in expected:errors.append('Duplicate shipping-file record: '+name)
+                    expected.add(name)
+                    if name not in names:errors.append('Build file missing from package: '+name);continue
+                    if record.get('bytes')!=archive.getinfo(name).file_size:errors.append('Build file size differs: '+name)
+                    with archive.open(name) as stream:actual=stream_sha256(stream)
+                    if record.get('sha256')!=actual:errors.append('Build file hash differs: '+name)
+                for name in names-expected-{'README_ALPHA.txt','LICENSES/IslandRounded-OFL.txt'}:errors.append('File absent from build manifest: '+name)
     return {'status':'failed' if errors else 'structure-passed','errors':errors,'warnings':warnings,'scope':'Archive integrity/structure only. Game execution and asset rights are not verified.','zip':str(path)}
 
 def main():

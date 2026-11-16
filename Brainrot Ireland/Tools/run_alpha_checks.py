@@ -4,6 +4,7 @@ No Unity executable means a blocked report and nonzero exit, never a successful 
 """
 from __future__ import annotations
 import argparse, datetime as dt, hashlib, json, os, pathlib, shutil, subprocess, sys, time, xml.etree.ElementTree as ET, zipfile
+from inspect_windows_zip import inspect as inspect_player, stream_sha256
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 def unity_path(explicit: str | None) -> pathlib.Path | None:
@@ -22,14 +23,16 @@ def test_result(path: pathlib.Path) -> dict:
     tests = list(node.iter('test-case'))
     if not tests: raise ValueError(f'No test cases ran in {path}')
     failed = [t.get('fullname', t.get('name', '?')) for t in tests if t.get('result', '').lower() in {'failed', 'error', 'cancelled'}]
+    allowed={'passed','success','skipped','ignored','inconclusive','failed','error','cancelled'}
+    unknown=[t.get('fullname', t.get('name', '?')) for t in tests if t.get('result', '').lower() not in allowed]
     passed = sum(t.get('result', '').lower() in {'passed', 'success'} for t in tests)
-    if failed or passed == 0 or node.get('result', '').lower() in {'failed', 'error', 'cancelled'}:
-        raise ValueError(f'Test results failed: passed={passed}, failures={failed[:20]}')
+    if failed or unknown or passed == 0 or node.get('result', '').lower() not in {'passed','success','inconclusive'}:
+        raise ValueError(f'Test results failed: passed={passed}, failures={failed[:20]}, unknown={unknown[:20]}')
     return {'cases': len(tests), 'passed': passed, 'skipped': len(tests) - passed, 'xml': str(path)}
 
 def package_windows(build: pathlib.Path, destination: pathlib.Path) -> dict:
     required = [build / 'BrainrotIreland.exe', build / 'UnityPlayer.dll', build / 'BrainrotIreland_Data']
-    if not all(p.exists() for p in required): raise ValueError('Missing Windows player artifacts; cannot package source as a game.')
+    if not all(p.is_file() and p.stat().st_size>0 for p in required[:2]) or not required[2].is_dir() or not any(p.is_file() for p in required[2].rglob('*')): raise ValueError('Missing Windows player artifacts; cannot package source as a game.')
     destination.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(destination, 'w', zipfile.ZIP_DEFLATED) as archive:
         for path in sorted(build.rglob('*')):
@@ -38,7 +41,8 @@ def package_windows(build: pathlib.Path, destination: pathlib.Path) -> dict:
             if path.is_file() and path.name != 'alpha-build-report.json' and not dont_ship and path.suffix.lower() not in {'.pdb','.mdb'}: archive.write(path, relative.as_posix())
         archive.write(ROOT / 'Assets/Brainrot/Art/Fonts/OFL.txt', 'LICENSES/IslandRounded-OFL.txt')
         archive.writestr('README_ALPHA.txt', 'Brainrot Ireland — Windows test alpha\nExtract the complete ZIP and start BrainrotIreland.exe.\nWASD movement; mouse camera; LMB strike, hold/release heavy strike; Shift sprint; Space dash; V camera lock; Escape pause.\nThis package passed only the automated stages recorded in the external summary.json. Manual gameplay/hardware acceptance and asset rights must be reviewed before public release.\n')
-    return {'zip': str(destination), 'bytes': destination.stat().st_size, 'sha256': hashlib.sha256(destination.read_bytes()).hexdigest()}
+    with destination.open('rb') as stream:digest=stream_sha256(stream)
+    return {'zip': str(destination), 'bytes': destination.stat().st_size, 'sha256': digest}
 
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
@@ -94,7 +98,12 @@ def main() -> int:
                 if not metadata.is_file(): raise ValueError('Windows build metadata missing.')
                 stage['build'] = json.loads(metadata.read_text(encoding='utf-8'))
                 if stage['build'].get('sourceRevision') != environment['BRAINROT_SOURCE_REVISION']: raise ValueError('Build metadata source revision mismatch.')
+                if not stage['build'].get('shippingFiles'): raise ValueError('Windows build shipping-file manifest missing.')
                 summary['package'] = package_windows(ROOT / 'Builds/Windows', ROOT / 'Builds/Packages/BrainrotIreland-Windows-alpha.zip')
+                inspection=inspect_player(pathlib.Path(summary['package']['zip']),metadata)
+                (report_dir/'package-inspection.json').write_text(json.dumps(inspection,ensure_ascii=False,indent=2),encoding='utf-8')
+                stage['package_inspection']=inspection
+                if inspection['status']!='structure-passed':raise ValueError('Windows package inspection failed: '+'; '.join(inspection['errors'][:10]))
             stage['status'] = 'passed';write()
         summary['status'] = 'passed';summary['scope'] = 'Unity validation/tests' if args.skip_build else 'Unity validation/tests and Windows build/package'
         summary['manual_acceptance'] = 'NOT_RUN: run the 30-minute, hardware, visual, license and restart scenarios in Docs/TEST_PLAN.md.'
