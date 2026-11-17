@@ -152,11 +152,15 @@ namespace Brainrot.Editor
             if(!controller.parameters.Any(p=>p.name=="Speed"))controller.AddParameter("Speed",AnimatorControllerParameterType.Float);
             var machine=controller.layers[0].stateMachine;
             foreach(var state in machine.states)machine.RemoveState(state.state);
-            var idleState=machine.AddState("Ожидание");idleState.motion=idle!=null?idle:Gait(model,"Idle",2,0);machine.defaultState=idleState;
-            var walk=machine.AddState("Ходьба");walk.motion=Gait(model,"Walk",.8f,28);
-            var run=machine.AddState("Бег");run.motion=Gait(model,"Sprint",.55f,42);
-            Transition(idleState,walk,AnimatorConditionMode.Greater,.1f);Transition(walk,idleState,AnimatorConditionMode.Less,.1f);
-            Transition(walk,run,AnimatorConditionMode.Greater,3.5f);Transition(run,walk,AnimatorConditionMode.Less,3.5f);
+            // One blend tree keeps stride phase continuous and avoids idle->walk->run state hops.
+            foreach(var old in AssetDatabase.LoadAllAssetsAtPath(path).OfType<BlendTree>().Where(t=>t.name=="Плавное движение Сахура").ToArray())UnityEngine.Object.DestroyImmediate(old,true);
+            var tree=new BlendTree{name="Плавное движение Сахура",blendType=BlendTreeType.Simple1D,blendParameter="Speed",useAutomaticThresholds=false};
+            AssetDatabase.AddObjectToAsset(tree,controller);
+            tree.AddChild(idle!=null?idle:Gait(model,"Idle",2,0),0);
+            tree.AddChild(Gait(model,"Walk",.8f,28),3);
+            tree.AddChild(Gait(model,"Sprint",.55f,42),4.05f);
+            var locomotion=machine.AddState("Движение");locomotion.motion=tree;machine.defaultState=locomotion;
+            EditorUtility.SetDirty(tree);
             EditorUtility.SetDirty(controller);return controller;
         }
         static void Transition(AnimatorState from,AnimatorState to,AnimatorConditionMode mode,float value){var t=from.AddTransition(to);t.hasExitTime=false;t.duration=.12f;t.AddCondition(mode,value,"Speed");}
@@ -164,18 +168,24 @@ namespace Brainrot.Editor
         {
             string path=Output+name+".anim";var clip=AssetDatabase.LoadAssetAtPath<AnimationClip>(path);bool create=clip==null;
             if(create)clip=new AnimationClip{name=name,frameRate=30};else clip.ClearCurves();
-            foreach(string boneName in new[]{"thigh.L","thigh.R","shin.L","shin.R","upper_arm.L","upper_arm.R"}){
+            foreach(string boneName in new[]{"thigh.L","thigh.R","shin.L","shin.R","foot.L","foot.R","upper_arm.L","upper_arm.R"}){
                 var bone=ImportedSahurVisual.Find(model,boneName);if(bone==null)continue;
                 var curves=new[]{new AnimationCurve(),new AnimationCurve(),new AnimationCurve(),new AnimationCurve()};Quaternion rest=bone.localRotation;
                 Vector3 axis=bone.parent.InverseTransformDirection(model.right).normalized;
                 for(int k=0;k<=16;k++){
                     float phase=k/16f*Mathf.PI*2+(boneName.EndsWith(".R")?Mathf.PI:0);float angle=Mathf.Sin(phase)*amplitude;
-                    if(boneName.StartsWith("upper"))angle*=-.65f;if(boneName.StartsWith("shin"))angle=Mathf.Max(0,-angle)*.8f;
+                    if(boneName.StartsWith("upper"))angle*=-.65f;if(boneName.StartsWith("shin"))angle=Mathf.Max(0,-angle)*.8f;if(boneName.StartsWith("foot"))angle=Mathf.Sin(phase-.6f)*amplitude*.24f;
                     Quaternion q=Quaternion.AngleAxis(angle,axis)*rest;float time=length*k/16f;
                     curves[0].AddKey(time,q.x);curves[1].AddKey(time,q.y);curves[2].AddKey(time,q.z);curves[3].AddKey(time,q.w);
                 }
                 string relative=AnimationUtility.CalculateTransformPath(bone,model);string[] properties={"m_LocalRotation.x","m_LocalRotation.y","m_LocalRotation.z","m_LocalRotation.w"};
-                for(int k=0;k<4;k++)AnimationUtility.SetEditorCurve(clip,EditorCurveBinding.FloatCurve(relative,typeof(Transform),properties[k]),curves[k]);
+                for(int k=0;k<4;k++){
+                    for(int key=0;key<curves[k].length;key++){
+                        AnimationUtility.SetKeyLeftTangentMode(curves[k],key,AnimationUtility.TangentMode.ClampedAuto);
+                        AnimationUtility.SetKeyRightTangentMode(curves[k],key,AnimationUtility.TangentMode.ClampedAuto);
+                    }
+                    AnimationUtility.SetEditorCurve(clip,EditorCurveBinding.FloatCurve(relative,typeof(Transform),properties[k]),curves[k]);
+                }
             }
             // Hold the sampled Idle baseline scale in EVERY locomotion clip; supplied FBX animates metarig scale .229 ->1.
             foreach(var transform in model.GetComponentsInChildren<Transform>(true)){

@@ -4,13 +4,13 @@ namespace Brainrot
 {
     [Serializable] public sealed class CombatFeelTuning
     {
-        [Range(0,10),Tooltip("Плавное сужение угла обзора при полном замахе, градусы.")]public float ChargeFovReduction=5;
-        [Range(.1f,1),Tooltip("Время плавного приближения при заряде, с.")]public float ChargeInSeconds=.45f;
-        [Range(.06f,.4f),Tooltip("Быстрый мягкий возврат камеры после отпускания, с.")]public float ReleaseSeconds=.14f;
-        [Range(0,5),Tooltip("Короткое расширение FOV от подтверждённого сильного попадания.")]public float ImpactFovKick=1.8f;
-        [Range(0,.3f),Tooltip("Сила направленной встряски при сильном попадании, м.")]public float HitShake=.12f;
-        [Range(.05f,.35f),Tooltip("Длительность затухающей отдачи камеры, с.")]public float HitShakeSeconds=.16f;
-        [Range(0,.08f),Tooltip("Короткая задержка только визуальной позы биты при сильном попадании; игровое время не останавливается.")]public float HitPosePauseSeconds=.045f;
+        [Range(0,24),Tooltip("Плавное сужение угла обзора при полном замахе, градусы.")]public float ChargeFovReduction=17;
+        [Range(.1f,1),Tooltip("Время плавного приближения при заряде, с.")]public float ChargeInSeconds=.32f;
+        [Range(.06f,.4f),Tooltip("Быстрый мягкий возврат камеры после отпускания, с.")]public float ReleaseSeconds=.10f;
+        [Range(0,5),Tooltip("Короткое расширение FOV от подтверждённого сильного попадания.")]public float ImpactFovKick=3.4f;
+        [Range(0,.3f),Tooltip("Сила направленной встряски при сильном попадании, м.")]public float HitShake=.18f;
+        [Range(.05f,.35f),Tooltip("Длительность затухающей отдачи камеры, с.")]public float HitShakeSeconds=.18f;
+        [Range(0,.08f),Tooltip("Короткая задержка только визуальной позы биты при сильном попадании; игровое время не останавливается.")]public float HitPosePauseSeconds=.06f;
         [Range(4,48),Tooltip("Максимум одновременно существующих эффектов попадания; старые переиспользуются.")]public int EffectsBudget=24;
     }
 
@@ -39,7 +39,7 @@ namespace Brainrot
             Impact=impactStrength*(1-t)*(1-t);
         }
         public float FieldOfView(float baseline,CombatFeelTuning tuning,float strength)
-            =>Mathf.Clamp(baseline-Charge*Mathf.Clamp(tuning.ChargeFovReduction,0,10)+Impact*Mathf.Max(0,tuning.ImpactFovKick)*Mathf.Clamp01(strength),35,90);
+            =>Mathf.Clamp(baseline-Charge*Mathf.Clamp(tuning.ChargeFovReduction,0,24)+Impact*Mathf.Max(0,tuning.ImpactFovKick)*Mathf.Clamp01(strength),35,90);
         public Vector3 Offset(CombatFeelTuning tuning,float strength)
         {
             float amplitude=Impact*Mathf.Clamp(tuning.HitShake,0,.3f)*Mathf.Clamp01(strength);

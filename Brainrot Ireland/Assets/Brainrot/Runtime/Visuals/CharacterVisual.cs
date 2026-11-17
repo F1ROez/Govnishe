@@ -432,6 +432,10 @@ namespace Brainrot
         public void PlayBite(float duration=.32f){if(importedEnemy!=null){importedEnemy.PlayBite(duration);return;}if(!isShark)return;biteDuration=Mathf.Max(.15f,duration);biteRemaining=biteDuration;}
         public float BiteProgress=>biteRemaining>0?1-biteRemaining/biteDuration:1;
         public void ResetBite(){if(importedEnemy!=null)importedEnemy.ResetVisual();biteRemaining=0;if(body!=null){body.localPosition=bodyPosition;body.localRotation=Quaternion.identity;}}
+        public void SetLocomotion(Vector3 localVelocity,bool dashing)
+        {
+            if(imported!=null)imported.SetLocomotion(localVelocity,dashing);
+        }
         public void Animate(float speed,bool attacking)
         {
             if(imported!=null){imported.Animate(speed,attacking);return;}

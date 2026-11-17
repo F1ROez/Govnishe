@@ -5,7 +5,7 @@ namespace Brainrot {
   struct PendingContact {public float Time,Power;public bool Heavy;}
   readonly List<PendingContact> contacts=new List<PendingContact>(16);
   PlayerController player;CharacterVisual visual;AttackRangeVisual rangeVisual;
-  float nextAttack,nextHeavyAttack,chargeStarted;bool charging,inputSuppressed,chargeReadyEffect;
+  float nextAttack,nextHeavyAttack,chargeStarted,bufferUntil;bool charging,inputSuppressed,chargeReadyEffect,bufferedAttack,bufferedHeavy;
   public bool IsCharging=>charging;
   public float HeavyCooldownRemaining=>Mathf.Max(0,nextHeavyAttack-Time.time);
   public float HeavyCooldownDuration=>Mathf.Max(.1f,GameBalance.Current.Combat.StrongCooldownSeconds);
@@ -14,22 +14,36 @@ namespace Brainrot {
   public bool IsAttacking=>visual!=null&&visual.AttackActive;
   public void Initialize(PlayerController p,CharacterVisual v){player=p;visual=v;}
   public void SetRangeVisual(AttackRangeVisual value){rangeVisual=value;}
-  public void CancelPendingSwings(){contacts.Clear();charging=false;chargeReadyEffect=false;inputSuppressed=true;GameAudio.EndCharge();player?.ResetCombatCamera();if(visual!=null)visual.ResetAttack();}
+  public void CancelPendingSwings(){contacts.Clear();bufferedAttack=false;bufferUntil=0;charging=false;chargeReadyEffect=false;inputSuppressed=true;GameAudio.EndCharge();player?.ResetCombatCamera();if(visual!=null)visual.ResetAttack();}
   public void ResetRun(){nextAttack=nextHeavyAttack=0;CancelPendingSwings();}
   public void RestoreHeavyCooldown(float remaining){CancelPendingSwings();nextAttack=Time.time+.2f;nextHeavyAttack=Time.time+Mathf.Clamp(float.IsNaN(remaining)||float.IsInfinity(remaining)?0:remaining,0,HeavyCooldownDuration);}
-  public void UpdateAttackInput(bool held){
+  public void UpdateAttackInput(bool held,bool pressed=false,bool released=false){
    var game=GameManager.Instance;if(!isActiveAndEnabled||game==null||!game.IsPlaying||player==null||visual==null||player.IsCaptured||player.Health<=0)return;
    if(inputSuppressed){if(!held)inputSuppressed=false;return;}
-   if(held&&!charging&&Time.time>=nextAttack){charging=true;chargeStarted=Time.time;chargeReadyEffect=false;if(HeavyReady)GameAudio.BeginCharge();}
-   if(held&&charging){visual?.SetChargePose(ChargeProgress,HeavyReady);GameAudio.SetCharge(ChargeProgress,HeavyReady);if(HeavyReady&&ChargeProgress>=1&&!chargeReadyEffect){chargeReadyEffect=true;visual?.ChargeReady();}}
-   if(!held&&charging){bool heavy=ChargeProgress>=1&&HeavyReady;charging=false;GameAudio.EndCharge();if(!ExecuteAttack(heavy))visual?.SetChargePose(0,false);}
+   if(bufferedAttack){
+    if(Time.time>bufferUntil)bufferedAttack=false;
+    else if(Time.time>=nextAttack){bool requestedHeavy=bufferedHeavy;bufferedAttack=false;ExecuteAttack(requestedHeavy&&HeavyReady);}
+   }
+   float window=Mathf.Clamp(GameBalance.Current.Combat.InputBufferSeconds,0,.25f);
+   if((held||pressed)&&!charging&&Time.time>=nextAttack-window){
+    charging=true;chargeStarted=Time.time;chargeReadyEffect=false;if(HeavyReady)GameAudio.BeginCharge();
+   }
+   // Input is sampled immediately; poses wait until the previous swing has recovered.
+   if(held&&charging&&Time.time>=nextAttack){visual.SetChargePose(ChargeProgress,HeavyReady);GameAudio.SetCharge(ChargeProgress,HeavyReady);if(HeavyReady&&ChargeProgress>=1&&!chargeReadyEffect){chargeReadyEffect=true;visual.ChargeReady();}}
+   if(charging&&(!held||released)){
+    bool heavy=ChargeProgress>=1&&HeavyReady;charging=false;GameAudio.EndCharge();
+    if(!ExecuteAttack(heavy)){
+     if(Time.time<nextAttack&&nextAttack-Time.time<=window){bufferedAttack=true;bufferedHeavy=heavy;bufferUntil=Time.time+window;}
+     if(!visual.AttackActive)visual.SetChargePose(0,false);
+    }
+   }
   }
   public void TryAttack(){ExecuteAttack(false);}
   public bool ExecuteAttack(bool heavy){
    var game=GameManager.Instance;if(!isActiveAndEnabled||game==null||!game.IsPlaying||player==null||visual==null||player.IsCaptured||player.Health<=0||Time.time<nextAttack)return false;
    if(heavy&&!HeavyReady)return false;
    // Direct ability/test calls use the same lifecycle as releasing LMB. Keep the visual charge until PlayAttack consumes it.
-   charging=false;GameAudio.EndCharge();
+   charging=false;bufferedAttack=false;GameAudio.EndCharge();
    nextAttack=Time.time+Mathf.Max(.12f,player.Stats.AttackInterval);
    if(heavy)nextHeavyAttack=Time.time+HeavyCooldownDuration;
    BeginSwing(heavy?Mathf.Max(1,GameBalance.Current.Combat.StrongDamageMultiplier):1,heavy);return true;

@@ -89,14 +89,17 @@ namespace Brainrot {
    // Integrate the decaying shove exactly: low frame rates must not enlarge boss knockback.
    float pushDecay=Mathf.Exp(-6*Time.deltaTime);Vector3 pushStep=externalVelocity*((1-pushDecay)/6);externalVelocity*=pushDecay;
    if(externalVelocity.sqrMagnitude<.001f)externalVelocity=Vector3.zero;
+   Vector3 beforeMove=transform.position;
    motor.Move((velocity+Vector3.down*12)*Time.deltaTime+pushStep);
    Vector3 pos=transform.position;Vector3 bounded=IslandMap.ClampToLand(pos);
    if((bounded-pos).sqrMagnitude>.0001f){motor.enabled=false;transform.position=bounded;motor.enabled=true;}
    // Locked mode keeps aim relative to camera even when moving backwards or sideways.
    if(CameraLocked)transform.rotation=Quaternion.LookRotation(AimForward);
-   else if(move.sqrMagnitude>.01f)transform.rotation=Quaternion.Slerp(transform.rotation,Quaternion.LookRotation(move),Time.deltaTime*Mathf.Max(1,settings.TurnSpeed));
-   if(!IsCaptured)combat.UpdateAttackInput(GameInput.Attack||MobileInput.Attack);
-   visual.Animate(move.magnitude*3*(sprint?1.35f:1),combat.IsAttacking);Heal(Stats.Regen*Time.deltaTime);foreach(var ability in abilities)ability.Tick(Time.deltaTime);
+   else if(move.sqrMagnitude>.01f)transform.rotation=Quaternion.Slerp(transform.rotation,Quaternion.LookRotation(move),1-Mathf.Exp(-Mathf.Max(1,settings.TurnSpeed)*Time.deltaTime));
+   if(!IsCaptured)combat.UpdateAttackInput(GameInput.Attack||MobileInput.Attack,GameInput.AttackPressed,GameInput.AttackReleased);
+   Vector3 actualVelocity=(transform.position-beforeMove)/Mathf.Max(.0001f,Time.deltaTime);actualVelocity.y=0;
+   visual.SetLocomotion(transform.InverseTransformDirection(actualVelocity),IsDashing);
+   visual.Animate(actualVelocity.magnitude/Mathf.Max(.1f,Stats.MoveSpeed)*3,combat.IsAttacking);Heal(Stats.Regen*Time.deltaTime);foreach(var ability in abilities)ability.Tick(Time.deltaTime);
   }
   void LateUpdate(){
    float visualScale=Mathf.Max(.1f,Character!=null?Character.VisualScale:1)*Mathf.Max(.1f,GameBalance.Current.PlayerModelScale);
@@ -110,7 +113,8 @@ namespace Brainrot {
    float zoomSpeed=zoomTarget>chargeCameraBlend?settings.ChargeZoomInSpeed:settings.ChargeZoomOutSpeed;
    chargeCameraBlend=Mathf.Lerp(chargeCameraBlend,zoomTarget,1-Mathf.Exp(-Mathf.Max(.1f,zoomSpeed)*Time.deltaTime));
    Vector3 target=transform.position+Vector3.up*(1.9f*visualScale+Mathf.Max(0,settings.HeightAboveHead));
-   float distance=Mathf.Max(2,settings.Distance-Mathf.Max(0,settings.ChargeZoomDistance)*chargeCameraBlend);
+   float minimumDistance=Mathf.Max(1.65f,visualScale*1.55f);
+   float distance=Mathf.Max(minimumDistance,settings.Distance-Mathf.Max(0,settings.ChargeZoomDistance)*chargeCameraBlend);
    Vector3 shake=combatCamera.Offset(feedback,SaveSystem.Data.CameraShakeStrength)+new Vector3(Mathf.Sin(Time.unscaledTime*71),Mathf.Sin(Time.unscaledTime*83),Mathf.Sin(Time.unscaledTime*59))*trauma*Mathf.Clamp01(SaveSystem.Data.CameraShakeStrength);
    Vector3 desired=target+rot*Vector3.right*settings.ShoulderOffset-rot*Vector3.forward*distance+shake;
    if(settings.ObstacleCollision&&cameraCollision!=null){

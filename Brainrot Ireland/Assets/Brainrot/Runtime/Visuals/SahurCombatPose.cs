@@ -41,7 +41,11 @@ namespace Brainrot
             float inTime=Mathf.Min(.035f,Mathf.Max(.005f,contact*.6f));
             float weight=heavy&&fromCharge?1:Mathf.SmoothStep(0,1,elapsed/inTime);
             weight*=Mathf.SmoothStep(0,1,(duration-elapsed)/Mathf.Min(.075f,duration*.24f));
-            Pose(heavy,Mathf.SmoothStep(0,1,before),Mathf.SmoothStep(0,1,after),weight,GameBalance.Current.SahurAnimation);
+            // Accelerate into the contact, then carry momentum into follow-through rather than
+            // easing to a dead stop exactly when damage is delivered.
+            float drive=Mathf.Pow(before,heavy?2.2f:1.7f);
+            float follow=1-Mathf.Pow(1-after,3);
+            Pose(heavy,drive,follow,weight,GameBalance.Current.SahurAnimation);
         }
         void Pose(bool twoHands,float before,float after,float weight,SahurAnimationTuning tuning){
             Capture();

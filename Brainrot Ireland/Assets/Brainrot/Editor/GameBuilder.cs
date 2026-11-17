@@ -17,6 +17,7 @@ namespace Brainrot.Editor {
    const string path=Root+"/Resources/GameBalance.asset";
    var balance=AssetDatabase.LoadAssetAtPath<GameBalance>(path);
    if(balance==null){balance=ScriptableObject.CreateInstance<GameBalance>();AssetDatabase.CreateAsset(balance,path);AssetDatabase.SaveAssets();}
+   balance.UpgradeHeroFeel();EditorUtility.SetDirty(balance);
    // Upgrade only the old factory colours; keep colours edited by the owner.
    if(balance.Ocean!=null){
     bool changed=false;

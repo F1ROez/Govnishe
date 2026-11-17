@@ -50,6 +50,20 @@ namespace Brainrot.Tests
             Assert.That(Quaternion.Angle(left,leftUpper.localRotation),Is.LessThan(.001f));Assert.That(Quaternion.Angle(right,rightUpper.localRotation),Is.LessThan(.001f));Assert.AreEqual(Vector3.one,bridge.Weapon.localScale);
             LogAssert.NoUnexpectedReceived();
         }
+        [UnityTest]public IEnumerator LocomotionLeanResetsAndBatLengthDoesNotPopDuringSwing(){
+            BuildRig();yield return null;
+            var chest=ImportedSahurVisual.Find(bridge.ModelRoot,"spine.002");var baseline=chest.localRotation;
+            var position=actor.transform.position;var scale=bridge.Weapon.localScale;
+            bridge.SetLocomotion(new Vector3(3,0,6),false);bridge.Animate(4,false);
+            yield return null;yield return null;
+            Assert.Greater(Quaternion.Angle(baseline,chest.localRotation),.1f);
+            Assert.AreEqual(position,actor.transform.position,"Наклон визуала не перемещает физического героя.");
+            bridge.SetAttackReach(6);bridge.PlayAttack(.6f,.2f,true);
+            yield return new WaitForSeconds(.23f);
+            Assert.AreEqual(scale,bridge.Weapon.localScale,"Сильный удар не должен растягивать биту.");
+            bridge.ResetAttack();yield return null;
+            Assert.Less(Quaternion.Angle(baseline,chest.localRotation),.001f,"Новый забег/отмена очищает наклон движения.");
+        }
         [UnityTest]public IEnumerator CancellingChargeAndCompletingHeavyDoNotLeaveRaisedArms(){
             BuildRig();yield return null;
             var left=leftUpper.localRotation;var right=rightUpper.localRotation;

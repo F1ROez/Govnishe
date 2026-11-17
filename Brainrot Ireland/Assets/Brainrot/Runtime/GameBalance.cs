@@ -51,7 +51,24 @@ namespace Brainrot
         public EnemyTuning Cappuccino = new EnemyTuning {Health=85,Speed=3.7f,Damage=19,CanCharge=true,ChargeWindup=.7f,ChargeSpeed=14,ChargeDuration=.3f,ChargeCooldown=4,Recovery=.8f,Experience=30};
         public EnemyTuning Crocodilo = new EnemyTuning {Health=210,Speed=2.6f,Damage=28,CanCharge=true,ChargeWindup=1.3f,ChargeSpeed=12,ChargeDuration=.65f,ChargeCooldown=7,AttackRange=2.5f,KnockbackResistance=2,Experience=40};
 
-        void OnEnable(){EnsureExploration();}
+        [SerializeField,HideInInspector] int heroFeelVersion;
+        public bool UpgradeHeroFeel(){
+            if(heroFeelVersion>=1)return false;
+            // Upgrade factory values only; hand-tuned settings are never replaced.
+            if(Camera==null)Camera=new ThirdPersonCameraTuning();if(Feedback==null)Feedback=new CombatFeelTuning();
+            if(Mathf.Approximately(Camera.ChargeZoomDistance,.65f))Camera.ChargeZoomDistance=1.65f;
+            if(Mathf.Approximately(Camera.ChargeZoomInSpeed,3))Camera.ChargeZoomInSpeed=6;
+            if(Mathf.Approximately(Camera.ChargeZoomOutSpeed,14))Camera.ChargeZoomOutSpeed=26;
+            if(Mathf.Approximately(Feedback.ChargeFovReduction,5))Feedback.ChargeFovReduction=17;
+            if(Mathf.Approximately(Feedback.ChargeInSeconds,.45f))Feedback.ChargeInSeconds=.32f;
+            if(Mathf.Approximately(Feedback.ReleaseSeconds,.14f))Feedback.ReleaseSeconds=.10f;
+            if(Mathf.Approximately(Feedback.ImpactFovKick,1.8f))Feedback.ImpactFovKick=3.4f;
+            if(Mathf.Approximately(Feedback.HitShake,.12f))Feedback.HitShake=.18f;
+            if(Mathf.Approximately(Feedback.HitShakeSeconds,.16f))Feedback.HitShakeSeconds=.18f;
+            if(Mathf.Approximately(Feedback.HitPosePauseSeconds,.045f))Feedback.HitPosePauseSeconds=.06f;
+            heroFeelVersion=1;return true;
+        }
+        void OnEnable(){EnsureExploration();UpgradeHeroFeel();}
         public void EnsureExploration(){if(Feedback==null)Feedback=new CombatFeelTuning();if(Crowd==null)Crowd=new CrowdTuning();if(Camera==null)Camera=new ThirdPersonCameraTuning();if(Camera.MaxPitch<=0){Camera.MinPitch=-20;Camera.MaxPitch=65;}if(Stamina==null)Stamina=new StaminaTuning();if(Exploration==null)Exploration=new ExplorationTuning();if(Waves==null)Waves=new WaveTuning();if(Bodies==null)Bodies=new BodyTuning();if(Octopus==null)Octopus=new OctopusTuning();if(Orcaladon==null)Orcaladon=new OrcaladonTuning();if(OrcaladonEnemy==null)OrcaladonEnemy=new EnemyTuning {Health=100,Speed=2.2f,Damage=30,AttackRange=3.8f,MeleeWindup=.85f,Recovery=.65f,KnockbackResistance=4,HitStagger=.1f,Experience=0};if(SahurAnimation==null)SahurAnimation=new SahurAnimationTuning();}
         public EnemyTuning Enemy(EnemyKind kind) {
             switch (kind) { case EnemyKind.Orcaladon:return OrcaladonEnemy;case EnemyKind.BlueberrinniOctopusini:return BlueOctopus;case EnemyKind.LiriliLarila:return Lirili;case EnemyKind.BrrBrrPatapim:return Patapim;case EnemyKind.CappuccinoAssassino:return Cappuccino;case EnemyKind.BombardiroCrocodilo:return Crocodilo;case EnemyKind.Fast:return Fast;case EnemyKind.Tank:return Tank;case EnemyKind.MiniBoss:return MiniBoss;case EnemyKind.King:return King;default:return Normal; }
@@ -76,9 +93,9 @@ namespace Brainrot
         [Range(-60,80),Tooltip("Начальный наклон камеры; ограничивается нижним и верхним пределами.")]public float InitialPitch=10;
         [Range(-60,0),Tooltip("Нижний предел вертикального вращения. Отрицательный угол позволяет посмотреть вверх.")]public float MinPitch=-20;
         [Range(5,80),Tooltip("Верхний предел вертикального вращения: взгляд сверху вниз.")]public float MaxPitch=65;
-        [Range(0,1.5f),Tooltip("Насколько камера приближается во время подготовки сильного удара, м.")]public float ChargeZoomDistance=.65f;
-        [Range(.5f,12),Tooltip("Плавность приближения камеры при замахе; больше — быстрее.")]public float ChargeZoomInSpeed=3;
-        [Range(4,35),Tooltip("Скорость возврата камеры при отпускании ЛКМ; больше — быстрее.")]public float ChargeZoomOutSpeed=14;
+        [Range(0,3),Tooltip("Насколько камера приближается во время подготовки сильного удара, м.")]public float ChargeZoomDistance=1.65f;
+        [Range(.5f,12),Tooltip("Плавность приближения камеры при замахе; больше — быстрее.")]public float ChargeZoomInSpeed=6;
+        [Range(4,35),Tooltip("Скорость возврата камеры при отпускании ЛКМ; больше — быстрее.")]public float ChargeZoomOutSpeed=26;
         public float ClampPitch(float value)=>Mathf.Clamp(value,Mathf.Clamp(MinPitch,-60,0),Mathf.Clamp(MaxPitch,5,80));
     }
     [Serializable] public sealed class SahurAnimationTuning {
@@ -135,6 +152,7 @@ namespace Brainrot
         [Range(.15f,.6f)]public float SwingDuration=.32f;
         [Range(0,.2f)]public float ImpactDelay=.09f;
         [Min(.2f)]public float HeavyChargeSeconds=.6f;
+        [Range(0,.25f),Tooltip("Короткий буфер отпущенного удара перед окончанием восстановления, с. Сбрасывается на паузе/захвате.")]public float InputBufferSeconds=.16f;
         [Min(1)]public float StrongDamageMultiplier=2.5f;
         [Min(.1f)]public float StrongCooldownSeconds=10;
         [Range(1,3)]public float HeavyDamageMultiplier=1.35f;

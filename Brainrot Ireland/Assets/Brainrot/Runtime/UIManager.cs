@@ -13,7 +13,7 @@ namespace Brainrot
         Font font;
         Sprite solid;
         Canvas canvas;
-        GameObject hud, overlay, mobile, fullMap, controlsLegend;
+        GameObject hud, overlay, mobile, fullMap, controlHints;
         bool mapExpanded;
         Text waveTitle,stageText,soundMute;Text stats, healthText, xpText, notification, aimHint, hitMarker, hitLabel,chargeLabel;
         Text tutorialLabel,waveProgressText;GameObject tutorialPanel,questBoard;
@@ -67,10 +67,6 @@ namespace Brainrot
             var waveBanner=Box("Событие волны",hud.transform,new Vector2(.355f,.765f),new Vector2(.645f,.85f),Color.clear);
             waveNotice=waveBanner.AddComponent<HudWaveNotice>();waveNotice.Build();
             notification=Label(hud.transform,"",20,TextAnchor.MiddleCenter,new Vector2(.20f,.60f),new Vector2(.80f,.66f));notification.color=gold;
-            var controls=TropicalUIArt.Place("Подсказки управления",hud.transform,new Vector2(.135f,.018f),new Vector2(.865f,.085f),"ControlsPanel").gameObject;
-            controlsLegend=controls;ControlsLegend(controls.transform);
-            controls.SetActive(!Application.isMobilePlatform);
-            aimHint=Label(hud.transform,"",12,TextAnchor.LowerCenter,new Vector2(.32f,.09f),new Vector2(.76f,.115f));
             BuildQuestBoard();
             tutorialPanel=TropicalUIArt.Place("Короткое обучение",hud.transform,new Vector2(.24f,.12f),new Vector2(.80f,.195f),"StatsStrip").gameObject;
             tutorialLabel=Label(tutorialPanel.transform,"",14,TextAnchor.MiddleCenter,new Vector2(.04f,.15f),new Vector2(.79f,.85f));tutorialLabel.color=new Color(.06f,.18f,.25f);tutorialLabel.GetComponent<Outline>().effectColor=new Color(1,1,.85f,.8f);
@@ -149,7 +145,7 @@ namespace Brainrot
             if(gm.Kills!=shownKills){shownKills=gm.Kills;stats.text=$"ПОБЕД: {gm.Kills}";}
             SetActive(capturePanel,player!=null&&player.IsCaptured);if(player!=null)escapeFill.fillAmount=player.EscapeProgress;
             notification.text=gm.Notification ?? "";SetActive(soundMute.gameObject,GameMusic.IsMuted);
-            SetActive(controlsLegend,gm.IsPlaying&&!Application.isMobilePlatform);SetActive(aimHint.gameObject,gm.IsPlaying);SetActive(notification.gameObject,gm.IsPlaying);
+            SetActive(controlHints,gm.IsPlaying&&!Application.isMobilePlatform);SetActive(notification.gameObject,gm.IsPlaying);
             string hint=gm.Goals!=null?gm.Goals.TutorialText:"";
             if(gm.Goals!=null)for(int i=0;i<questCards.Length;i++)questCards[i].Present(gm.Goals.GetCard(i));
             if(hint!=shownTutorial){shownTutorial=hint;tutorialLabel.text=hint;}
@@ -164,7 +160,7 @@ namespace Brainrot
                 chargeLabel.text=chargeMode==1?"СИЛЬНЫЙ УДАР ВОССТАНАВЛИВАЕТСЯ — ОБЫЧНАЯ АТАКА":chargeMode==3?"СИЛЬНЫЙ УДАР ГОТОВ — ОТПУСТИ ЛКМ":chargeMode==2?"ЗАРЯД СИЛЬНОГО УДАРА: "+percent+"%":"";
             }
             int cameraMode=player!=null&&player.CameraLocked?1:0;
-            if(cameraMode!=shownCameraMode){shownCameraMode=cameraMode;aimHint.text=cameraMode==1?"ВЗГЛЯД ПО КАМЕРЕ  ·  V":"СВОБОДНЫЙ ПОВОРОТ  ·  V";}
+            if(cameraMode!=shownCameraMode){shownCameraMode=cameraMode;aimHint.text=cameraMode==1?"V   КАМЕРА: ФИКС.":"V   КАМЕРА: СВОБОД.";}
             if(hitVisible&&Time.unscaledTime>=hitUntil){hitVisible=false;hitMarker.text="";hitLabel.text="";}
             else if(hitVisible){
                 float alpha=Mathf.Clamp01((hitUntil-Time.unscaledTime)/.12f);
@@ -184,14 +180,24 @@ namespace Brainrot
             }
         }
         void BuildAbilityIcons(){
-            var strong=AbilityCard("Сильный удар",new Vector2(.025f,.635f),new Vector2(.097f,.79f),"HeavyCard","HeavyIcon","СИЛЬНЫЙ\nУДАР","ЛКМ · удержать");
+            var strong=AbilityCard("Сильный удар",new Vector2(.025f,.635f),new Vector2(.097f,.79f),"HeavyCard","HeavyIcon","СИЛЬНЫЙ\nУДАР","ЛКМ\nудержать → отпустить");
             heavyAbility=new AbilityDisplay(CooldownShade(strong.transform),ReadyBadge(strong.transform));
             var dash=AbilityCard("Рывок",new Vector2(.025f,.455f),new Vector2(.097f,.61f),"DashCard","DashIcon","РЫВОК","ПРОБЕЛ");
             dashAbility=new AbilityDisplay(CooldownShade(dash.transform),ReadyBadge(dash.transform));
+            controlHints=Box("Клавиши под способностями",hud.transform,new Vector2(.025f,.305f),new Vector2(.182f,.425f),new Color(.035f,.16f,.20f,.86f));
+            Label(controlHints.transform,"ЛКМ   обычный удар",12,TextAnchor.MiddleLeft,new Vector2(.06f,.66f),new Vector2(.96f,.96f));
+            Label(controlHints.transform,"Shift   бег",12,TextAnchor.MiddleLeft,new Vector2(.06f,.35f),new Vector2(.96f,.65f));
+            aimHint=Label(controlHints.transform,"",11,TextAnchor.MiddleLeft,new Vector2(.06f,.04f),new Vector2(.96f,.34f));
+
         }
         GameObject AbilityCard(string name,Vector2 min,Vector2 max,string frame,string icon,string title,string key){
             var card=TropicalUIArt.Place(name,hud.transform,min,max,frame).gameObject;
             Label(card.transform,title,12,TextAnchor.MiddleCenter,new Vector2(.10f,.70f),new Vector2(.90f,.95f));
+            if(!Application.isMobilePlatform){
+                var hint=Box("Клавиша способности",card.transform,new Vector2(1.10f,.29f),new Vector2(2.23f,.70f),new Color(.035f,.16f,.20f,.88f));
+                Label(hint.transform,key,12,TextAnchor.MiddleCenter,new Vector2(.04f,.05f),new Vector2(.96f,.95f));
+            }
+
             return card;
         }
         Text ReadyBadge(Transform parent){var badge=TropicalUIArt.Place("Готовность",parent,new Vector2(.10f,.075f),new Vector2(.90f,.255f),"ReadyBadge");return Label(badge.transform,"ГОТОВ",13,TextAnchor.MiddleCenter,new Vector2(.04f,.08f),new Vector2(.96f,.94f));}
@@ -302,19 +308,6 @@ namespace Brainrot
         {
             Label(overlay.transform,title,21,TextAnchor.MiddleLeft,new Vector2(.30f,y+.04f),new Vector2(.70f,y+.095f));
             CartoonUI.GlossySlider(title,overlay.transform,new Vector2(.30f,y),new Vector2(.70f,y+.042f),min,max,value,action);
-        }
-        void ControlsLegend(Transform parent){
-            string[] keys={"WASD","ЛКМ","Shift","Пробел","V"};
-            string[] captions={"движение","удар / удержать — сильный","бег","рывок","камера"};
-            float[] starts={.045f,.205f,.565f,.685f,.855f};
-            float[] ends={.19f,.55f,.67f,.84f,.96f};
-            for(int i=0;i<keys.Length;i++){
-                float keyWidth=i==0?.057f:i==1?.045f:i==2?.047f:i==3?.063f:.026f;
-                var key=CartoonUI.Image("Клавиша "+keys[i],parent,new Vector2(starts[i],.30f),new Vector2(starts[i]+keyWidth,.75f),CartoonUI.Cream);
-                var text=Label(key.transform,keys[i],13,TextAnchor.MiddleCenter,new Vector2(.02f,0),new Vector2(.98f,1));text.color=new Color(.04f,.18f,.28f);text.GetComponent<Outline>().effectColor=Color.clear;text.GetComponent<Shadow>().effectColor=Color.clear;
-                Label(parent,captions[i],12,TextAnchor.MiddleLeft,new Vector2(starts[i]+keyWidth+.006f,.20f),new Vector2(ends[i],.83f));
-                if(i<4)CartoonUI.Image("Разделитель",parent,new Vector2(ends[i]+.005f,.31f),new Vector2(ends[i]+.0065f,.72f),new Color(.2f,.95f,1,.7f));
-            }
         }
         void BuildMobile(Transform root)
         {
