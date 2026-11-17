@@ -51,6 +51,7 @@ Shader "Brainrot/TropicalWater"
     float wave=(large.x*.64+small.x*.36-.5)*2;
     float2 smallSlope=float2(small.y*.83-small.z*.55,small.y*.55+small.z*.83)*1.73;
     float2 slope=large.yz*(.76*.64)+smallSlope*.36;
+    // Calm long swell plus smaller crossed ripples: no single sine direction spans the sea.
     float3 normal=normalize(float3(-slope.x*_WaveStrength*2.4,1,-slope.y*_WaveStrength*2.4));
     float3 view=SafeNormalize(GetWorldSpaceViewDir(i.world));
     Light sun=GetMainLight();float3 halfVector=SafeNormalize(view+sun.direction);
@@ -64,7 +65,10 @@ Shader "Brainrot/TropicalWater"
     half3 lagoon=_ShallowColor.rgb;
     half3 color=lerp(deep,lagoon,shallow*.96);
     half fresnel=pow(1-saturate(dot(normal,view)),4);
-    color=lerp(color,half3(.48,.81,.98),fresnel*.17);
+    color=lerp(color,half3(.48,.81,.98),fresnel*.24);
+    // Sunlit sand under the first metre of lagoon makes the wet beach join feel translucent.
+    half sandScatter=(1-smoothstep(.05,2.1,shore))*.14;
+    color=lerp(color,half3(.55,.86,.69),sandScatter);
     color*=.97+.03*saturate(dot(normal,sun.direction));
     color+=wave*_WaveStrength*.28;
     color*=.91+broad*.16;
@@ -72,29 +76,37 @@ Shader "Brainrot/TropicalWater"
     // Fade sub-pixel caustics and sparkles before they flicker at the horizon or on a small Android viewport.
     float footprint=max(length(ddx(warped)),length(ddy(warped)));
     float detail=saturate(view.y*4)*(1-smoothstep(.18,.9,footprint));
-    half spec=pow(saturate(dot(normal,halfVector)),110)*.26;
-    color+=sun.color*spec;
+    float sunFacing=saturate(dot(normal,halfVector));
+    half spec=pow(saturate(sunFacing-fwidth(sunFacing)*.65),110)*.22;
+    half sheen=pow(sunFacing,20)*.07;
+    color+=sun.color*(spec+sheen);
     float cells=abs(sin(warped.x*2.9+sin(warped.y*2.1)+t*.13)*sin(warped.y*2.6+sin(warped.x*1.7)-t*.18));
     float cellsAA=max(.004,fwidth(cells));
     half caustic=1-smoothstep(.025-cellsAA*.35,.10+cellsAA,cells);
     color+=half3(.22,.45,.36)*caustic*shallow*detail*.23;
-    float sweep=shore*1.62-t*.60+sin(angle*13+t*.1)*.32;
-    float sweepAA=max(.01,fwidth(sweep));
-    half roll=pow(saturate(sin(sweep)*.5+.5),13)*(1-smoothstep(.35,1.25,sweepAA));
-    half broken=.54+.46*smoothstep(.16,.76,large.x*.6+small.x*.4);
+    // Advancing and dissolving surf. The irregular front is confined to the shore, not
+    // repeated concentric stripes across the ocean. A second band is only a faint trailing wash.
+    float along=angle*19;
+    float front=1.35+sin(t*.65)*.72+sin(along+t*.13)*.22+sin(angle*34-t*.21)*.12;
+    float foamDistance=abs(shore-front);
+    float surfAA=max(.025,fwidth(shore));
+    float crestBand=1-smoothstep(.08,.28+surfAA,foamDistance);
+    float trailing=(1-smoothstep(.15,.48+surfAA,abs(shore-front-1.0)))*.26;
     float lace=Noise(warped*3.2+float2(-t*.09,t*.12));
-    half holes=smoothstep(.18,.54,lace);
-    half foam=saturate(roll*(1-smoothstep(.3,5.2,shore))*broken*lerp(.38,1,holes)*.94);
-    // A persistent narrow lace line ties the ocean to the wet sand.
-    foam=max(foam,(1-smoothstep(.04,.56,shore))*broken*.94);
+    half broken=.50+.50*smoothstep(.16,.76,large.x*.6+small.x*.4);
+    half holes=smoothstep(.20,.64,lace);
+    float retreat=.68+.32*sin(t*.65+1.2);
+    half foam=saturate((crestBand+trailing)*broken*lerp(.24,1,holes)*retreat);
+    // The very thin permanent contact line plus irregular bubbles prevents a hard beach cutoff.
+    foam=max(foam,(1-smoothstep(.025,.30,shore))*lerp(.45,.88,holes));
     // Small broken whitecaps beyond the beach make the ocean feel lively without stripe bands.
     float crest=smoothstep(.69,.87,large.x*.56+small.x*.44);
-    float whitecap=crest*smoothstep(.35,.70,small.x)*smoothstep(3,12,shore)*detail*.72;
+    float whitecap=crest*smoothstep(.45,.76,small.x)*smoothstep(3,12,shore)*detail*.60;
     foam=max(foam,whitecap);
     // Tiny warm translucent-looking gaps keep the surf like bubbly lace, not opaque white ribbons.
     color=lerp(color,half3(.94,.995,.97),foam);
     float spark=pow(saturate(sin(warped.x*6.1+t)*sin(warped.y*7.3-t*.7)),28);
-    color+=half3(.92,.97,1)*spark*spec*detail*.35;
+    color+=half3(.92,.97,1)*spark*spec*detail*.30;
     return half4(MixFog(saturate(color),i.fog),1);
    }
    ENDHLSL

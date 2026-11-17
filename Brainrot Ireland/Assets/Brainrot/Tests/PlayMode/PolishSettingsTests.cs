@@ -37,6 +37,10 @@ namespace Brainrot.Tests
                 low.supportsHDR=high.supportsHDR=true;GameQuality.Configure(low,0);GameQuality.Configure(high,2);
                 Assert.Less(low.renderScale,high.renderScale);Assert.Less(low.shadowDistance,high.shadowDistance);
                 Assert.Less(low.msaaSampleCount,high.msaaSampleCount);Assert.IsTrue(low.supportsHDR);Assert.IsTrue(high.supportsHDR);
+                Assert.Less(low.mainLightShadowmapResolution,high.mainLightShadowmapResolution);
+                Assert.AreEqual(1,low.shadowCascadeCount);Assert.AreEqual(4,high.shadowCascadeCount);
+                Assert.Greater(high.cascade4Split.x,0);Assert.Less(high.cascade4Split.x,high.cascade4Split.y);
+                Assert.Less(high.cascade4Split.y,high.cascade4Split.z);Assert.Less(high.cascade4Split.z,1);
             }finally{UnityEngine.Object.DestroyImmediate(low);UnityEngine.Object.DestroyImmediate(high);}
         }
         [Test]public void ReleasingQualityRestoresEveryTouchedPipelineSlot()

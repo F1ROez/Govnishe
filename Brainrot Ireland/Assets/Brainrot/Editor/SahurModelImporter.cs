@@ -32,7 +32,7 @@ namespace Brainrot.Editor
             if(material==null){material=new Material(skinShader){name="Сахур — яркое дерево"};AssetDatabase.CreateAsset(material,Output+"Sahur.mat");}
             else material.shader=skinShader;
             material.SetColor("_BaseColor",Color.white);
-            if(material.HasProperty("_Brightness")){material.SetFloat("_Brightness",1.10f);material.SetFloat("_Saturation",1.25f);material.SetFloat("_TextureSoftening",.06f);}
+            if(material.HasProperty("_Brightness")){material.SetFloat("_Brightness",1.05f);material.SetFloat("_Saturation",1.16f);material.SetFloat("_TextureSoftening",.06f);}
             ClearNon2DMaps(material);
             if(albedo!=null){material.SetTexture("_BaseMap",albedo);if(material.HasProperty("_MainTex"))material.SetTexture("_MainTex",albedo);}
             if(normal!=null&&material.HasProperty("_BumpMap")){material.SetTexture("_BumpMap",normal);material.SetFloat("_BumpScale",.55f);material.EnableKeyword("_NORMALMAP");}

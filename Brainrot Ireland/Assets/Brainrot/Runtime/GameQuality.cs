@@ -36,10 +36,12 @@ namespace Brainrot
             if(pipeline==null)return;level=Mathf.Clamp(level,0,2);
             pipeline.renderScale=level==0?.82f:level==1?.95f:1;
             pipeline.msaaSampleCount=level==0?1:level==1?2:4;
-            pipeline.mainLightShadowmapResolution=level==0?1024:2048;
+            pipeline.mainLightShadowmapResolution=level==0?1024:level==1?2048:4096;
             pipeline.shadowDistance=level==0?34:level==1?48:58;
-            pipeline.shadowCascadeCount=level==0?1:2;
+            pipeline.shadowCascadeCount=level==0?1:level==1?2:4;
             pipeline.cascade2Split=.32f;
+            pipeline.cascade4Split=new Vector3(.12f,.30f,.58f);
+            pipeline.cascadeBorder=.16f;
             pipeline.useSRPBatcher=true;
         }
 

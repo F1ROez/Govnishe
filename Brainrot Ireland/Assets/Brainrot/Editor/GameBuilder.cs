@@ -59,7 +59,7 @@ namespace Brainrot.Editor {
   }
   static void EnsureAtmosphere(){
    const string path=Root+"/Resources/IslandAtmosphere.asset";
-   var profile=AssetDatabase.LoadAssetAtPath<VolumeProfile>(path);const string marker="Brainrot.DaylightPreset=5";
+   var profile=AssetDatabase.LoadAssetAtPath<VolumeProfile>(path);const string marker="Brainrot.DaylightPreset=6";
    var settings=AssetImporter.GetAtPath(path);
    if(profile!=null&&settings!=null&&(settings.userData??"").Contains(marker))return;
    if(profile==null){profile=WorldAtmosphere.CreateProfile(true);AssetDatabase.CreateAsset(profile,path);}
@@ -67,6 +67,13 @@ namespace Brainrot.Editor {
    foreach(var component in profile.components){if(!AssetDatabase.Contains(component))AssetDatabase.AddObjectToAsset(component,profile);EditorUtility.SetDirty(component);}
    EditorUtility.SetDirty(profile);AssetDatabase.SaveAssets();
    settings=AssetImporter.GetAtPath(path);if(settings!=null){settings.userData=(settings.userData??"")+"\n"+marker;AssetDatabase.WriteImportSettingsIfDirty(path);}
+  }
+  [MenuItem("Tools/TungTung/Обновить графику и материалы")]
+  public static void RefreshVisuals(){
+   if(EditorApplication.isPlayingOrWillChangePlaymode){Debug.LogWarning("Останови Play перед обновлением графики.");return;}
+   // Refresh generated render assets and imported character materials without replacing either scene.
+   Configure();
+   Debug.Log("Графика и материалы обновлены. Сцены сохранены без пересоздания. Запусти игру для просмотра.");
   }
   [MenuItem("Tools/TungTung/Создать или обновить игру")]
   [MenuItem("Tools/TungTung/Build Game")] public static void BuildGame(){

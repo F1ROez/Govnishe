@@ -40,6 +40,10 @@ namespace Brainrot.Tests
             var texture=renderer.sharedMaterial.GetTexture("_BaseMap") as Texture2D;
             Assert.IsNotNull(texture);Assert.LessOrEqual(texture.width,512);Assert.Greater(texture.mipmapCount,1);
             Assert.IsFalse(texture.isReadable,"CPU-копия процедурной текстуры после загрузки не нужна.");
+            var relief=renderer.sharedMaterial.GetTexture("_BumpMap") as Texture2D;
+            Assert.IsNotNull(relief);Assert.LessOrEqual(relief.width,256);Assert.Greater(relief.mipmapCount,1);Assert.IsFalse(relief.isReadable);
+            var sandMesh=renderer.GetComponent<MeshFilter>().sharedMesh;
+            Assert.AreEqual(sandMesh.vertexCount,sandMesh.tangents.Length,"Рельеф песка требует касательных после процедурной генерации.");
             var shell=GameObject.Find("Ребристая ракушка").GetComponent<MeshFilter>().sharedMesh;
             Assert.AreEqual(shell.vertexCount,shell.uv.Length);
             Assert.Greater(Vector2.Distance(shell.uv[0],shell.uv[shell.uv.Length-1]),1);

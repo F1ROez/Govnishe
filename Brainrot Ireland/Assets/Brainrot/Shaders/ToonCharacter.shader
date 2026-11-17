@@ -4,8 +4,8 @@ Shader "Brainrot/ToonCharacter"
  {
   [MainTexture] _BaseMap("Текстура",2D)="white"{}
   [MainColor] _BaseColor("Цвет",Color)=(1,1,1,1)
-  _Brightness("Яркость",Range(.5,2))=1.10
-  _Saturation("Насыщенность",Range(0,2))=1.25
+  _Brightness("Яркость",Range(.5,2))=1.05
+  _Saturation("Насыщенность",Range(0,2))=1.16
   _TextureSoftening("Мягкость текстуры",Range(0,1))=.08
   _RimStrength("Мягкий контровой свет",Range(0,.3))=.07
   _GlossStrength("Широкий блик",Range(0,.5))=.17
@@ -40,8 +40,8 @@ Shader "Brainrot/ToonCharacter"
    #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
    TEXTURE2D(_BaseMap);SAMPLER(sampler_BaseMap);
    struct A {float4 positionOS:POSITION;float3 normalOS:NORMAL;float2 uv:TEXCOORD0;UNITY_VERTEX_INPUT_INSTANCE_ID};
-   struct V {float4 positionCS:SV_POSITION;float3 world:TEXCOORD0;half3 normal:TEXCOORD1;float2 uv:TEXCOORD2;half fog:TEXCOORD3;UNITY_VERTEX_INPUT_INSTANCE_ID UNITY_VERTEX_OUTPUT_STEREO};
-   V Vert(A v){V o=(V)0;UNITY_SETUP_INSTANCE_ID(v);UNITY_TRANSFER_INSTANCE_ID(v,o);UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);o.world=TransformObjectToWorld(v.positionOS.xyz);o.positionCS=TransformWorldToHClip(o.world);o.normal=TransformObjectToWorldNormal(v.normalOS);o.uv=TRANSFORM_TEX(v.uv,_BaseMap);o.fog=ComputeFogFactor(o.positionCS.z);return o;}
+   struct V {float4 positionCS:SV_POSITION;float3 world:TEXCOORD0;half3 normal:TEXCOORD1;float2 uv:TEXCOORD2;half fog:TEXCOORD3;float4 shadowCoord:TEXCOORD4;half3 vertexLight:TEXCOORD5;UNITY_VERTEX_INPUT_INSTANCE_ID UNITY_VERTEX_OUTPUT_STEREO};
+   V Vert(A v){V o=(V)0;UNITY_SETUP_INSTANCE_ID(v);UNITY_TRANSFER_INSTANCE_ID(v,o);UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);VertexPositionInputs position=GetVertexPositionInputs(v.positionOS.xyz);o.world=position.positionWS;o.positionCS=position.positionCS;o.shadowCoord=GetShadowCoord(position);o.normal=TransformObjectToWorldNormal(v.normalOS);o.vertexLight=VertexLighting(o.world,o.normal);o.uv=TRANSFORM_TEX(v.uv,_BaseMap);o.fog=ComputeFogFactor(o.positionCS.z);return o;}
    half4 Frag(V i):SV_Target
    {
     UNITY_SETUP_INSTANCE_ID(i);UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
@@ -52,30 +52,52 @@ Shader "Brainrot/ToonCharacter"
     texColor=max(0,(texColor-.18)*1.08+.18);
     texColor+=texColor*(1-saturate(texColor))*saturate(_TextureSoftening)*.45;
     half3 albedo=texColor*_BaseColor.rgb*_Brightness;
-    half3 n=normalize(i.normal);Light sun=GetMainLight(TransformWorldToShadowCoord(i.world));
-    half ndotl=dot(n,sun.direction);half band=smoothstep(-.18,.68,ndotl);
-    // Keep recognisable painted colours in shadow, while actually responding to the scene's
-    // sun colour/intensity. Earlier lighting was hard-coded and ignored the peach sun entirely.
+    half3 n=normalize(i.normal);
+    // Cascade selection must happen per fragment; interpolating shadow coordinates across
+    // a cascade boundary produces a visible seam on large sharks and Orcaladon.
+    #if defined(_MAIN_LIGHT_SHADOWS_SCREEN)
+     float4 shadowCoord=i.shadowCoord;
+    #else
+     float4 shadowCoord=TransformWorldToShadowCoord(i.world);
+    #endif
+    Light sun=GetMainLight(shadowCoord);
+    half ndotl=dot(n,sun.direction);
+    // Two wide, feathered bands keep the toy volume readable without hard plastic stripes.
+    half terminator=smoothstep(-.24,.22,ndotl);
+    half litFace=smoothstep(.12,.82,ndotl);
+    half band=terminator*.44+litFace*.56;
     half sunLuma=max(.001,dot(sun.color,half3(.2126,.7152,.0722)));
     half3 sunTint=lerp(half3(1,1,1),sun.color/sunLuma,.65);
-    half energy=min(1.14,sunLuma);
-    half shadow=lerp(.50,1,sun.shadowAttenuation);
-    half3 skyFill=lerp(half3(.47,.43,.34),half3(.48,.65,.86),saturate(n.y*.5+.5));
-    half3 light=skyFill*.72+sunTint*(band*.70*shadow*energy);
-    light+=saturate(SampleSH(n))*.055;
-    // The single shadowless sky fill works with the owned Forward URP renderer. Additional
-    // lights are deliberately restrained so a crowd stays colourful rather than turning white.
+    half energy=min(1.25,sunLuma);
+    half shadow=saturate(sun.shadowAttenuation);
+    // Warm bounce under the feet; blue sky on upward-facing surfaces. Keep enough contrast
+    // in the occluded side so a grey shark is solid and sculpted rather than milky/translucent.
+    half skyAmount=smoothstep(-.65,.85,n.y);
+    half3 skyFill=lerp(half3(.43,.36,.27),half3(.34,.52,.70),skyAmount);
+    half3 light=skyFill*.78+sunTint*(band*.64*lerp(.30,1,shadow)*energy);
+    light+=clamp(SampleSH(n),half3(0,0,0),half3(.8,.8,.8))*.045;
+    #if defined(_ADDITIONAL_LIGHTS_VERTEX)
+     light+=i.vertexLight*.20;
+    #endif
     #if defined(_ADDITIONAL_LIGHTS)
      uint count=GetAdditionalLightsCount();
      for(uint lightIndex=0u;lightIndex<count;lightIndex++){
       Light fill=GetAdditionalLight(lightIndex,i.world);
-      light+=fill.color*(smoothstep(-.10,.80,dot(n,fill.direction))*.24)*fill.distanceAttenuation;
+      light+=fill.color*(smoothstep(-.10,.80,dot(n,fill.direction))*.20)*fill.distanceAttenuation;
      }
     #endif
     float3 view=SafeNormalize(GetWorldSpaceViewDir(i.world));
-    half rim=pow(1-saturate(dot(n,view)),3)*_RimStrength;
-    half gloss=pow(saturate(dot(n,SafeNormalize(view+sun.direction))),24)*saturate(ndotl)*sun.shadowAttenuation*_GlossStrength;
-    half3 color=albedo*light+rim*half3(.40,.72,1)+gloss*lerp(albedo,half3(1,.96,.83),.45)*sunTint;
+    half facing=saturate(dot(n,view));
+    // Reflected sky hugs only the silhouette. Modulation by the paint preserves black pupils,
+    // mouth and Orcaladon markings instead of adding a blue emissive outline to every surface.
+    half rim=pow(1-facing,4)*_RimStrength*smoothstep(-.45,.5,n.y);
+    half3 rimColor=lerp(albedo,half3(.38,.76,.92),.40)*smoothstep(.015,.24,dot(albedo,half3(.2126,.7152,.0722)));
+    half specDot=saturate(dot(n,SafeNormalize(view+sun.direction)));
+    half broad=pow(specDot,18);
+    // Filter the tight lobe using screen derivatives to suppress distant sparkling.
+    half detail=pow(saturate(specDot-max(fwidth(specDot),.001)*.7),64)*.22;
+    half gloss=(broad*.78+detail)*saturate(ndotl)*shadow*_GlossStrength*energy;
+    half3 color=albedo*light+rim*rimColor+gloss*lerp(albedo,half3(1,.94,.79),.36)*sunTint;
     return half4(MixFog(color,i.fog),1);
    }
    ENDHLSL

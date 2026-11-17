@@ -13,7 +13,7 @@ Shader "Brainrot/TropicalSky"
   Pass
   {
    HLSLPROGRAM
-   #pragma target 2.0
+   #pragma target 3.0
    #pragma vertex Vert
    #pragma fragment Frag
    #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
@@ -28,24 +28,36 @@ Shader "Brainrot/TropicalSky"
    half4 Frag(Varyings i):SV_Target
    {
     float3 d=normalize(i.direction);float height=saturate(d.y);
-    half3 color=lerp(_Horizon.rgb,_Zenith.rgb,pow(height,.40));
-    float alignment=saturate(dot(d,normalize(_SunDirection.xyz)));
-    // A broad peach halo with a soft cream sun; no hard HDR disk or blown horizon.
-    color+=half3(1,.78,.50)*pow(alignment,18)*.14;
-    color=lerp(color,half3(1,.96,.80),smoothstep(.9985,.9996,alignment)*.95);
-    // Large billowing cloud banks use a smooth domain warp, with small rounded lobes.
-    // Sky-only texture-free evaluation: no transparent cloud cards or extra scene objects.
-    float2 p=d.xz/max(.16,d.y)*1.35+float2(_Time.y*.0014,0);
+    float3 sun=normalize(_SunDirection.xyz);
+    half3 color=lerp(_Horizon.rgb,_Zenith.rgb,pow(height,.46));
+    float alignment=saturate(dot(d,sun));
+    // Broad warm glow and a tiny luminous disk. The sky stays blue outside the sun,
+    // so restrained bloom adds light instead of washing the whole screen white.
+    color+=half3(1,.76,.47)*pow(alignment,24)*.12;
+    color=lerp(color,half3(1.65,1.49,1.15),smoothstep(.9986,.9997,alignment));
+    // Low-frequency billows, gently advected across the sky. All evaluation remains
+    // in one sky pass: no transparent cloud cards, scene objects or particle overdraw.
+    float2 p=d.xz/max(.16,d.y)*1.35+float2(_Time.y*.0014,_Time.y*.0004);
     float2 warp=float2(Noise(p*.7+13),Noise(p*.7-8))-.5;
     p+=warp*.85;
-    float cloud=Noise(p)*.58+Noise(p*2.03+7.3)*.29+Noise(p*4.1-3.7)*.13;
-    float shade=Noise(p+float2(.12,.16))*.58+Noise(p*2.03+7.3+float2(.16,.12))*.29;
-    float mask=smoothstep(.515,.625,cloud)*smoothstep(.025,.10,height)*(1-smoothstep(.73,.98,height));
-    half3 cloudColor=lerp(half3(.66,.82,.98),half3(1,.995,.96),saturate(.58+(cloud-shade)*3.6));
+    float cloud=Noise(p)*.64+Noise(p*2.03+7.3)*.27+Noise(p*4.1-3.7)*.09;
+    float2 towardSun=sun.xz/max(.1,length(sun.xz))*.17;
+    float litDensity=Noise(p+towardSun)*.64+Noise((p+towardSun)*2.03+7.3)*.27;
+    float bank=smoothstep(.51,.63,cloud);
+    float altitude=smoothstep(.035,.14,height)*(1-smoothstep(.80,.99,height));
+    float mask=bank*altitude;
+    // Slightly blue underside, cream tops and a restrained sun-facing silver rim.
+    // Directional density avoids a uniform flat-white noise layer.
+    float light=saturate(.53+(cloud-litDensity)*3.0);
+    half3 cloudColor=lerp(half3(.60,.76,.91),half3(1.02,1.015,.97),light);
+    float rim=4*bank*(1-bank)*pow(alignment,6)*.14;
+    cloudColor+=half3(1,.91,.72)*rim;
     color=lerp(color,cloudColor,mask);
-    // Fog-coloured lower hemisphere keeps a full camera orbit clean below the water horizon.
+    // Distant banks sink into a narrow cyan atmospheric veil at the waterline.
+    float horizonVeil=(1-smoothstep(.015,.085,height))*.22;
+    color=lerp(color,_Horizon.rgb,horizonVeil);
     color=lerp(_Horizon.rgb,color,smoothstep(-.16,.04,d.y));
-    return half4(saturate(color),1);
+    return half4(max(color,0),1);
    }
    ENDHLSL
   }

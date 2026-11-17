@@ -56,6 +56,28 @@ namespace Brainrot.Tests
             if(previous.IsValid()&&previous.isLoaded)SceneManager.SetActiveScene(previous);if(scene.IsValid()&&scene.isLoaded)yield return SceneManager.UnloadSceneAsync(scene);
             if(profile!=null)Object.Destroy(profile);if(character!=null)Object.Destroy(character);Cursor.lockState=CursorLockMode.None;Cursor.visible=true;yield return null;
         }
+        [UnityTest] public IEnumerator EffectPoolStaysBoundedAndClearsHeavyEchoBeforeReuse()
+        {
+            HitEffects.ClearAll();profile.Feedback.EffectsBudget=4;
+            int ceiling=Mathf.Max(4,HitEffects.AllocatedCount);
+            for(int i=0;i<32;i++){
+                HitEffects.HeavyImpact(Vector3.zero,Vector3.right);
+                BatSwingArc.Play(Vector3.up,Vector3.right,3,true);
+            }
+            Assert.LessOrEqual(HitEffects.AllocatedCount,ceiling);
+            yield return new WaitForSeconds(.1f);
+            HitEffects.ClearAll();
+            Assert.AreEqual(0,Object.FindObjectsByType<HitEffects>(FindObjectsSortMode.None).Length);
+            Assert.AreEqual(0,Object.FindObjectsByType<BatSwingArc>(FindObjectsSortMode.None).Length);
+            HitEffects.Burst(Vector3.zero,Color.white,4,.45f);
+            var reused=Object.FindObjectsByType<HitEffects>(FindObjectsSortMode.None);
+            Assert.AreEqual(1,reused.Length);
+            foreach(var line in reused[0].GetComponentsInChildren<LineRenderer>()){
+                if(line.name=="Эхо сильного удара")Assert.IsFalse(line.enabled,"Обычный удар не наследует эхо сильного.");
+                Assert.AreEqual(3000,line.sharedMaterial.renderQueue);
+            }
+            HitEffects.ClearAll();
+        }
         [UnityTest] public IEnumerator MissCreatesNoContactRecoilAndCrowdContactStaysBounded()
         {
             var combat=game.Player.Combat;
