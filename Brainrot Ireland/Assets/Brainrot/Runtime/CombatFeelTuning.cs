@@ -4,6 +4,8 @@ namespace Brainrot
 {
     [Serializable] public sealed class CombatFeelTuning
     {
+        [Tooltip("Песок под ногами и короткий след рывка на среднем/высоком качестве.")]public bool MovementEffects=true;
+        [Range(0,1.5f),Tooltip("Размер мягкой песочной дымки от шагов.")]public float FootstepDustScale=.65f;
         [Range(0,24),Tooltip("Плавное сужение угла обзора при полном замахе, градусы.")]public float ChargeFovReduction=17;
         [Range(.1f,1),Tooltip("Время плавного приближения при заряде, с.")]public float ChargeInSeconds=.32f;
         [Range(.06f,.4f),Tooltip("Быстрый мягкий возврат камеры после отпускания, с.")]public float ReleaseSeconds=.10f;

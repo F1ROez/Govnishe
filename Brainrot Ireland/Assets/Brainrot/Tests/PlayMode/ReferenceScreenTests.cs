@@ -42,6 +42,8 @@ namespace Brainrot.Tests
                 var viewport=ReferenceScreens.Viewport(parent.transform,"Reference");
                 ReferenceScreens.Pause(viewport,()=>resume++,()=>settings++,()=>menu++);
                 var buttons=parent.GetComponentsInChildren<Button>();Assert.AreEqual(3,buttons.Length);
+                Assert.AreEqual("ПРОДОЛЖИТЬ",buttons[0].GetComponentInChildren<Text>().text);
+                Assert.AreEqual("ЗАВЕРШИТЬ ЗАБЕГ",buttons[2].GetComponentInChildren<Text>().text,"Выход из паузы в меню должен явно сообщать о завершении попытки.");
                 float previousBottom=1;
                 foreach(var button in buttons){
                     var image=button.GetComponent<Image>();Assert.IsTrue(image.raycastTarget);

@@ -42,9 +42,9 @@ namespace Brainrot.Tests {
    Assert.That(enemy.Health,Is.EqualTo(hp-game.Player.Stats.Damage*profile.Combat.StrongDamageMultiplier).Within(.01f));Assert.IsTrue(enemy.PhysicsBody.IsPhysical);Assert.IsFalse(enemy.PhysicsBody.Rigidbody.isKinematic);
   }
   [UnityTest]public IEnumerator HoldInputChargesAndFiresOnlyOnRelease(){
-   var enemy=Spawn();var combat=game.Player.Combat;combat.UpdateAttackInput(false);combat.UpdateAttackInput(true);Assert.IsTrue(combat.IsCharging);float hp=enemy.Health;
+   var enemy=Spawn();var combat=game.Player.Combat;combat.UpdateAttackInput(false);combat.UpdateAttackInput(true);Assert.IsFalse(combat.IsCharging);float hp=enemy.Health;
    // Freeze automatic player input while driving this input state explicitly.
-   game.Player.enabled=false;yield return new WaitForSeconds(profile.Combat.HeavyChargeSeconds+.05f);Assert.AreEqual(hp,enemy.Health);Assert.AreEqual(1,combat.ChargeProgress);
+   game.Player.enabled=false;yield return new WaitForSeconds(profile.Combat.HeavyHoldDelay+profile.Combat.HeavyChargeSeconds+.05f);Assert.AreEqual(hp,enemy.Health);Assert.AreEqual(1,combat.ChargeProgress);
    combat.UpdateAttackInput(false);Assert.IsFalse(combat.IsCharging);yield return new WaitForSeconds(.15f);Assert.IsTrue(enemy.PhysicsBody.IsPhysical);
   }
   [UnityTest]public IEnumerator DeathKeepsPhysicalCorpseThenReturnsItToPool(){
@@ -96,12 +96,12 @@ namespace Brainrot.Tests {
    Assert.IsTrue(game.Player.BeginCapture(attack));Assert.IsFalse(game.Player.Combat.ExecuteAttack(false));Assert.IsTrue(game.Player.TryDash(Vector3.forward));
    for(int i=0;i<profile.Octopus.EscapeClicks;i++)game.Player.EscapeTap();Assert.IsFalse(game.Player.IsCaptured);Assert.AreEqual(OctopusPhase.Dropping,attack.Phase);yield return null;
   }
-  [UnityTest]public IEnumerator CapturedPlayerCanMoveAndResumeKeepsState(){
+  [UnityTest]public IEnumerator CapturedPlayerCanMoveAndPauseKeepsState(){
    var oct=game.Spawner.Spawn(EnemyKind.BlueberrinniOctopusini,Vector3.forward*12);var attack=oct.GetComponent<OctopusAttack>();
    Assert.IsTrue(game.Player.BeginCapture(attack));var start=game.Player.transform.position;
    Assert.IsTrue(game.Player.TryDash(Vector3.right));yield return new WaitForSeconds(.08f);Assert.Greater(game.Player.transform.position.x,start.x+.1f);Assert.IsFalse(game.Player.Combat.ExecuteAttack(false));
    float health=game.Player.Health,stamina=game.Player.Stamina.Value;int count=game.Spawner.Active.Count;
-   game.SuspendRun();yield return null;Assert.IsTrue(game.HasRun);Assert.AreEqual(count,game.Spawner.Active.Count);game.ResumeRun();Assert.IsTrue(game.IsPlaying);Assert.AreEqual(health,game.Player.Health);Assert.AreEqual(stamina,game.Player.Stamina.Value);
+   game.Pause();yield return null;Assert.IsTrue(game.HasRun);Assert.AreEqual(count,game.Spawner.Active.Count);game.Resume();Assert.IsTrue(game.IsPlaying);Assert.AreEqual(health,game.Player.Health);Assert.AreEqual(stamina,game.Player.Stamina.Value);
   }
   [Test]public void WaveWaitsForEveryLiveEnemyBeforeStartingBreak(){
    var w=new WaveDirector();w.Reset();w.Advance(60,2);Assert.IsTrue(w.WaitingForClear);w.Advance(100,1);Assert.AreEqual(1,w.Number);

@@ -27,10 +27,27 @@ namespace Brainrot
         }
         public bool CalibrateModel(){
             if(Normalization==null||ModelRoot==null)return false;
+            if(IsOrcaladon&&Orcaladon!=null)Orcaladon.ResetPose();
             if(Animator!=null&&Animator.runtimeAnimatorController!=null){Animator.applyRootMotion=false;Animator.cullingMode=AnimatorCullingMode.AlwaysAnimate;Animator.Rebind();Animator.Update(0);movingKnown=false;}
             bool any=false;Bounds bounds=new Bounds();
             foreach(var renderer in ModelRoot.GetComponentsInChildren<Renderer>(true)){
                 if(renderer is TrailRenderer||renderer is LineRenderer)continue;
+                // FBX skinned import bounds can include the original outstretched pose, and
+                // rotating a world AABB back to actor space inflates it. Measure actual neutral
+                // deformed vertices for Orcaladon, once during calibration, not every frame.
+                if(IsOrcaladon&&renderer is SkinnedMeshRenderer skin&&skin.sharedMesh!=null){
+                    var baked=new Mesh{name="Временное измерение Оркаладона"};
+                    try{
+                        skin.BakeMesh(baked);
+                        Matrix4x4 matrix=transform.worldToLocalMatrix*skin.transform.localToWorldMatrix;
+                        foreach(var vertex in baked.vertices){
+                            Vector3 point=matrix.MultiplyPoint3x4(vertex);
+                            if(!Finite(point))continue;
+                            if(!any){bounds=new Bounds(point,Vector3.zero);any=true;}else bounds.Encapsulate(point);
+                        }
+                    }finally{if(Application.isPlaying)Destroy(baked);else DestroyImmediate(baked);}
+                    continue;
+                }
                 var world=renderer.bounds;
                 for(int c=0;c<8;c++){
                     Vector3 point=transform.InverseTransformPoint(world.center+Vector3.Scale(world.extents,new Vector3((c&1)==0?-1:1,(c&2)==0?-1:1,(c&4)==0?-1:1)));
@@ -43,6 +60,7 @@ namespace Brainrot
             Normalization.localPosition=(Normalization.localPosition-new Vector3(bounds.center.x,bounds.min.y,bounds.center.z))*factor;
             Normalization.localScale*=factor;CacheRest();return true;
         }
+        static bool Finite(Vector3 point)=>!float.IsNaN(point.x)&&!float.IsInfinity(point.x)&&!float.IsNaN(point.y)&&!float.IsInfinity(point.y)&&!float.IsNaN(point.z)&&!float.IsInfinity(point.z);
         public void Animate(float movement,bool attacking){speed=Mathf.Max(0,movement);ApplyMoving();}
         void ApplyMoving(){if(Animator==null||!Animator.isActiveAndEnabled||Animator.runtimeAnimatorController==null)return;bool moving=speed>.05f;if(!movingKnown||moving!=animatorMoving){Animator.SetBool(Moving,moving);animatorMoving=moving;movingKnown=true;}}
         public void PlayBite(float duration=.32f){if(IsOctopus||IsOrcaladon)return;biteDuration=Mathf.Max(.15f,duration);biteRemaining=biteDuration;}

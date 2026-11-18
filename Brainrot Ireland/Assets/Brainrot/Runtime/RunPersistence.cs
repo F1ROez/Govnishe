@@ -88,7 +88,7 @@ namespace Brainrot
             if(s.Coins!=null){
                 if(s.Coins.Length>CoinDrops.Capacity)return false;
                 var ids=new System.Collections.Generic.HashSet<int>();
-                foreach(var coin in s.Coins)if(coin==null||string.IsNullOrEmpty(s.CoinRunId)||coin.Id<1||coin.Id>s.Kills||coin.Amount<1||coin.Amount>100||!Position(coin.Position,40)||!ids.Add(coin.Id))return false;
+                foreach(var coin in s.Coins)if(coin==null||string.IsNullOrEmpty(s.CoinRunId)||coin.Id<1||(long)coin.Id>(long)s.Kills*128||coin.Amount!=1||!Position(coin.Position,40)||!ids.Add(coin.Id))return false;
             }
             var w=s.Wave;
             if(w.Number<1||w.Number>1000000||!Finite(w.Time,0,86400)||!Finite(w.RestTime,0,86400)||w.WaitingForClear&&!w.Resting)return false;

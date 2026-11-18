@@ -40,6 +40,25 @@ namespace Brainrot.Tests
             Assert.Greater(Quaternion.Angle(restArm,pose.UpperLeft.localRotation),.1f);Assert.AreEqual(position,actor.transform.position);Assert.AreEqual(rotation,actor.transform.rotation);
             bridge.ResetVisual();Assert.That(Vector3.Distance(restPosition,bridge.MotionRoot.localPosition),Is.LessThan(.0001f));Assert.That(Quaternion.Angle(restArm,pose.UpperLeft.localRotation),Is.LessThan(.01f));
         }
+        [UnityTest]public IEnumerator OrcaladonNeutralArmsAndBakedCalibrationStayStableWhenRotated(){
+            var prefab=Resources.Load<GameObject>("ImportedOrcaladon");if(prefab==null)Assert.Ignore("Обновите графику и материалы перед тестом.");
+            actor=Object.Instantiate(prefab,new Vector3(4,0,-3),Quaternion.Euler(0,53,0));actor.transform.localScale=Vector3.one*1.3f;yield return null;
+            var bridge=actor.GetComponent<ImportedEnemyVisual>();var pose=actor.GetComponent<OrcaladonVisual>();pose.ResetPose();
+            var relaxed=pose.UpperLeft.localRotation;pose.RestoreBindPose();
+            Assert.That(Quaternion.Angle(relaxed,pose.UpperLeft.localRotation),Is.EqualTo(OrcaladonVisual.RelaxedArmRoll).Within(.1f));
+            pose.ResetPose();pose.ResetPose();Assert.Less(Quaternion.Angle(relaxed,pose.UpperLeft.localRotation),.01f);
+            Assert.Less(Vector3.Dot(pose.ForeLeft.position-pose.UpperLeft.position,actor.transform.up),-.05f,"Левая рука должна естественно опускаться от плеча.");
+            Assert.Less(Vector3.Dot(pose.ForeRight.position-pose.UpperRight.position,actor.transform.up),-.05f,"Правая рука должна естественно опускаться от плеча.");
+            Assert.IsTrue(bridge.CalibrateModel());var scale=bridge.Normalization.localScale;var offset=bridge.Normalization.localPosition;var position=actor.transform.position;
+            Assert.IsTrue(bridge.CalibrateModel());Assert.Less(Vector3.Distance(scale,bridge.Normalization.localScale),.001f);Assert.Less(Vector3.Distance(offset,bridge.Normalization.localPosition),.001f);Assert.AreEqual(position,actor.transform.position);
+            var skin=actor.GetComponentInChildren<SkinnedMeshRenderer>();var baked=new Mesh();
+            try{
+                skin.BakeMesh(baked);float low=float.PositiveInfinity,high=float.NegativeInfinity;
+                var matrix=actor.transform.worldToLocalMatrix*skin.transform.localToWorldMatrix;
+                foreach(var vertex in baked.vertices){float y=matrix.MultiplyPoint3x4(vertex).y;low=Mathf.Min(low,y);high=Mathf.Max(high,y);}
+                Assert.That(high-low,Is.EqualTo(3.4f).Within(.015f));Assert.That(low,Is.EqualTo(0).Within(.015f));
+            }finally{Object.Destroy(baked);}
+        }
         static void CheckVisibleMesh(GameObject root){
             var model=root.GetComponent<ImportedEnemyVisual>().ModelRoot;
             var renderers=model.GetComponentsInChildren<Renderer>();Assert.AreEqual(1,renderers.Length);var skin=renderers[0];Assert.IsTrue(skin.enabled);

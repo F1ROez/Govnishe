@@ -42,12 +42,15 @@ namespace Brainrot.Editor
                 string materialPath=output+"OrcaladonToon.mat";var material=AssetDatabase.LoadAssetAtPath<Material>(materialPath);
                 var shader=Shader.Find("Brainrot/ToonCharacter");if(material==null){material=new Material(shader);AssetDatabase.CreateAsset(material,materialPath);}else material.shader=shader;
                 material.name="Оркаладон — мягкий морской мультяшный";material.SetTexture("_BaseMap",texture);material.SetColor("_BaseColor",new Color(.91f,.97f,1));
-                material.SetFloat("_Brightness",1.05f);material.SetFloat("_Saturation",1.12f);material.SetFloat("_TextureSoftening",.06f);material.renderQueue=2000;EditorUtility.SetDirty(material);
+                material.SetFloat("_Brightness",1.05f);material.SetFloat("_Saturation",1.12f);material.SetFloat("_TextureSoftening",.06f);material.SetFloat("_RimStrength",.055f);material.SetFloat("_GlossStrength",.12f);material.renderQueue=2000;EditorUtility.SetDirty(material);
                 foreach(var renderer in model.GetComponentsInChildren<Renderer>(true)){renderer.sharedMaterials=Enumerable.Repeat(material,Mathf.Max(1,renderer.sharedMaterials.Length)).ToArray();renderer.shadowCastingMode=ShadowCastingMode.On;renderer.receiveShadows=true;
                     if(renderer is SkinnedMeshRenderer skin){skin.enabled=true;skin.forceRenderingOff=false;skin.updateWhenOffscreen=true;}}
                 if(!bridge.CalibrateModel())throw new InvalidOperationException("Не удалось измерить скелетную модель Оркаладона.");
+                // Save the unmodified bone baseline. Runtime applies its relaxed pose once;
+                // saving the relaxed bones here would apply the 22-degree correction twice after instantiation.
+                visual.RestoreBindPose();
                 PrefabUtility.SaveAsPrefabAsset(root,"Assets/Brainrot/Generated/Resources/ImportedOrcaladon.prefab");
-                Debug.Log("Оркаладон обновлён: исправленная поза руки, облегчённая сетка, девять костей и анимации ходьбы/разгона/двуручного удара.");
+                Debug.Log("Оркаладон обновлён: расслабленная симметричная поза рук, точный масштаб по деформированной сетке, мягкие блики и анимации ходьбы/разгона/двуручного удара.");
             }finally{UnityEngine.Object.DestroyImmediate(root);}
         }
         static Transform FindOrcaBone(GameObject model,string name){var bone=ImportedSahurVisual.Find(model.transform,"Orca_"+name);if(bone==null)throw new InvalidOperationException("В модели Оркаладона отсутствует кость Orca_"+name);return bone;}

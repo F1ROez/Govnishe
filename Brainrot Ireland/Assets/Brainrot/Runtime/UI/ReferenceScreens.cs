@@ -72,8 +72,8 @@ namespace Brainrot
             SeaText(frame,gm!=null?$"Волна {gm.Wave}  ·  Побеждено {gm.Kills}":"ОСТРОВ МОЖЕТ ПОДОЖДАТЬ",16,.08f,.22f,.84f,.06f);
             var first=SeaButton(frame,"ПРОДОЛЖИТЬ",.10f,.34f,.80f,.14f,resume,24,true);
             SeaButton(frame,"НАСТРОЙКИ",.10f,.515f,.80f,.14f,settings);
-            SeaButton(frame,"ГЛАВНОЕ МЕНЮ",.10f,.69f,.80f,.14f,menu);
-            SeaText(frame,"ESC — вернуться к игре",13,.1f,.88f,.8f,.05f);
+            SeaButton(frame,"ЗАВЕРШИТЬ ЗАБЕГ",.10f,.69f,.80f,.14f,menu,20);
+            SeaText(frame,"Выход завершит попытку. Монеты и покупки сохранятся.",12,.08f,.865f,.84f,.085f);
             if(EventSystem.current!=null)EventSystem.current.SetSelectedGameObject(first.gameObject);
         }
         public static void Settings(Transform viewport,UnityAction back){

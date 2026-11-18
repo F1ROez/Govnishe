@@ -15,10 +15,10 @@ namespace Brainrot
     {
         public const int MaximumCoins=1000000000,MaximumReceipts=16384;
         public static readonly ShopUpgrade[] Catalog={
-            new ShopUpgrade(0,"КРЕПКАЯ БИТА","+5 урона за уровень",30),
-            new ShopUpgrade(1,"ЗАПАС ПРОЧНОСТИ","+15 максимального здоровья за уровень",50),
-            new ShopUpgrade(2,"ЛЁГКИЕ НОГИ","+0,3 к скорости движения за уровень",45),
-            new ShopUpgrade(3,"БЫСТРЫЙ РЫВОК","−0,12 с перезарядки рывка за уровень",60)
+            new ShopUpgrade(0,"КРЕПКАЯ БИТА","+5 урона навсегда за ранг",30),
+            new ShopUpgrade(1,"ЗАПАС ПРОЧНОСТИ","+15 здоровья навсегда за ранг",50),
+            new ShopUpgrade(2,"ЛЁГКИЕ НОГИ","+0,3 скорости навсегда за ранг",45),
+            new ShopUpgrade(3,"БЫСТРЫЙ РЫВОК","−0,12 с перезарядки навсегда за ранг",60)
         };
         public static int Rank(int id)
         {

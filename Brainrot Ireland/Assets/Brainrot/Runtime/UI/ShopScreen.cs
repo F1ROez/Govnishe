@@ -7,10 +7,10 @@ namespace Brainrot
     /// <summary>Persistent purchases between runs; every card states its next-run effect and capped rank.</summary>
     public sealed class ShopScreen:MonoBehaviour
     {
-        Transform host;GameObject content;UnityAction back;bool skins,continuing;string feedback="";
-        public static ShopScreen Show(Transform parent,UnityAction onBack,bool hasContinuingRun=false){
+        Transform host;GameObject content;UnityAction back;bool skins;string feedback="";
+        public static ShopScreen Show(Transform parent,UnityAction onBack){
             var go=new GameObject("Магазин острова",typeof(RectTransform));go.transform.SetParent(parent,false);ReferenceScreens.Rect((RectTransform)go.transform,0,0,1,1);
-            var page=go.AddComponent<ShopScreen>();page.host=go.transform;page.back=onBack;page.continuing=hasContinuingRun;page.Build();return page;
+            var page=go.AddComponent<ShopScreen>();page.host=go.transform;page.back=onBack;page.Build();return page;
         }
         void Build(){
             if(content!=null){content.SetActive(false);Destroy(content);}
@@ -34,13 +34,13 @@ namespace Brainrot
                     var description=ReferenceScreens.SeaText(card,item.Description,15,.065f,.27f,.87f,.30f);description.alignment=TextAnchor.MiddleLeft;
                     for(int pip=0;pip<item.MaxRank;pip++)ReferenceScreens.Surface(card,"Уровень "+(pip+1),.08f+pip*.17f,.57f,.14f,.025f,pip<rank?new Color(.10f,.58f,.50f):new Color(.62f,.58f,.44f));
                     var buy=ReferenceScreens.SeaButton(card,capped?"МАКСИМУМ":"КУПИТЬ · "+price,.08f,.64f,.84f,.27f,()=>{
-                        feedback=MetaProgression.Buy(id)?"УЛУЧШЕНИЕ КУПЛЕНО — ДЕЙСТВУЕТ СО СЛЕДУЮЩЕГО ЗАБЕГА!":"НЕ УДАЛОСЬ КУПИТЬ. ПРОВЕРЬ БАЛАНС И СОХРАНЕНИЕ.";Build();
+                        feedback=MetaProgression.Buy(id)?"КУПЛЕНО НАВСЕГДА — БОНУС БУДЕТ ВО ВСЕХ НОВЫХ ЗАБЕГАХ!":"НЕ УДАЛОСЬ КУПИТЬ. ПРОВЕРЬ БАЛАНС И СОХРАНЕНИЕ.";Build();
                     },16,true);
                     buy.interactable=!capped&&SaveSystem.Data.Coins>=price;
                     index++;
                 }
             }
-            string note=!string.IsNullOrEmpty(feedback)?feedback:continuing?"ПОКУПКИ ДЕЙСТВУЮТ В НОВОМ ЗАБЕГЕ. СОХРАНЁННЫЙ ЗАБЕГ ПРОДОЛЖИТСЯ С ПРЕЖНИМИ ХАРАКТЕРИСТИКАМИ.":"УЛУЧШЕНИЯ ОСТАЮТСЯ НАВСЕГДА И ПРИМЕНЯЮТСЯ В НОВОМ ЗАБЕГЕ.";
+            string note=!string.IsNullOrEmpty(feedback)?feedback:"ПОСТОЯННЫЕ УЛУЧШЕНИЯ: БОНУСЫ РАБОТАЮТ В КАЖДОЙ ВОЛНЕ И КАЖДОМ НОВОМ ЗАБЕГЕ.";
             ReferenceScreens.SeaText(frame,note,13,.08f,.80f,.84f,.07f);
             var backButton=ReferenceScreens.SeaButton(frame,"НАЗАД",.34f,.895f,.32f,.07f,back,20,true);
             if(EventSystem.current!=null)EventSystem.current.SetSelectedGameObject(backButton.gameObject);

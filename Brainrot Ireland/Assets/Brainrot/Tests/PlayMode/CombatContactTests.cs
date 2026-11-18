@@ -33,7 +33,7 @@ namespace Brainrot.Tests
             Assert.IsFalse(enemy.PhysicsBody.IsPhysical);
         }
         [UnityTest]public IEnumerator DirectAttackConsumesAnExistingChargeAndClearsTheWindup(){
-            var combat=game.Player.Combat;combat.UpdateAttackInput(false);combat.UpdateAttackInput(true);yield return new WaitForSeconds(profile.Combat.HeavyChargeSeconds+.02f);combat.UpdateAttackInput(true);
+            var combat=game.Player.Combat;combat.UpdateAttackInput(false);combat.UpdateAttackInput(true);yield return new WaitForSeconds(profile.Combat.HeavyHoldDelay+profile.Combat.HeavyChargeSeconds+.02f);combat.UpdateAttackInput(true);
             Assert.IsTrue(combat.IsCharging);Assert.AreEqual(1,combat.ChargeProgress);Assert.IsTrue(combat.ExecuteAttack(true));
             Assert.IsFalse(combat.IsCharging);Assert.AreEqual(0,combat.ChargeProgress);Assert.Greater(combat.HeavyCooldownRemaining,9);
             var bridge=game.Player.GetComponentInChildren<ImportedSahurVisual>();if(bridge!=null){Assert.IsFalse(bridge.ChargePoseActive);Assert.IsTrue(bridge.HeavyAttackActive);}

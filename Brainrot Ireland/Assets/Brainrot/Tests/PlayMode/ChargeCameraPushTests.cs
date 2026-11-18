@@ -63,7 +63,7 @@ namespace Brainrot.Tests
         {
             float baseline=BoomDistance();
             MobileInput.Attack=true;
-            yield return new WaitForSeconds(.18f);
+            yield return new WaitForSeconds(profile.Combat.HeavyHoldDelay+.18f);
             Assert.IsTrue(game.Player.Combat.IsCharging);
             float earlyPull=baseline-BoomDistance();
             Assert.That(earlyPull,Is.InRange(.005f,.45f),"Камера должна приближаться постепенно, пока идёт замах.");

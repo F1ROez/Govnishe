@@ -49,7 +49,6 @@ namespace Brainrot
         {
             Data = new SaveData();
             if (TryLoad(SavePath) || TryLoad(SavePath + ".bak")) Sanitize();
-            RunPersistence.Refresh();
         }
 
         private static bool TryLoad(string path)

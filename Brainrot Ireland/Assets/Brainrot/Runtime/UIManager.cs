@@ -244,7 +244,7 @@ namespace Brainrot
             {
                 Title("ОСТРОВ САХУРА");
                 Label(overlay.transform,"Выживай среди акул. Держи биту крепче.",19,TextAnchor.MiddleCenter,new Vector2(.29f,.625f),new Vector2(.71f,.675f));
-                MenuButton("ПРОДОЛЖИТЬ ИГРУ",.515f,()=>gm.ResumeRun());MenuButton("НОВАЯ ИГРА",.405f,()=>gm.StartRun());MenuButton("МАГАЗИН",.295f,ShowShop);MenuButton("НАСТРОЙКИ",.185f,ShowSettings);MenuButton("ВЫХОД",.075f,()=>gm.Quit());
+                MenuButton("ИГРАТЬ",.49f,()=>gm.StartRun());MenuButton("МАГАЗИН",.37f,ShowShop);MenuButton("НАСТРОЙКИ",.25f,ShowSettings);MenuButton("ВЫХОД",.13f,()=>gm.Quit());
             }
             else if(gm.State==GameState.Paused)
             {
@@ -257,7 +257,7 @@ namespace Brainrot
                 ReferenceScreens.SeaText(frame,$"СОБРАНО МОНЕТ: +{gm.RunCoins}\nВ КОШЕЛЬКЕ: {SaveSystem.Data.Coins}",25,.08f,.32f,.84f,.13f);
                 ReferenceScreens.SeaText(frame,"ЛИЧНЫЙ РЕКОРД · ВОЛНА "+SaveSystem.Data.BestWave,16,.08f,.475f,.84f,.05f);
                 var shop=ReferenceScreens.SeaButton(frame,"МАГАЗИН УЛУЧШЕНИЙ",.10f,.57f,.80f,.10f,ShowShop,22,true);
-                ReferenceScreens.SeaButton(frame,"НОВЫЙ ЗАБЕГ",.10f,.70f,.80f,.09f,()=>gm.StartRun(),21);
+                ReferenceScreens.SeaButton(frame,"ИГРАТЬ СНОВА",.10f,.70f,.80f,.09f,()=>gm.StartRun(),21);
                 ReferenceScreens.SeaButton(frame,"ГЛАВНОЕ МЕНЮ",.10f,.82f,.80f,.09f,()=>gm.MainMenu(),20);
                 if(EventSystem.current!=null)EventSystem.current.SetSelectedGameObject(shop.gameObject);
             }
@@ -293,7 +293,7 @@ namespace Brainrot
         void ClearOverlay(){foreach(Transform child in overlay.transform){child.gameObject.SetActive(false);Destroy(child.gameObject);}}
         void ShowShop(){
             var gm=GameManager.Instance;if(gm==null||gm.State!=GameState.Dead&&gm.State!=GameState.Menu)return;
-            ClearOverlay();ShopScreen.Show(ReferenceScreens.Viewport(overlay.transform,"Магазин 16:9"),BuildScreen,gm.CanContinue);
+            ClearOverlay();ShopScreen.Show(ReferenceScreens.Viewport(overlay.transform,"Магазин 16:9"),BuildScreen);
         }
         void ShowSettings()
         {

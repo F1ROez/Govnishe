@@ -11,7 +11,7 @@ namespace Brainrot {
   public bool Busy{get;private set;}
   public static SceneFlow Instance{get{if(instance==null){var go=new GameObject("Переходы сцен");instance=go.AddComponent<SceneFlow>();DontDestroyOnLoad(go);}return instance;}}
   public void ShowMenu(){if(!Busy)StartCoroutine(ReturnToMenu());}
-  public void Play(bool fresh){if(!Busy)StartCoroutine(EnterGame(fresh));}
+  public void Play(bool fresh=true){if(!Busy)StartCoroutine(EnterGame());}
   void HideGame(Scene scene){
    if(!scene.IsValid()||!scene.isLoaded)return;
    foreach(var root in scene.GetRootGameObjects())foreach(var component in root.GetComponentsInChildren<Behaviour>(true))
@@ -23,14 +23,14 @@ namespace Brainrot {
    if(!Application.CanStreamedLevelBeLoaded(MenuPath)){Debug.LogError("Сцена меню не найдена. Выполните Tools → TungTung → Создать или обновить игру.");yield break;}
    Busy=true;
    try{
-    var game=GameManager.Instance;if(game!=null)game.SuspendRun();HideGame(SceneManager.GetSceneByPath(GamePath));
+    var game=GameManager.Instance;if(game!=null)game.EndRun();var oldGame=SceneManager.GetSceneByPath(GamePath);HideGame(oldGame);
     var menu=SceneManager.GetSceneByPath(MenuPath);if(!menu.isLoaded)yield return SceneManager.LoadSceneAsync(MenuPath,LoadSceneMode.Additive);
     menu=SceneManager.GetSceneByPath(MenuPath);if(menu.IsValid())SceneManager.SetActiveScene(menu);UIInputRouter.EnsureForScene(menu);
+    if(oldGame.IsValid()&&oldGame.isLoaded&&oldGame!=menu)yield return SceneManager.UnloadSceneAsync(oldGame);hidden.Clear();Time.timeScale=0;
    }finally{Busy=false;}
   }
-  IEnumerator EnterGame(bool fresh){
+  IEnumerator EnterGame(){
    if(!Application.CanStreamedLevelBeLoaded(GamePath)){Debug.LogError("Игровая сцена не найдена. Выполните Tools → TungTung → Создать или обновить игру.");yield break;}
-   if(!fresh&&(GameManager.Instance==null||!GameManager.Instance.HasRun)&&!RunPersistence.HasSavedRun)yield break;
    Busy=true;
    try{
     var scene=SceneManager.GetSceneByPath(GamePath);
@@ -40,11 +40,9 @@ namespace Brainrot {
     SceneManager.SetActiveScene(scene);var game=GameManager.Instance;game.InitializeWorld();
     foreach(var b in hidden)if(b!=null)b.enabled=true;hidden.Clear();
     UIInputRouter.EnsureForScene(scene);
-    if(fresh)game.StartRun();
-    else if(!game.ResumeRun()){
-     // A failed Continue never silently starts and overwrites a new run.
-     game.Notify("Не удалось восстановить забег. Сохранение оставлено для проверки.",5);
-     game.SuspendRun();HideGame(scene);
+    game.StartRun();
+    if(!game.HasRun){
+     game.EndRun();HideGame(scene);
      if(menu.IsValid()&&menu.isLoaded){SceneManager.SetActiveScene(menu);UIInputRouter.EnsureForScene(menu);}
      yield break;
     }

@@ -14,51 +14,79 @@ namespace Brainrot
         public int Value(EnemyKind kind)=>Mathf.Clamp(kind==EnemyKind.Orcaladon?OrcaladonValue:kind==EnemyKind.BlueberrinniOctopusini?OctopusValue:SharkValue,1,100);
     }
     [Serializable]public sealed class CoinDropSnapshot {public int Id,Amount;public Vector3 Position;}
-    /// <summary>Scene-owned bounded coin pool. One visible gold coin may represent several currency units.</summary>
+    /// <summary>Scene-owned bounded coin pool. Every visible coin is exactly one currency unit; no reward is paid without pickup.</summary>
     public sealed class CoinDrops:MonoBehaviour
     {
-        public const int Capacity=128;
-        sealed class Coin {public Transform Root,Face;public int Id,Amount;public Vector3 Start,Landing,FlightStart;public float Age,Fly,RetryAt;public bool Active,Collecting;}
+        public const int Capacity=512;
+        sealed class Coin {public Transform Root,Face;public int Id,Amount;public Vector3 Start,Landing,FlightStart;public float Age,Fly,RetryAt;public bool Active,Collecting,Landed;}
         readonly List<Coin> pending=new List<Coin>(Capacity);
         readonly List<Coin> pool=new List<Coin>(Capacity);
         Mesh disc;Material gold,face;
         GameManager game;
         public int ActiveCount{get{int n=0;foreach(var item in pool)if(item.Active)n++;return n;}}
         public void Initialize(GameManager owner){game=owner;}
-        public void Drop(EnemyKind kind,Vector3 position,int id)
+        /// <summary>Stable receipt for one of at most 100 physical coins belonging to a kill.</summary>
+        public static int RewardId(int killOrdinal,int coinIndex)
         {
-            if(game==null||!game.IsPlaying||id<1||MetaProgression.IsClaimed(game.CoinRunId,id))return;
-            Coin coin=null;foreach(var item in pool)if(!item.Active){coin=item;break;}
-            if(coin==null&&pool.Count>=Capacity){
-                // Bank the oldest reward before recycling its visual; a busy arena cannot lose currency.
-                coin=pool[0];foreach(var item in pool)if(item.Age>coin.Age)coin=item;
-                if(!MetaProgression.IsClaimed(game.CoinRunId,coin.Id)&&!game.TryCollectCoin(coin.Id,coin.Amount))return;
+            long value=((long)killOrdinal-1)*128+coinIndex+1;
+            return killOrdinal>0&&coinIndex>=0&&coinIndex<100&&value<=int.MaxValue?(int)value:0;
+        }
+        public void Drop(EnemyKind kind,Vector3 position,int killOrdinal)
+        {
+            if(game==null||!game.IsPlaying||killOrdinal<1)return;
+            int count=GameBalance.Current.Coins.Value(kind);
+            for(int index=0;index<count;index++){
+                int id=RewardId(killOrdinal,index);
+                if(id<=0||MetaProgression.IsClaimed(game.CoinRunId,id))continue;
+                // A repeated death notification cannot duplicate uncollected physical coins either.
+                bool alreadyPresent=false;foreach(var existing in pool)if(existing.Active&&existing.Id==id){alreadyPresent=true;break;}
+                if(alreadyPresent)continue;
+                Coin coin=null;foreach(var item in pool)if(!item.Active){coin=item;break;}
+                if(coin==null&&pool.Count>=Capacity){
+                    // Recycle only an uncollected visual. Never bank a coin the player did not pick up.
+                    foreach(var item in pool)if(!item.Collecting&&(coin==null||item.Age>coin.Age))coin=item;
+                    if(coin==null)continue;
+                    Hide(coin);
+                }
+                if(coin==null){coin=Create();pool.Add(coin);}
+                float a=killOrdinal*2.399963f+index*Mathf.PI*2/Mathf.Max(1,count);
+                float radius=.65f+(index%3)*.28f;
+                var landing=IslandMap.ClampToLand(position+new Vector3(Mathf.Cos(a),0,Mathf.Sin(a))*radius);landing.y=0;
+                Activate(coin,id,1,position+Vector3.up*(.75f+(index%3)*.10f),landing,-(index%8)*.018f);
             }
-            if(coin==null){coin=Create();pool.Add(coin);}
-            float a=id*2.399963f;var landing=IslandMap.ClampToLand(position+new Vector3(Mathf.Cos(a),0,Mathf.Sin(a))*.85f);landing.y=0;
-            Activate(coin,id,GameBalance.Current.Coins.Value(kind),position+Vector3.up*.8f,landing,0);
         }
         void Activate(Coin c,int id,int amount,Vector3 start,Vector3 landing,float age)
         {
-            c.Id=id;c.Amount=amount;c.Start=start;c.Landing=landing;c.Age=age;c.Fly=0;c.RetryAt=0;c.Collecting=false;c.Active=true;
+            c.Id=id;c.Amount=1;c.Start=start;c.Landing=landing;c.Age=age;c.Fly=0;c.RetryAt=0;c.Collecting=false;c.Active=true;c.Landed=age>=.48f;
             c.Root.gameObject.SetActive(true);c.Root.position=start;c.Root.localScale=Vector3.one;
         }
         Coin Create()
         {
-            if(disc==null)disc=Disc();
+            if(disc==null)disc=CoinMesh();
             if(gold==null){gold=WorldBuilder.Material(new Color(1,.64f,.055f),"Золотой ободок монеты");gold.SetFloat("_Smoothness",.48f);face=WorldBuilder.Material(new Color(1,.83f,.22f),"Тёплое золото монеты");face.SetFloat("_Smoothness",.30f);}
             var root=new GameObject("Золотая монета").transform;root.SetParent(transform,false);
-            var body=Part(root,"Чеканка",Vector3.zero,new Vector3(.38f,.38f,.11f),gold);
-            Part(body,"Золотой центр",new Vector3(0,0,-1.02f),new Vector3(.79f,.79f,.14f),face);
-            Part(body,"Золотой центр оборота",new Vector3(0,0,1.02f),new Vector3(.79f,.79f,.14f),face);
-            // A bold embossed vertical mark reads from either side without text textures.
-            var mark=GameObject.CreatePrimitive(PrimitiveType.Cube);mark.name="Рельефный знак монеты";mark.transform.SetParent(body,false);mark.transform.localScale=new Vector3(.15f,.92f,2.4f);Destroy(mark.GetComponent<Collider>());mark.GetComponent<Renderer>().sharedMaterial=gold;
+            var body=new GameObject("Чеканка",typeof(MeshFilter),typeof(MeshRenderer)).transform;body.SetParent(root,false);
+            body.GetComponent<MeshFilter>().sharedMesh=disc;var renderer=body.GetComponent<MeshRenderer>();renderer.sharedMaterials=new[]{gold,face};renderer.shadowCastingMode=ShadowCastingMode.Off;
             return new Coin{Root=root,Face=body};
         }
-        Transform Part(Transform parent,string title,Vector3 pos,Vector3 size,Material material)
+        // Bake the rim, two faces and embossed mark once. Every token shares one mesh/renderer,
+        // rather than four separate renderers and their transforms for a dense reward pile.
+        static Mesh CoinMesh()
         {
-            var t=new GameObject(title,typeof(MeshFilter),typeof(MeshRenderer)).transform;t.SetParent(parent,false);t.localPosition=pos;t.localScale=size;
-            t.GetComponent<MeshFilter>().sharedMesh=disc;var renderer=t.GetComponent<MeshRenderer>();renderer.sharedMaterial=material;renderer.shadowCastingMode=ShadowCastingMode.Off;return t;
+            var unit=Disc();var cube=GameObject.CreatePrimitive(PrimitiveType.Cube);cube.SetActive(false);
+            var rim=new Mesh();var faces=new Mesh();
+            try{
+                rim.CombineMeshes(new[]{
+                    new CombineInstance{mesh=unit,transform=Matrix4x4.Scale(new Vector3(.38f,.38f,.11f))},
+                    new CombineInstance{mesh=cube.GetComponent<MeshFilter>().sharedMesh,transform=Matrix4x4.Scale(new Vector3(.057f,.3496f,.264f))}
+                },true,true);
+                faces.CombineMeshes(new[]{
+                    new CombineInstance{mesh=unit,transform=Matrix4x4.TRS(new Vector3(0,0,-.1122f),Quaternion.identity,new Vector3(.3002f,.3002f,.0154f))},
+                    new CombineInstance{mesh=unit,transform=Matrix4x4.TRS(new Vector3(0,0,.1122f),Quaternion.identity,new Vector3(.3002f,.3002f,.0154f))}
+                },true,true);
+                var result=new Mesh{name="Общая чеканная монета — ободок и лицо"};
+                result.CombineMeshes(new[]{new CombineInstance{mesh=rim},new CombineInstance{mesh=faces}},false,false);result.RecalculateBounds();return result;
+            }finally{Destroy(cube);Destroy(unit);Destroy(rim);Destroy(faces);}
         }
         public void Tick(float dt,PlayerController player)
         {
@@ -78,6 +106,7 @@ namespace Brainrot
                 float t=Mathf.Clamp01(c.Age/.48f);
                 if(t<1)c.Root.position=Vector3.Lerp(c.Start,c.Landing+Vector3.up*.45f,t)+Vector3.up*(Mathf.Sin(t*Mathf.PI)*1.1f);
                 else{
+                    if(!c.Landed){c.Root.position=c.Landing+Vector3.up*.45f;c.Landed=true;}
                     var p=c.Root.position;p.y=.45f+Mathf.Sin(c.Age*3.2f+c.Id)*.075f;c.Root.position=p;
                     var delta=player.transform.position-p;delta.y=0;float d=delta.magnitude;
                     if(d<=radius){
@@ -93,6 +122,7 @@ namespace Brainrot
             if(pending.Count>0){
                 var ids=new int[pending.Count];var amounts=new int[pending.Count];for(int i=0;i<pending.Count;i++){ids[i]=pending[i].Id;amounts[i]=pending[i].Amount;}
                 bool saved=game.TryCollectCoins(ids,amounts);foreach(var c in pending){if(saved)Hide(c);else c.RetryAt=Time.time+1;}
+                if(saved)HitEffects.Burst(player.transform.position+Vector3.up*.8f,new Color(1,.83f,.30f),3,0);
             }
         }
         static void Hide(Coin c){c.Active=false;c.Root.gameObject.SetActive(false);}
@@ -102,7 +132,7 @@ namespace Brainrot
         {
             Clear();if(saved==null)return;
             foreach(var state in saved){
-                if(state==null||MetaProgression.IsClaimed(game.CoinRunId,state.Id))continue;
+                if(state==null||state.Amount!=1||MetaProgression.IsClaimed(game.CoinRunId,state.Id))continue;
                 Coin c=null;foreach(var free in pool)if(!free.Active){c=free;break;}if(c==null){if(pool.Count>=Capacity)break;c=Create();pool.Add(c);}
                 var p=IslandMap.ClampToLand(state.Position);p.y=0;Activate(c,state.Id,state.Amount,p+Vector3.up*.45f,p,.48f);
             }

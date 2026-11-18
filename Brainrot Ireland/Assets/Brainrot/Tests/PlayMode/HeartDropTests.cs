@@ -12,7 +12,7 @@ namespace Brainrot.Tests
         [UnitySetUp]public IEnumerator Setup(){
             Assert.IsNull(GameManager.Instance);
             folder=System.IO.Path.Combine(System.IO.Path.GetTempPath(),"HeartTests-"+System.Guid.NewGuid());
-            storage=(System.IDisposable)typeof(RunPersistence).GetMethod("UsePath",System.Reflection.BindingFlags.Static|System.Reflection.BindingFlags.NonPublic).Invoke(null,new object[]{System.IO.Path.Combine(folder,"run.json")});
+            storage=SaveSystem.UseStorageDirectory(folder);
             previous=SceneManager.GetActiveScene();scene=SceneManager.CreateScene("Сердечки "+System.Guid.NewGuid());SceneManager.SetActiveScene(scene);
             game=new GameObject("Игра").AddComponent<GameManager>();balance=ScriptableObject.CreateInstance<GameBalance>();balance.Waves.InitialDelay=600;game.Balance=balance;
             yield return null;game.StartRun();game.enabled=false;game.Player.enabled=false;
