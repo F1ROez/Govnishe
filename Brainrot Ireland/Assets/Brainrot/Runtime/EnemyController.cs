@@ -321,6 +321,7 @@ namespace Brainrot
             }
             if (Health > 0){if(knockback.sqrMagnitude>.01f)Tumble(knockback);return;}
             Alive = false;IsAlerted = false;telegraph.Hide();
+            if(game!=null&&game.IsPlaying)game.Hearts?.Drop(Kind,transform.position);
             if(orcaladon!=null)orcaladon.ResetAttack();
             HitEffects.Burst(transform.position + Vector3.up, Skin(Kind), 8);
             GameManager.Instance.Reward(Mathf.Max(0, tuning.Experience), 1);

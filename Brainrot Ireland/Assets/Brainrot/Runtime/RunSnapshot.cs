@@ -12,6 +12,7 @@ namespace Brainrot
         public PlayerRunSnapshot Player;
         public WaveRunSnapshot Wave;
         public SpawnerRunSnapshot Spawner;
+        public HeartDropSnapshot[] Hearts=Array.Empty<HeartDropSnapshot>();
     }
     [Serializable] public sealed class PlayerRunSnapshot
     {

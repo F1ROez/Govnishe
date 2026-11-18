@@ -18,6 +18,7 @@ namespace Brainrot {
   public void EndCapture(OctopusAttack source){if(captor==source){captor=null;EscapeProgress=0;CancelAttacks();}}
   public void EscapeTap(){if(!IsCaptured)return;EscapeProgress=Mathf.Clamp01(EscapeProgress+1f/Mathf.Max(1,GameBalance.Current.Octopus.EscapeClicks));if(EscapeProgress>=.999f)captor.Escape();}
   public CombatSystem Combat=>combat;
+  public Camera ViewCamera=>cam;
   public PlayerTuning ActiveTuning=>Character!=null&&Character.UseCustomStats&&Character.StartingStats!=null?Character.StartingStats:GameBalance.Current.Player;
   public bool CameraLocked => SaveSystem.Data.HasCameraPreference ? SaveSystem.Data.CameraLocked : ActiveTuning.CameraLocked;
   public Vector3 AimForward => Quaternion.Euler(0,yaw,0)*Vector3.forward;

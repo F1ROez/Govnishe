@@ -87,6 +87,7 @@ namespace Brainrot
             bool legacyBudget=spawn.BudgetWave==0&&spawn.PlannedCount==0&&spawn.SpawnedCount==0&&spawn.ResolvedCount==0;
             if(!legacyBudget&&(spawn.BudgetWave!=w.Number||spawn.PlannedCount<1||spawn.PlannedCount>10000||spawn.SpawnedCount<0||spawn.SpawnedCount>spawn.PlannedCount||spawn.ResolvedCount<0||spawn.ResolvedCount>spawn.SpawnedCount||spawn.SpawnedCount-spawn.ResolvedCount!=spawn.Enemies.Length))return false;
             if(s.ChallengeMaskEarnedThisRun<0)return false;
+            if(s.Hearts!=null){if(s.Hearts.Length>HeartDrops.Capacity)return false;foreach(var heart in s.Hearts)if(heart==null||!Position(heart.Position,40)||!Finite(heart.Remaining,0,120))return false;}
             foreach(var enemy in spawn.Enemies){
                 if(enemy==null||enemy.Kind!=0&&enemy.Kind!=9&&enemy.Kind!=10||!Position(enemy.Position,100)||!Angle(enemy.RotationYaw)||!Finite(enemy.MaxHealth,.001f,1000000)||!Finite(enemy.Health,.001f,enemy.MaxHealth))return false;
             }
