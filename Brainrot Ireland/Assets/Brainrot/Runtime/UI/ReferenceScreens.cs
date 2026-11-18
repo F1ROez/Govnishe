@@ -33,32 +33,35 @@ namespace Brainrot
             image.gameObject.AddComponent<CartoonButtonMotion>().VisualTarget=visual.transform;
             button.onClick.AddListener(GameMusic.PlayButtonClick);button.onClick.AddListener(action);CartoonUI.EnsureTouchTarget(button);return button;
         }
-        static readonly Color Sea = new Color(.065f,.22f,.27f);
-        static readonly Color Mint = new Color(.32f,.73f,.68f);
+        static readonly Color Sea = new Color(.97f,.91f,.77f);
+        static readonly Color Mint = new Color(.08f,.65f,.68f);
         static readonly Color Paper = new Color(.94f,.96f,.88f);
         public static Image Surface(Transform parent,string name,float x,float y,float w,float h,Color color){
             var image=CartoonUI.Image(name,parent,Vector2.zero,Vector2.one,color);Rect(image.rectTransform,x,y,w,h);return image;
         }
-        static Text SeaText(Transform parent,string value,int size,float x,float y,float w,float h){
-            var text=Text(parent,value,size,x,y,w,h);text.color=Paper;
-            text.GetComponent<Outline>().effectColor=new Color(.025f,.10f,.13f,.65f);text.GetComponent<Outline>().effectDistance=new Vector2(.7f,-.7f);
+        public static Text SeaText(Transform parent,string value,int size,float x,float y,float w,float h){
+            var text=Text(parent,value,size,x,y,w,h);text.color=new Color(.20f,.24f,.18f);
+            text.GetComponent<Outline>().effectColor=new Color(1,.98f,.86f,.30f);text.GetComponent<Outline>().effectDistance=new Vector2(.7f,-.7f);
             text.GetComponent<Shadow>().effectColor=Color.clear;return text;
         }
-        static Transform Panel(Transform viewport,string title,float x,float y,float w,float h){
+        public static Transform Panel(Transform viewport,string title,float x,float y,float w,float h){
             Surface(viewport,"Мягкая тень",x,y+.012f,w,h,new Color(.01f,.06f,.09f,.35f));
-            var rim=Surface(viewport,"Морская рамка",x,y,w,h,new Color(.30f,.53f,.53f));
-            var body=Surface(rim.transform,"Матовая панель",.003f,.004f,.994f,.992f,Sea).transform;
-            Surface(body,"Акцент",.075f,.035f,.12f,.008f,Mint);
-            SeaText(body,title,32,.08f,.065f,.84f,.10f);
-            Surface(body,"Разделитель",.08f,.19f,.84f,.002f,new Color(.5f,.76f,.74f,.25f));
-            var leaf=Art(body,"LeafAccent",.86f,-.035f,.17f,.15f);leaf.preserveAspect=true;leaf.color=new Color(.65f,.83f,.72f);
+            var rim=Surface(viewport,"Деревянный кант",x,y,w,h,new Color(.43f,.27f,.12f));
+            var body=Surface(rim.transform,"Песочная панель",.008f,.008f,.984f,.984f,Sea).transform;
+            Surface(body,"Светлая кромка",.025f,.012f,.95f,.006f,new Color(1,.98f,.87f));
+            var header=Art(body,"WoodButton",.045f,.025f,.91f,.155f);header.color=new Color(.82f,.72f,.55f);
+            var heading=SeaText(body,title,30,.08f,.055f,.84f,.10f);heading.color=Paper;
+            heading.GetComponent<Outline>().effectColor=new Color(.21f,.12f,.05f,.75f);
+            Surface(body,"Разделитель",.08f,.19f,.84f,.002f,new Color(.40f,.54f,.37f,.22f));
+            var leaf=Art(body,"LeafAccent",.88f,-.025f,.15f,.13f);leaf.preserveAspect=true;leaf.color=new Color(.77f,.88f,.64f);
             return body;
         }
-        static Button SeaButton(Transform parent,string title,float x,float y,float w,float h,UnityAction action,int size=22,bool primary=false){
+        public static Button SeaButton(Transform parent,string title,float x,float y,float w,float h,UnityAction action,int size=22,bool primary=false){
             var hit=Surface(parent,title,x,y,w,h,Color.clear);hit.raycastTarget=true;
-            var face=Surface(hit.transform,"Кнопка",0,0,1,1,primary?new Color(.16f,.48f,.45f):new Color(.12f,.32f,.37f));
+            var face=Surface(hit.transform,"Кнопка",0,0,1,1,primary?new Color(.055f,.54f,.59f):new Color(.86f,.74f,.52f));
             Surface(face.transform,"Мягкий верхний край",.04f,.035f,.92f,.018f,new Color(.68f,.90f,.84f,.22f));
-            SeaText(face.transform,title,size,.04f,.12f,.92f,.76f);
+            var label=SeaText(face.transform,title,size,.04f,.12f,.92f,.76f);
+            if(primary){label.color=Paper;label.GetComponent<Outline>().effectColor=new Color(.02f,.23f,.25f,.65f);}
             var button=hit.gameObject.AddComponent<Button>();button.targetGraphic=face;button.transition=Selectable.Transition.None;
             var motion=hit.gameObject.AddComponent<CartoonButtonMotion>();motion.VisualTarget=face.transform;motion.BaseColor=face.color;
             button.onClick.AddListener(GameMusic.PlayButtonClick);button.onClick.AddListener(action);CartoonUI.EnsureTouchTarget(button);return button;
@@ -105,7 +108,7 @@ namespace Brainrot
             if(EventSystem.current!=null)EventSystem.current.SetSelectedGameObject(camera.gameObject);
         }
         static void MarkQuality(Button button,bool selected,string title){
-            button.targetGraphic.color=selected?new Color(.16f,.48f,.45f):new Color(.12f,.32f,.37f);
+            button.targetGraphic.color=selected?new Color(.18f,.66f,.68f):new Color(.86f,.74f,.52f);
             button.GetComponent<CartoonButtonMotion>().BaseColor=button.targetGraphic.color;
             button.GetComponentInChildren<Text>().text=(selected?"• ":"")+title;
         }
@@ -118,7 +121,7 @@ namespace Brainrot
             bool percent=Mathf.Approximately(max,1);
             number.text=percent?Mathf.RoundToInt(value*100)+"%":value.ToString("0.0")+"×";
             var hit=Surface(frame,title+" — ползунок",.08f,top+.04f,.84f,.055f,Color.clear);hit.raycastTarget=true;
-            var track=Surface(hit.transform,"Желоб",0,.36f,1,.28f,new Color(.035f,.13f,.18f));
+            var track=Surface(hit.transform,"Желоб",0,.36f,1,.28f,new Color(.29f,.38f,.30f));
             var fill=Surface(track.transform,"Заполнение",0,0,1,1,Mint);
             var handle=CartoonUI.Image("Ручка",hit.transform,new Vector2(0,.5f),new Vector2(0,.5f),Paper,CartoonUI.Disc);
             handle.rectTransform.sizeDelta=new Vector2(22,22);handle.raycastTarget=true;

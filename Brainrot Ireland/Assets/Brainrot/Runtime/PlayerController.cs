@@ -2,6 +2,7 @@ using UnityEngine;
 namespace Brainrot {
  [System.Serializable] public sealed class PlayerStats {
   public float Damage=24,AttackInterval=.65f,MaxHealth=100,MoveSpeed=6,Lifesteal=0,FireDamage=0,Shockwave=0,Range=3.2f,CritChance=.05f,Regen=0,DashCooldown=3; public int ExtraStrikes=0;
+  public PlayerStats Copy()=>(PlayerStats)MemberwiseClone();
   public static PlayerStats From(PlayerTuning tuning) {return new PlayerStats {Damage=Mathf.Max(1,tuning.Damage),AttackInterval=Mathf.Max(.12f,tuning.AttackInterval),MaxHealth=Mathf.Max(1,tuning.MaxHealth),MoveSpeed=Mathf.Max(.1f,tuning.MoveSpeed),Range=Mathf.Max(.5f,tuning.Range),CritChance=Mathf.Clamp01(tuning.CritChance),DashCooldown=Mathf.Max(.1f,tuning.DashCooldown)};}
  }
  public sealed class PlayerController:MonoBehaviour {
@@ -41,9 +42,10 @@ namespace Brainrot {
    var outline=new GameObject("Bat reach").AddComponent<AttackRangeVisual>();outline.Initialize(this);combat.SetRangeVisual(outline);
    ResetRun();
   }
-  public void ResetRun(){
+  public void ResetRun(bool applyMeta=true){
    captor=null;EscapeProgress=0;captureHeld=false;DamageTakenCount=0;var settings=ActiveTuning;Stats=PlayerStats.From(settings);
    var weapon=Character!=null?Character.Weapon:null;if(weapon!=null){Stats.Damage*=Mathf.Max(.1f,weapon.DamageMultiplier);Stats.Range*=Mathf.Max(.1f,weapon.RangeMultiplier);Stats.AttackInterval*=Mathf.Max(.1f,weapon.AttackIntervalMultiplier);}
+   if(applyMeta)MetaProgression.Apply(Stats);
    Health=Stats.MaxHealth;Stamina.Reset(GameBalance.Current.Stamina);
    foreach(var ability in abilities)ability.Dispose();abilities.Clear();
    if(Character!=null&&Character.Abilities!=null)foreach(var definition in Character.Abilities)if(definition!=null){var runtime=definition.CreateRuntime(this);if(runtime!=null)abilities.Add(runtime);}
@@ -52,12 +54,12 @@ namespace Brainrot {
    combat?.ResetRun();visual?.ResetFeedback();cameraCollision?.Reset();
   }
   public PlayerRunSnapshot CaptureRunState(){
-   return new PlayerRunSnapshot {Position=transform.position,RotationYaw=transform.eulerAngles.y,CameraYaw=Mathf.Repeat(yaw,360),CameraPitch=pitch,Health=Health,Stamina=Stamina.Value,DashCooldown=DashCooldownRemaining,HeavyCooldown=combat!=null?combat.HeavyCooldownRemaining:0};
+   return new PlayerRunSnapshot {StartingStats=Stats.Copy(),Position=transform.position,RotationYaw=transform.eulerAngles.y,CameraYaw=Mathf.Repeat(yaw,360),CameraPitch=pitch,Health=Health,Stamina=Stamina.Value,DashCooldown=DashCooldownRemaining,HeavyCooldown=combat!=null?combat.HeavyCooldownRemaining:0};
   }
   public void RestoreRunState(PlayerRunSnapshot state){
    if(state==null)return;
    // A checkpoint stores stable actor state, not an in-flight hit, dash or octopus hold.
-   ResetRun();Vector3 position=IslandMap.ClampToLand(state.Position);position.y=Mathf.Clamp(position.y,-.05f,1);
+   ResetRun(false);if(state.StartingStats!=null)Stats=state.StartingStats.Copy();Vector3 position=IslandMap.ClampToLand(state.Position);position.y=Mathf.Clamp(position.y,-.05f,1);
    motor.enabled=false;transform.SetPositionAndRotation(position,Quaternion.Euler(0,state.RotationYaw,0));motor.enabled=true;
    Health=Mathf.Clamp(state.Health,.001f,Stats.MaxHealth);Stamina.Restore(state.Stamina,GameBalance.Current.Stamina);
    yaw=Mathf.Repeat(state.CameraYaw,360);pitch=GameBalance.Current.Camera.ClampPitch(state.CameraPitch);

@@ -27,6 +27,7 @@ namespace Brainrot
         AbilityDisplay heavyAbility,dashAbility;
         GameState shownState = (GameState)(-1);
         int shownLevel = -1;
+        int shownCoins=-1,shownRunCoins=-1;float coinFlashUntil;Text coinLabel,coinRunLabel;
         int shownHealth=int.MinValue,shownMaxHealth=int.MinValue,shownStamina=int.MinValue,shownMaxStamina=int.MinValue;
         int shownWave=int.MinValue,shownRemaining=int.MinValue,shownKills=int.MinValue;
         int shownChargeMode=-1,shownChargePercent=-1,shownCameraMode=-1;
@@ -64,6 +65,12 @@ namespace Brainrot
             waveMeter=QuestHUD.Meter(wave.transform,"Ход волны",new Vector2(.06f,.43f),new Vector2(.94f,.53f),new Color(.32f,.73f,.68f));
             waveMeter.GetComponent<Image>().color=new Color(.3f,.49f,.51f);
             waveProgressText=Label(wave.transform,"",12,TextAnchor.MiddleLeft,new Vector2(.06f,.08f),new Vector2(.51f,.36f));
+            var wallet=Box("Монеты",hud.transform,new Vector2(.805f,.88f),new Vector2(.88f,.975f),new Color(.09f,.24f,.25f,.88f));
+            var coin=CartoonUI.Image("Золотая монета",wallet.transform,new Vector2(.08f,.39f),new Vector2(.34f,.82f),new Color(1,.73f,.15f),CartoonUI.Disc);
+            var coinLetter=Label(coin.transform,"C",15,TextAnchor.MiddleCenter,Vector2.zero,Vector2.one);coinLetter.color=new Color(.52f,.29f,.05f);
+            coinLabel=Label(wallet.transform,"",16,TextAnchor.MiddleLeft,new Vector2(.40f,.38f),new Vector2(.96f,.90f));
+            coinRunLabel=Label(wallet.transform,"",10,TextAnchor.MiddleCenter,new Vector2(.05f,.02f),new Vector2(.96f,.35f));
+
             var waveBanner=Box("Событие волны",hud.transform,new Vector2(.355f,.765f),new Vector2(.645f,.85f),Color.clear);
             waveNotice=waveBanner.AddComponent<HudWaveNotice>();waveNotice.Build();
             notification=Label(hud.transform,"",20,TextAnchor.MiddleCenter,new Vector2(.20f,.60f),new Vector2(.80f,.66f));notification.color=gold;
@@ -120,6 +127,9 @@ namespace Brainrot
         void RefreshHud(GameManager gm)
         {
             var player=gm.Player;
+            if(shownCoins!=SaveSystem.Data.Coins||shownRunCoins!=gm.RunCoins){if(shownCoins>=0&&SaveSystem.Data.Coins>shownCoins)coinFlashUntil=Time.unscaledTime+.3f;shownCoins=SaveSystem.Data.Coins;shownRunCoins=gm.RunCoins;coinLabel.text=shownCoins.ToString();coinRunLabel.text="+"+shownRunCoins+" за забег";}
+            float coinPop=Mathf.Clamp01((coinFlashUntil-Time.unscaledTime)/.3f);coinLabel.transform.localScale=Vector3.one*(1+Mathf.Sin(coinPop*Mathf.PI)*.12f);coinLabel.color=Color.Lerp(CartoonUI.Cream,new Color(1,.82f,.25f),coinPop);
+
             if(player!=null){
                 int health=Mathf.CeilToInt(player.Health),maximum=Mathf.CeilToInt(player.Stats.MaxHealth);
                 if(health!=shownHealth||maximum!=shownMaxHealth){shownHealth=health;shownMaxHealth=maximum;healthText.text=$"ЗДОРОВЬЕ   {health} / {maximum}";}
@@ -160,7 +170,7 @@ namespace Brainrot
                 chargeLabel.text=chargeMode==1?"СИЛЬНЫЙ УДАР ПЕРЕЗАРЯЖАЕТСЯ":chargeMode==3?"СИЛЬНЫЙ УДАР ГОТОВ — ОТПУСТИ ЛКМ":chargeMode==2?"ЗАРЯД СИЛЬНОГО УДАРА: "+percent+"%":"";
             }
             int cameraMode=player!=null&&player.CameraLocked?1:0;
-            if(cameraMode!=shownCameraMode){shownCameraMode=cameraMode;aimHint.text=cameraMode==1?"V   КАМЕРА: ФИКС.":"V   КАМЕРА: СВОБОД.";}
+            if(cameraMode!=shownCameraMode){shownCameraMode=cameraMode;aimHint.text=cameraMode==1?"V · камера: фикс.":"V · камера: своб.";}
             if(hitVisible&&Time.unscaledTime>=hitUntil){hitVisible=false;hitMarker.text="";hitLabel.text="";}
             else if(hitVisible){
                 float alpha=Mathf.Clamp01((hitUntil-Time.unscaledTime)/.12f);
@@ -180,22 +190,21 @@ namespace Brainrot
             }
         }
         void BuildAbilityIcons(){
-            var strong=AbilityCard("Сильный удар",new Vector2(.025f,.635f),new Vector2(.097f,.79f),"HeavyCard","HeavyIcon","СИЛЬНЫЙ\nУДАР","ЛКМ\nудержать → отпустить");
+            var strong=AbilityCard("Сильный удар",new Vector2(.025f,.635f),new Vector2(.097f,.79f),"HeavyCard","HeavyIcon","СИЛЬНЫЙ\nУДАР","ЛКМ · держать");
             heavyAbility=new AbilityDisplay(CooldownShade(strong.transform),ReadyBadge(strong.transform));
             var dash=AbilityCard("Рывок",new Vector2(.025f,.455f),new Vector2(.097f,.61f),"DashCard","DashIcon","РЫВОК","ПРОБЕЛ");
             dashAbility=new AbilityDisplay(CooldownShade(dash.transform),ReadyBadge(dash.transform));
-            controlHints=Box("Клавиши под способностями",hud.transform,new Vector2(.025f,.305f),new Vector2(.182f,.425f),new Color(.035f,.16f,.20f,.86f));
-            Label(controlHints.transform,"ЛКМ   обычный удар",12,TextAnchor.MiddleLeft,new Vector2(.06f,.66f),new Vector2(.96f,.96f));
-            Label(controlHints.transform,"Shift   бег",12,TextAnchor.MiddleLeft,new Vector2(.06f,.35f),new Vector2(.96f,.65f));
-            aimHint=Label(controlHints.transform,"",11,TextAnchor.MiddleLeft,new Vector2(.06f,.04f),new Vector2(.96f,.34f));
-
+            controlHints=Box("Клавиши под способностями",hud.transform,new Vector2(.025f,.365f),new Vector2(.12f,.425f),Color.clear);
+            Label(controlHints.transform,"Shift · бег",11,TextAnchor.MiddleLeft,new Vector2(0,.52f),new Vector2(1,1));
+            aimHint=Label(controlHints.transform,"",11,TextAnchor.MiddleLeft,Vector2.zero,new Vector2(1,.49f));
         }
+
         GameObject AbilityCard(string name,Vector2 min,Vector2 max,string frame,string icon,string title,string key){
             var card=TropicalUIArt.Place(name,hud.transform,min,max,frame).gameObject;
             Label(card.transform,title,12,TextAnchor.MiddleCenter,new Vector2(.10f,.70f),new Vector2(.90f,.95f));
             if(!Application.isMobilePlatform){
-                var hint=Box("Клавиша способности",card.transform,new Vector2(1.10f,.29f),new Vector2(2.23f,.70f),new Color(.035f,.16f,.20f,.88f));
-                Label(hint.transform,key,12,TextAnchor.MiddleCenter,new Vector2(.04f,.05f),new Vector2(.96f,.95f));
+                var hint=Box("Клавиша способности",card.transform,new Vector2(.03f,-.14f),new Vector2(.97f,.025f),new Color(.035f,.16f,.20f,.88f));
+                Label(hint.transform,key,10,TextAnchor.MiddleCenter,new Vector2(.04f,.05f),new Vector2(.96f,.95f));
             }
 
             return card;
@@ -235,7 +244,7 @@ namespace Brainrot
             {
                 Title("ОСТРОВ САХУРА");
                 Label(overlay.transform,"Выживай среди акул. Держи биту крепче.",19,TextAnchor.MiddleCenter,new Vector2(.29f,.625f),new Vector2(.71f,.675f));
-                MenuButton("ПРОДОЛЖИТЬ ИГРУ",.515f,()=>gm.ResumeRun());MenuButton("НОВАЯ ИГРА",.405f,()=>gm.StartRun());MenuButton("РЕКОРДЫ",.295f,ShowRecords);MenuButton("НАСТРОЙКИ",.185f,ShowSettings);MenuButton("ВЫХОД",.075f,()=>gm.Quit());
+                MenuButton("ПРОДОЛЖИТЬ ИГРУ",.515f,()=>gm.ResumeRun());MenuButton("НОВАЯ ИГРА",.405f,()=>gm.StartRun());MenuButton("МАГАЗИН",.295f,ShowShop);MenuButton("НАСТРОЙКИ",.185f,ShowSettings);MenuButton("ВЫХОД",.075f,()=>gm.Quit());
             }
             else if(gm.State==GameState.Paused)
             {
@@ -243,10 +252,14 @@ namespace Brainrot
             }
             else if(gm.State==GameState.Dead)
             {
-                Title("ЗАБЕГ ОКОНЧЕН");
-                Label(overlay.transform,$"Выживание: {TimeLabel(gm.Elapsed)} · Волна: {gm.Wave}\nПобеждено: {gm.Kills}\n\nЛИЧНЫЙ РЕКОРД · ВОЛНА {SaveSystem.Data.BestWave}\n{TimeLabel(SaveSystem.Data.BestTime)}   /   {SaveSystem.Data.BestKills} ПОБЕД",21,TextAnchor.MiddleCenter,new Vector2(.29f,.39f),new Vector2(.71f,.66f));
-                if(gm.Goals!=null)Label(overlay.transform,"ИСПЫТАНИЯ ЗАБЕГА\n"+gm.Goals.CompletedThisRunSummary,15,TextAnchor.MiddleCenter,new Vector2(.29f,.30f),new Vector2(.71f,.385f));
-                MenuButton("ЕЩЁ ОДИН ЗАБЕГ",.19f,()=>gm.StartRun());MenuButton("ГЛАВНОЕ МЕНЮ",.075f,()=>gm.MainMenu());
+                ClearOverlay();var frame=ReferenceScreens.Panel(ReferenceScreens.Viewport(overlay.transform,"Результат забега"),"ЗАБЕГ ОКОНЧЕН",.28f,.10f,.44f,.81f);
+                ReferenceScreens.SeaText(frame,$"ВОЛНА {gm.Wave}  ·  {TimeLabel(gm.Elapsed)}  ·  ПОБЕД {gm.Kills}",20,.08f,.23f,.84f,.07f);
+                ReferenceScreens.SeaText(frame,$"СОБРАНО МОНЕТ: +{gm.RunCoins}\nВ КОШЕЛЬКЕ: {SaveSystem.Data.Coins}",25,.08f,.32f,.84f,.13f);
+                ReferenceScreens.SeaText(frame,"ЛИЧНЫЙ РЕКОРД · ВОЛНА "+SaveSystem.Data.BestWave,16,.08f,.475f,.84f,.05f);
+                var shop=ReferenceScreens.SeaButton(frame,"МАГАЗИН УЛУЧШЕНИЙ",.10f,.57f,.80f,.10f,ShowShop,22,true);
+                ReferenceScreens.SeaButton(frame,"НОВЫЙ ЗАБЕГ",.10f,.70f,.80f,.09f,()=>gm.StartRun(),21);
+                ReferenceScreens.SeaButton(frame,"ГЛАВНОЕ МЕНЮ",.10f,.82f,.80f,.09f,()=>gm.MainMenu(),20);
+                if(EventSystem.current!=null)EventSystem.current.SetSelectedGameObject(shop.gameObject);
             }
             else if(gm.State==GameState.Upgrade)
             {
@@ -278,6 +291,10 @@ namespace Brainrot
             Label(overlay.transform,$"ВРЕМЯ ВЫЖИВАНИЯ    {TimeLabel(d.BestTime)}\n\nПОБЕЖДЕНО ВРАГОВ    {d.BestKills}",29,TextAnchor.MiddleCenter,new Vector2(.29f,.33f),new Vector2(.71f,.66f));MenuButton("НАЗАД",.16f,BuildScreen);
         }
         void ClearOverlay(){foreach(Transform child in overlay.transform){child.gameObject.SetActive(false);Destroy(child.gameObject);}}
+        void ShowShop(){
+            var gm=GameManager.Instance;if(gm==null||gm.State!=GameState.Dead&&gm.State!=GameState.Menu)return;
+            ClearOverlay();ShopScreen.Show(ReferenceScreens.Viewport(overlay.transform,"Магазин 16:9"),BuildScreen,gm.CanContinue);
+        }
         void ShowSettings()
         {
             ClearOverlay();screenShade.color=new Color(.025f,.04f,.065f,.42f);

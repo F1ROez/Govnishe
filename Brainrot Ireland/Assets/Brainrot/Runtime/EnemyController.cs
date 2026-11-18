@@ -325,6 +325,7 @@ namespace Brainrot
             if(orcaladon!=null)orcaladon.ResetAttack();
             HitEffects.Burst(transform.position + Vector3.up, Skin(Kind), 8);
             GameManager.Instance.Reward(Mathf.Max(0, tuning.Experience), 1);
+            if(game!=null&&game.IsPlaying)game.Coins?.Drop(Kind,transform.position,game.Kills);
             Vector3 launch=knockback.sqrMagnitude>.01f?knockback:(transform.position-GameManager.Instance.Player.transform.position).normalized*3;
             PhysicsBody.Launch(launch,true);owner.Killed(this);
         }

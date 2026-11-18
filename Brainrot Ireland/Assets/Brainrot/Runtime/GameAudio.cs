@@ -10,8 +10,8 @@ namespace Brainrot
         readonly AudioSource[] voices=new AudioSource[VoiceCount];
         readonly double[] started=new double[VoiceCount];
         AudioSource charge;
-        AudioClip legacy,swing,heavySwing,hit,heavyHit,chargeLoop,waveStart,waveDone,challenge,healing;
-        float chargeTarget,chargePitch;
+        AudioClip legacy,swing,heavySwing,hit,heavyHit,chargeLoop,waveStart,waveDone,challenge,healing,coin;
+        float chargeTarget,chargePitch,lastCoinAt,coinPitch=1;
         int priorityCursor;
         public static GameAudio Instance=>instance;
         public static void Prewarm(){Ensure();}
@@ -35,7 +35,7 @@ namespace Brainrot
             hit=Create("Деревянный удар",.16f,3);heavyHit=Create("Тяжёлый удар",.32f,4);
             chargeLoop=Create("Петля подготовки",.4f,5);
             waveStart=Create("Начало волны",.42f,6);waveDone=Create("Волна завершена",.55f,7);challenge=Create("Испытание выполнено",.62f,8);
-            healing=Create("Подбор сердечка",.28f,9);charge.clip=chargeLoop;
+            coin=Create("Звон монеты",.13f,10);healing=Create("Подбор сердечка",.28f,9);charge.clip=chargeLoop;
         }
         AudioSource Source(string title)
         {
@@ -55,6 +55,7 @@ namespace Brainrot
                     case 4:sample=(Mathf.Sin(2*Mathf.PI*(92*t-38*t*t))*.7f+Mathf.Sin(2*Mathf.PI*220*t)*.15f+low*.8f+noise*.16f)*Mathf.Exp(-p*7)*Mathf.Min(1,p*60);break;
                     // Integer periods and equal end envelopes avoid clicks at the loop seam.
                     case 5:sample=(Mathf.Sin(2*Mathf.PI*140*t)*.45f+Mathf.Sin(2*Mathf.PI*210*t)*.12f)*(.9f+.1f*Mathf.Cos(2*Mathf.PI*2.5f*t));break;
+                    case 10:sample=(Mathf.Sin(2*Mathf.PI*1245*t)*.4f+Mathf.Sin(2*Mathf.PI*2490*t)*.15f)*Mathf.Exp(-p*5)*Mathf.Min(1,p*30);break;
                     case 9:sample=(Mathf.Sin(2*Mathf.PI*(660*t+540*t*t))*.5f+Mathf.Sin(2*Mathf.PI*1320*t)*.12f)*envelope*(1-p);break;
                     case 6:case 7:case 8:
                         int step=Mathf.Min(style==6?1:2,Mathf.FloorToInt(p*(style==6?2:3)));
@@ -102,6 +103,7 @@ namespace Brainrot
         }
         public static void EndCharge(){if(instance==null||instance.charge==null)return;instance.chargeTarget=0;instance.charge.volume=0;instance.charge.Stop();}
         public static void PlayWave(bool complete=false){var audio=Ensure();if(audio!=null)audio.Emit(complete?audio.waveDone:audio.waveStart,.24f);}
+        public static void PlayCoin(){var audio=Ensure();if(audio==null)return;audio.coinPitch=Time.unscaledTime-audio.lastCoinAt<.5f?Mathf.Min(1.4f,audio.coinPitch+.055f):1;audio.lastCoinAt=Time.unscaledTime;audio.Emit(audio.coin,.16f,audio.coinPitch);}
         public static void PlayHealing(){var audio=Ensure();if(audio!=null)audio.Emit(audio.healing,.24f);}
         public static void PlayChallenge(){var audio=Ensure();if(audio!=null)audio.Emit(audio.challenge,.26f);}
         public static void StopGameplayEffects()
@@ -116,7 +118,7 @@ namespace Brainrot
         void OnDestroy()
         {
             if(instance!=this)return;instance=null;
-            foreach(var clip in new[]{legacy,swing,heavySwing,hit,heavyHit,chargeLoop,waveStart,waveDone,challenge,healing})if(clip!=null)Destroy(clip);
+            foreach(var clip in new[]{legacy,swing,heavySwing,hit,heavyHit,chargeLoop,waveStart,waveDone,challenge,healing,coin})if(clip!=null)Destroy(clip);
         }
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]static void ResetStatic(){instance=null;}
     }

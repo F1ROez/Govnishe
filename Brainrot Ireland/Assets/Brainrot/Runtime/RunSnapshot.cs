@@ -8,6 +8,8 @@ namespace Brainrot
         public int Version=CurrentVersion;
         public float Elapsed;
         public int Kills;
+        public string CoinRunId;
+        public CoinDropSnapshot[] Coins=Array.Empty<CoinDropSnapshot>();
         public int ChallengeMaskEarnedThisRun;
         public PlayerRunSnapshot Player;
         public WaveRunSnapshot Wave;
@@ -16,6 +18,7 @@ namespace Brainrot
     }
     [Serializable] public sealed class PlayerRunSnapshot
     {
+        public PlayerStats StartingStats;
         public Vector3 Position;
         public float RotationYaw,CameraYaw,CameraPitch,Health,Stamina,DashCooldown,HeavyCooldown;
     }

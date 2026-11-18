@@ -7,6 +7,11 @@ namespace Brainrot
     [Serializable]
     public sealed class SaveData
     {
+        public int Coins;
+        public int[] UpgradeRanks=Array.Empty<int>();
+        public string CoinRunId="";
+        public int CoinRunEarned;
+        public int[] ClaimedCoinIds=Array.Empty<int>();
         public float BestTime;
         public int BestKills;
         public int BestLevel;
@@ -51,7 +56,7 @@ namespace Brainrot
         {
             try
             {
-                if (!File.Exists(path) || new FileInfo(path).Length>64*1024) return false;
+                if (!File.Exists(path) || new FileInfo(path).Length>512*1024) return false;
                 string json = File.ReadAllText(path);
                 if (string.IsNullOrWhiteSpace(json) || !json.TrimStart().StartsWith("{")) return false;
                 var restored = JsonUtility.FromJson<SaveData>(json);
@@ -70,7 +75,10 @@ namespace Brainrot
             }
         }
 
-        public static void Save()
+        public static void Save(){TrySave();}
+
+        /// <summary>Returns success so wallet transactions can roll back after a storage error.</summary>
+        public static bool TrySave()
         {
             try
             {
@@ -79,6 +87,7 @@ namespace Brainrot
                 Directory.CreateDirectory(Path.GetDirectoryName(path));
                 string temporary = path + ".tmp";
                 byte[] bytes=System.Text.Encoding.UTF8.GetBytes(JsonUtility.ToJson(Data, true));
+                if(bytes.Length>512*1024){Debug.LogWarning("Сохранение превышает допустимый размер.");return false;}
                 using(var stream=new FileStream(temporary,FileMode.Create,FileAccess.Write,FileShare.None)){
                     stream.Write(bytes,0,bytes.Length);stream.Flush(true);
                 }
@@ -96,10 +105,12 @@ namespace Brainrot
                     }
                 }
                 else File.Move(temporary, path);
+                return true;
             }
             catch (Exception exception) when (exception is IOException || exception is UnauthorizedAccessException || exception is ArgumentException)
             {
                 Debug.LogWarning("Не удалось записать сохранение: " + exception.Message);
+                return false;
             }
             finally
             {
@@ -111,7 +122,7 @@ namespace Brainrot
         static bool IsReadableProfile(string path)
         {
             try{
-                if(!File.Exists(path)||new FileInfo(path).Length>64*1024)return false;
+                if(!File.Exists(path)||new FileInfo(path).Length>512*1024)return false;
                 string json=File.ReadAllText(path);
                 return !string.IsNullOrWhiteSpace(json)&&json.TrimStart().StartsWith("{")&&JsonUtility.FromJson<SaveData>(json)!=null;
             }
@@ -129,6 +140,7 @@ namespace Brainrot
 
         private static void Sanitize()
         {
+            MetaProgression.Sanitize(Data);
             Data.BestTime = Finite(Data.BestTime) ? Mathf.Max(0, Data.BestTime) : 0;
             Data.BestKills = Mathf.Max(0, Data.BestKills);
             Data.BestLevel = Mathf.Max(0, Data.BestLevel);

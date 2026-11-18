@@ -80,6 +80,16 @@ namespace Brainrot
             if(s==null||s.Version!=RunSnapshot.CurrentVersion||!Finite(s.Elapsed,0,31536000)||s.Kills<0||s.Player==null||s.Wave==null||s.Spawner==null)return false;
             var p=s.Player;
             if(!Position(p.Position,40)||!Finite(p.Health,.001f,1000000)||!Finite(p.Stamina,0,1000000)||!Angle(p.RotationYaw)||!Angle(p.CameraYaw)||!Angle(p.CameraPitch)||!Finite(p.DashCooldown,0,86400)||!Finite(p.HeavyCooldown,0,86400))return false;
+            if(p.StartingStats!=null){
+                var stats=p.StartingStats;
+                if(!Finite(stats.Damage,0,1000000)||!Finite(stats.AttackInterval,.01f,60)||!Finite(stats.MaxHealth,1,1000000)||!Finite(stats.MoveSpeed,.01f,100)||!Finite(stats.Range,.01f,100)||!Finite(stats.DashCooldown,.01f,86400)||!Finite(stats.CritChance,0,1)||!Finite(stats.Regen,0,1000000)||!Finite(stats.Lifesteal,0,100)||!Finite(stats.FireDamage,0,1000000)||!Finite(stats.Shockwave,0,1000000)||stats.ExtraStrikes<0||stats.ExtraStrikes>100)return false;
+            }
+            if(s.CoinRunId!=null&&s.CoinRunId.Length>64)return false;
+            if(s.Coins!=null){
+                if(s.Coins.Length>CoinDrops.Capacity)return false;
+                var ids=new System.Collections.Generic.HashSet<int>();
+                foreach(var coin in s.Coins)if(coin==null||string.IsNullOrEmpty(s.CoinRunId)||coin.Id<1||coin.Id>s.Kills||coin.Amount<1||coin.Amount>100||!Position(coin.Position,40)||!ids.Add(coin.Id))return false;
+            }
             var w=s.Wave;
             if(w.Number<1||w.Number>1000000||!Finite(w.Time,0,86400)||!Finite(w.RestTime,0,86400)||w.WaitingForClear&&!w.Resting)return false;
             var spawn=s.Spawner;
