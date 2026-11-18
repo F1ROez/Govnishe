@@ -97,6 +97,17 @@ namespace Brainrot.Tests
             }
             HitEffects.ClearAll();
         }
+        [UnityTest] public IEnumerator HoldingDuringCooldownCannotChargeOrFallBackToOrdinarySwing()
+        {
+            var combat=game.Player.Combat;combat.RestoreHeavyCooldown(.35f);combat.UpdateAttackInput(false);
+            yield return new WaitForSeconds(.21f);combat.UpdateAttackInput(true);
+            yield return new WaitForSeconds(.19f);combat.UpdateAttackInput(true);
+            Assert.IsFalse(combat.IsCharging);Assert.AreEqual(0,combat.ChargeProgress);Assert.IsTrue(combat.HeavyCooldownNotice);
+            combat.UpdateAttackInput(false);Assert.IsFalse(combat.IsAttacking);
+            combat.RestoreHeavyCooldown(10);combat.UpdateAttackInput(false);
+            yield return new WaitForSeconds(.21f);combat.UpdateAttackInput(true);combat.UpdateAttackInput(false);
+            Assert.IsTrue(combat.IsAttacking,"Короткий клик остаётся обычным ударом во время перезарядки.");
+        }
         [UnityTest] public IEnumerator ShortClickBuffersOnceAndCancellationDropsIt()
         {
             var combat=game.Player.Combat;combat.UpdateAttackInput(false);

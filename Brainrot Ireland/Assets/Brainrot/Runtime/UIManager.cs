@@ -153,11 +153,11 @@ namespace Brainrot
             SetActive(tutorialPanel,guidance&&!string.IsNullOrEmpty(hint));SetActive(questBoard,guidance);
             if(player!=null){heavyAbility.Update(player.Combat.HeavyCooldownRemaining,player.Combat.HeavyCooldownDuration);dashAbility.Update(player.DashCooldownRemaining,player.DashCooldownDuration);}
             var combat=player!=null?player.Combat:null;
-            int chargeMode=combat==null||!combat.IsCharging?0:!combat.HeavyReady?1:combat.ChargeProgress>=1?3:2;
+            int chargeMode=combat==null?0:combat.HeavyCooldownNotice?1:!combat.IsCharging?0:combat.ChargeProgress>=1?3:2;
             int percent=chargeMode==2?Mathf.RoundToInt(combat.ChargeProgress*100):0;
             if(chargeMode!=shownChargeMode||percent!=shownChargePercent){
                 shownChargeMode=chargeMode;shownChargePercent=percent;
-                chargeLabel.text=chargeMode==1?"СИЛЬНЫЙ УДАР ВОССТАНАВЛИВАЕТСЯ — ОБЫЧНАЯ АТАКА":chargeMode==3?"СИЛЬНЫЙ УДАР ГОТОВ — ОТПУСТИ ЛКМ":chargeMode==2?"ЗАРЯД СИЛЬНОГО УДАРА: "+percent+"%":"";
+                chargeLabel.text=chargeMode==1?"СИЛЬНЫЙ УДАР ПЕРЕЗАРЯЖАЕТСЯ":chargeMode==3?"СИЛЬНЫЙ УДАР ГОТОВ — ОТПУСТИ ЛКМ":chargeMode==2?"ЗАРЯД СИЛЬНОГО УДАРА: "+percent+"%":"";
             }
             int cameraMode=player!=null&&player.CameraLocked?1:0;
             if(cameraMode!=shownCameraMode){shownCameraMode=cameraMode;aimHint.text=cameraMode==1?"V   КАМЕРА: ФИКС.":"V   КАМЕРА: СВОБОД.";}

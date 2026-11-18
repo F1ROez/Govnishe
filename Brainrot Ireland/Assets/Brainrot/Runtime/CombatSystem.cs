@@ -5,8 +5,10 @@ namespace Brainrot {
   struct PendingContact {public float Time,Power;public bool Heavy;}
   readonly List<PendingContact> contacts=new List<PendingContact>(16);
   PlayerController player;CharacterVisual visual;AttackRangeVisual rangeVisual;
-  float nextAttack,nextHeavyAttack,chargeStarted,bufferUntil;bool charging,inputSuppressed,chargeReadyEffect,bufferedAttack,bufferedHeavy;
-  public bool IsCharging=>charging&&Time.time-chargeStarted>=HoldDelay;
+  float nextAttack,nextHeavyAttack,chargeStarted,bufferUntil;bool charging,inputSuppressed,chargeReadyEffect,bufferedAttack,bufferedHeavy,holdBlocked;
+  float cooldownNoticeUntil;
+  public bool HeavyCooldownNotice=>Time.time<cooldownNoticeUntil;
+  public bool IsCharging=>charging&&!holdBlocked&&HeavyReady&&Time.time-chargeStarted>=HoldDelay;
   float HoldDelay=>Mathf.Clamp(GameBalance.Current.Combat.HeavyHoldDelay,0,.35f);
   public float HeavyCooldownRemaining=>Mathf.Max(0,nextHeavyAttack-Time.time);
   public float HeavyCooldownDuration=>Mathf.Max(.1f,GameBalance.Current.Combat.StrongCooldownSeconds);
@@ -15,7 +17,7 @@ namespace Brainrot {
   public bool IsAttacking=>visual!=null&&visual.AttackActive;
   public void Initialize(PlayerController p,CharacterVisual v){player=p;visual=v;}
   public void SetRangeVisual(AttackRangeVisual value){rangeVisual=value;}
-  public void CancelPendingSwings(){contacts.Clear();bufferedAttack=false;bufferUntil=0;charging=false;chargeReadyEffect=false;inputSuppressed=true;GameAudio.EndCharge();player?.ResetCombatCamera();if(visual!=null)visual.ResetAttack();}
+  public void CancelPendingSwings(){contacts.Clear();bufferedAttack=false;bufferUntil=0;charging=false;holdBlocked=false;cooldownNoticeUntil=0;chargeReadyEffect=false;inputSuppressed=true;GameAudio.EndCharge();player?.ResetCombatCamera();if(visual!=null)visual.ResetAttack();}
   public void ResetRun(){nextAttack=nextHeavyAttack=0;CancelPendingSwings();}
   public void RestoreHeavyCooldown(float remaining){CancelPendingSwings();nextAttack=Time.time+.2f;nextHeavyAttack=Time.time+Mathf.Clamp(float.IsNaN(remaining)||float.IsInfinity(remaining)?0:remaining,0,HeavyCooldownDuration);}
   public void UpdateAttackInput(bool held,bool pressed=false,bool released=false){
@@ -23,16 +25,19 @@ namespace Brainrot {
    if(inputSuppressed){if(!held)inputSuppressed=false;return;}
    if(bufferedAttack){
     if(Time.time>bufferUntil)bufferedAttack=false;
-    else if(Time.time>=nextAttack){bool requestedHeavy=bufferedHeavy;bufferedAttack=false;ExecuteAttack(requestedHeavy&&HeavyReady);}
+    else if(Time.time>=nextAttack){bool requestedHeavy=bufferedHeavy;bufferedAttack=false;if(!requestedHeavy||HeavyReady)ExecuteAttack(requestedHeavy);}
    }
    float window=Mathf.Clamp(GameBalance.Current.Combat.InputBufferSeconds,0,.25f);
    if((held||pressed)&&!charging&&Time.time>=nextAttack-window){
-    charging=true;chargeStarted=Time.time;chargeReadyEffect=false;
+    charging=true;chargeStarted=Time.time;chargeReadyEffect=false;holdBlocked=!HeavyReady;
    }
+   if(charging&&Time.time-chargeStarted>=HoldDelay&&(holdBlocked||!HeavyReady)){holdBlocked=true;cooldownNoticeUntil=Time.time+.8f;}
    // Input is sampled immediately; poses wait until the previous swing has recovered.
    if(held&&IsCharging&&Time.time>=nextAttack){if(HeavyReady&&(GameAudio.Instance==null||!GameAudio.Instance.Charging))GameAudio.BeginCharge();visual.SetChargePose(ChargeProgress,HeavyReady);GameAudio.SetCharge(ChargeProgress,HeavyReady);if(HeavyReady&&ChargeProgress>=1&&!chargeReadyEffect){chargeReadyEffect=true;visual.ChargeReady();}}
    if(charging&&(!held||released)){
+    bool blocked=Time.time-chargeStarted>=HoldDelay&&(holdBlocked||!HeavyReady);
     bool heavy=ChargeProgress>=1&&HeavyReady;charging=false;GameAudio.EndCharge();
+    if(blocked){cooldownNoticeUntil=Time.time+.8f;if(!visual.AttackActive)visual.SetChargePose(0,false);return;}
     if(!ExecuteAttack(heavy)){
      if(Time.time<nextAttack&&nextAttack-Time.time<=window){bufferedAttack=true;bufferedHeavy=heavy;bufferUntil=Time.time+window;}
      if(!visual.AttackActive)visual.SetChargePose(0,false);
