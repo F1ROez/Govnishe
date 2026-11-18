@@ -6,11 +6,12 @@ namespace Brainrot {
   readonly List<PendingContact> contacts=new List<PendingContact>(16);
   PlayerController player;CharacterVisual visual;AttackRangeVisual rangeVisual;
   float nextAttack,nextHeavyAttack,chargeStarted,bufferUntil;bool charging,inputSuppressed,chargeReadyEffect,bufferedAttack,bufferedHeavy;
-  public bool IsCharging=>charging;
+  public bool IsCharging=>charging&&Time.time-chargeStarted>=HoldDelay;
+  float HoldDelay=>Mathf.Clamp(GameBalance.Current.Combat.HeavyHoldDelay,0,.35f);
   public float HeavyCooldownRemaining=>Mathf.Max(0,nextHeavyAttack-Time.time);
   public float HeavyCooldownDuration=>Mathf.Max(.1f,GameBalance.Current.Combat.StrongCooldownSeconds);
   public bool HeavyReady=>HeavyCooldownRemaining<=0;
-  public float ChargeProgress=>charging?Mathf.Clamp01((Time.time-chargeStarted)/Mathf.Max(.2f,GameBalance.Current.Combat.HeavyChargeSeconds)):0;
+  public float ChargeProgress=>IsCharging?Mathf.Clamp01((Time.time-chargeStarted-HoldDelay)/Mathf.Max(.2f,GameBalance.Current.Combat.HeavyChargeSeconds)):0;
   public bool IsAttacking=>visual!=null&&visual.AttackActive;
   public void Initialize(PlayerController p,CharacterVisual v){player=p;visual=v;}
   public void SetRangeVisual(AttackRangeVisual value){rangeVisual=value;}
@@ -26,10 +27,10 @@ namespace Brainrot {
    }
    float window=Mathf.Clamp(GameBalance.Current.Combat.InputBufferSeconds,0,.25f);
    if((held||pressed)&&!charging&&Time.time>=nextAttack-window){
-    charging=true;chargeStarted=Time.time;chargeReadyEffect=false;if(HeavyReady)GameAudio.BeginCharge();
+    charging=true;chargeStarted=Time.time;chargeReadyEffect=false;
    }
    // Input is sampled immediately; poses wait until the previous swing has recovered.
-   if(held&&charging&&Time.time>=nextAttack){visual.SetChargePose(ChargeProgress,HeavyReady);GameAudio.SetCharge(ChargeProgress,HeavyReady);if(HeavyReady&&ChargeProgress>=1&&!chargeReadyEffect){chargeReadyEffect=true;visual.ChargeReady();}}
+   if(held&&IsCharging&&Time.time>=nextAttack){if(HeavyReady&&(GameAudio.Instance==null||!GameAudio.Instance.Charging))GameAudio.BeginCharge();visual.SetChargePose(ChargeProgress,HeavyReady);GameAudio.SetCharge(ChargeProgress,HeavyReady);if(HeavyReady&&ChargeProgress>=1&&!chargeReadyEffect){chargeReadyEffect=true;visual.ChargeReady();}}
    if(charging&&(!held||released)){
     bool heavy=ChargeProgress>=1&&HeavyReady;charging=false;GameAudio.EndCharge();
     if(!ExecuteAttack(heavy)){

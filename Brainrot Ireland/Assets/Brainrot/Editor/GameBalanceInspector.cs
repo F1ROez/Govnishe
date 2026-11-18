@@ -29,7 +29,7 @@ namespace Brainrot.Editor
             {"Stamina","Выносливость"},{"Maximum","Максимум выносливости"},{"DrainPerSecond","Расход при беге за секунду"},{"RestorePerSecond","Восстановление за секунду"},{"RestoreDelay","Задержка восстановления"},{"RestartThreshold","Выносливость для повторного бега"},{"DeathBodyLifetime","Время жизни тела погибшего, с"},
             {"Waves","Волны врагов"},{"Bodies","Физика и тела"},
             {"StrongDamageMultiplier","Множитель урона сильного удара"},{"StrongCooldownSeconds","Перезарядка сильного удара, с"},
-            {"HeavyChargeSeconds","Заряд сильной атаки, с"},{"HeavyDamageMultiplier","Множитель урона сильной атаки"},{"HeavyCooldownMultiplier","Перезарядка сильной атаки"},
+            {"HeavyHoldDelay","Задержка перед зарядом сильного удара, с"},{"HeavyChargeSeconds","Заряд сильной атаки, с"},{"HeavyDamageMultiplier","Множитель урона сильной атаки"},{"HeavyCooldownMultiplier","Перезарядка сильной атаки"},
             {"Duration","Длительность волны, с"},{"Rest","Передышка между волнами, с"},{"SlowInterval","Интервал появления по краям волны, с"},{"PeakInterval","Интервал на пике волны, с"},{"InitialDelay","Задержка первого появления, с"},
             {"EdgeAliveLimit","Лимит живых врагов по краям"},{"PeakAliveLimit","Лимит на пике"},{"ExtraAlivePerWave","Прибавка лимита каждой волны"},
             {"TumbleSeconds","Время кувырка живого врага, с"},{"CorpseSeconds","Время сохранения тела, с"},{"LaunchSpeed","Скорость отбрасывания"},{"UpSpeed","Подброс вверх"},{"Spin","Сила вращения"},{"ChainPush","Передача толчка другим врагам"},{"MaxCorpsesPC","Максимум тел на ПК"},{"MaxCorpsesMobile","Максимум тел на телефоне"},

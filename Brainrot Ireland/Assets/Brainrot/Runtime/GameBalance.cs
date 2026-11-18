@@ -152,6 +152,7 @@ namespace Brainrot
         [Range(0,5)]public float KnockbackMultiplier=2;
         [Range(.15f,.6f)]public float SwingDuration=.32f;
         [Range(0,.2f)]public float ImpactDelay=.09f;
+        [Range(0,.35f),Tooltip("Удержание до начала замаха и приближения камеры.")]public float HeavyHoldDelay=.16f;
         [Min(.2f)]public float HeavyChargeSeconds=.6f;
         [Range(0,.25f),Tooltip("Короткий буфер отпущенного удара перед окончанием восстановления, с. Сбрасывается на паузе/захвате.")]public float InputBufferSeconds=.16f;
         [Min(1)]public float StrongDamageMultiplier=2.5f;
