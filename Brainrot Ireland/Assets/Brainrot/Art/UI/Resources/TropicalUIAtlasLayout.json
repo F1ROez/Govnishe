@@ -294,6 +294,204 @@
       "width": 1672,
       "height": 941,
       "border": 0
+    },
+    {
+      "name": "IslandSandPanel",
+      "resource": "IslandMenuAtlas",
+      "x": 0,
+      "y": 58,
+      "width": 584,
+      "height": 632,
+      "border": 125
+    },
+    {
+      "name": "IslandTitle",
+      "resource": "IslandMenuAtlas",
+      "x": 584,
+      "y": 58,
+      "width": 670,
+      "height": 267,
+      "border": 0
+    },
+    {
+      "name": "IslandPrimary",
+      "resource": "IslandMenuAtlas",
+      "x": 584,
+      "y": 340,
+      "width": 670,
+      "height": 184,
+      "border": 0
+    },
+    {
+      "name": "IslandSecondary",
+      "resource": "IslandMenuAtlas",
+      "x": 600,
+      "y": 539,
+      "width": 632,
+      "height": 124,
+      "border": 55
+    },
+    {
+      "name": "IslandTeal",
+      "resource": "IslandMenuAtlas",
+      "x": 18,
+      "y": 706,
+      "width": 581,
+      "height": 148,
+      "border": 65
+    },
+    {
+      "name": "IslandSwitchOn",
+      "resource": "IslandMenuAtlas",
+      "x": 619,
+      "y": 708,
+      "width": 306,
+      "height": 151,
+      "border": 0
+    },
+    {
+      "name": "IslandSwitchOff",
+      "resource": "IslandMenuAtlas",
+      "x": 932,
+      "y": 708,
+      "width": 314,
+      "height": 151,
+      "border": 0
+    },
+    {
+      "name": "IslandBat",
+      "resource": "IslandMenuAtlas",
+      "x": 0,
+      "y": 868,
+      "width": 317,
+      "height": 337,
+      "border": 0
+    },
+    {
+      "name": "IslandHealth",
+      "resource": "IslandMenuAtlas",
+      "x": 318,
+      "y": 868,
+      "width": 308,
+      "height": 337,
+      "border": 0
+    },
+    {
+      "name": "IslandShoe",
+      "resource": "IslandMenuAtlas",
+      "x": 627,
+      "y": 868,
+      "width": 306,
+      "height": 337,
+      "border": 0
+    },
+    {
+      "name": "IslandStopwatch",
+      "resource": "IslandMenuAtlas",
+      "x": 934,
+      "y": 868,
+      "width": 320,
+      "height": 337,
+      "border": 0
+    },
+    {
+      "name": "IslandCard",
+      "resource": "IslandControlsAtlas",
+      "x": 8,
+      "y": 24,
+      "width": 720,
+      "height": 460,
+      "border": 48
+    },
+    {
+      "name": "IslandTrophy",
+      "resource": "IslandControlsAtlas",
+      "x": 731,
+      "y": 58,
+      "width": 512,
+      "height": 395,
+      "border": 0
+    },
+    {
+      "name": "IslandCoin",
+      "resource": "IslandControlsAtlas",
+      "x": 43,
+      "y": 500,
+      "width": 300,
+      "height": 294,
+      "border": 0
+    },
+    {
+      "name": "IslandShellKnob",
+      "resource": "IslandControlsAtlas",
+      "x": 392,
+      "y": 535,
+      "width": 227,
+      "height": 227,
+      "border": 0
+    },
+    {
+      "name": "IslandWaveLeft",
+      "resource": "IslandControlsAtlas",
+      "x": 628,
+      "y": 536,
+      "width": 290,
+      "height": 230,
+      "border": 0
+    },
+    {
+      "name": "IslandWaveRight",
+      "resource": "IslandControlsAtlas",
+      "x": 938,
+      "y": 536,
+      "width": 308,
+      "height": 230,
+      "border": 0
+    },
+    {
+      "name": "IslandSliderTrack",
+      "resource": "IslandControlsAtlas",
+      "x": 26,
+      "y": 795,
+      "width": 1205,
+      "height": 117,
+      "border": 55
+    },
+    {
+      "name": "IslandSliderFill",
+      "resource": "IslandControlsAtlas",
+      "x": 28,
+      "y": 915,
+      "width": 1200,
+      "height": 118,
+      "border": 55
+    },
+    {
+      "name": "IslandSlogan",
+      "resource": "IslandControlsAtlas",
+      "x": 18,
+      "y": 1034,
+      "width": 1228,
+      "height": 220,
+      "border": 95
+    },
+    {
+      "name": "IslandMenuScene",
+      "resource": "IslandMenuBackdrop",
+      "x": 0,
+      "y": 0,
+      "width": 1672,
+      "height": 941,
+      "border": 0
+    },
+    {
+      "name": "IslandSandTile",
+      "resource": "IslandControlsAtlas",
+      "x": 65,
+      "y": 100,
+      "width": 590,
+      "height": 220,
+      "border": 0
     }
   ]
 }

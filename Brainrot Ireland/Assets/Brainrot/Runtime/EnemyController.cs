@@ -25,6 +25,9 @@ namespace Brainrot
         public EnemyPhysicsBody PhysicsBody {get;private set;}
         EnemySpawner owner;OctopusAttack octopus;OrcaladonAttack orcaladon;
         CharacterVisual visual;
+        CapsuleCollider capsule;
+        ImportedEnemyVisual importedVisual;
+        float fallbackHeight,fallbackFloor;
         EnemyTelegraph telegraph;
         EnemyTuning tuning;
         float speed, damage, stateClock, attackClock, chargeClock, restoredGrace;
@@ -51,7 +54,8 @@ namespace Brainrot
         {
             this.owner = owner; Kind = kind;
             if(PhysicsBody==null)PhysicsBody=gameObject.AddComponent<EnemyPhysicsBody>();PhysicsBody.ResetBody();
-            var capsule=GetComponent<CapsuleCollider>();if(capsule!=null){capsule.radius=kind==EnemyKind.Orcaladon?Mathf.Max(.1f,GameBalance.Current.Orcaladon.CollisionRadius):.55f;capsule.height=kind==EnemyKind.Orcaladon?Mathf.Max(3.4f,capsule.radius*2):2;capsule.center=Vector3.up*capsule.height*.5f;}
+            if(capsule==null)capsule=GetComponent<CapsuleCollider>();
+            if(capsule!=null){capsule.radius=kind==EnemyKind.Orcaladon?Mathf.Max(.1f,GameBalance.Current.Orcaladon.CollisionRadius):.55f;capsule.height=kind==EnemyKind.Orcaladon?Mathf.Max(Mathf.Max(.5f,GameBalance.Current.Orcaladon.ModelHeight),capsule.radius*2):2;capsule.center=Vector3.up*capsule.height*.5f;}
             tuning = GameBalance.Current.Enemy(kind);
             HomeZone = IslandMap.GetZone(position);
             HomePosition = position;
@@ -60,8 +64,12 @@ namespace Brainrot
             MaxHealth = Health = Mathf.Max(1, tuning.Health) * Mathf.Max(1, difficulty);
             speed = Mathf.Max(.1f, tuning.Speed);
             damage = Mathf.Max(0, tuning.Damage) * Mathf.Sqrt(Mathf.Max(1, difficulty));
-            if (visual == null) visual = CharacterVisual.CreateEnemy(transform, kind, Skin(kind), Size(kind));
-            visual.transform.localScale=Vector3.one*Size(kind)*Mathf.Max(.1f,GameBalance.Current.EnemyModelScale)*Mathf.Max(.1f,tuning.ModelScale);
+            if (visual == null){
+                visual = CharacterVisual.CreateEnemy(transform, kind, Skin(kind), Size(kind));
+                importedVisual=visual.GetComponent<ImportedEnemyVisual>();
+                if(kind==EnemyKind.Orcaladon&&importedVisual==null)MeasureFallbackHeight();
+            }
+            ApplyVisualScale();
             if (telegraph == null) telegraph = new EnemyTelegraph(transform);
             committedDirection = transform.forward;
             knockVelocity = Vector3.zero;
@@ -85,7 +93,37 @@ namespace Brainrot
                 default: return new Color(.23f,.65f,.95f);
             }
         }
-        void LateUpdate(){if(visual!=null&&tuning!=null)visual.transform.localScale=Vector3.one*Size(Kind)*Mathf.Max(.1f,GameBalance.Current.EnemyModelScale)*Mathf.Max(.1f,tuning.ModelScale);}
+        void LateUpdate(){
+            ApplyVisualScale();
+            if(Kind==EnemyKind.Orcaladon&&capsule!=null){
+                float height=Mathf.Max(Mathf.Max(.5f,GameBalance.Current.Orcaladon.ModelHeight),capsule.radius*2);
+                if(!Mathf.Approximately(capsule.height,height)){capsule.height=height;capsule.center=Vector3.up*height*.5f;}
+            }
+        }
+        void ApplyVisualScale(){
+            if(visual==null||tuning==null)return;
+            float scale=Size(Kind)*Mathf.Max(.1f,GameBalance.Current.EnemyModelScale)*Mathf.Max(.1f,tuning.ModelScale);
+            if(Kind==EnemyKind.Orcaladon&&importedVisual==null&&fallbackHeight>.0001f){
+                scale*=Mathf.Max(.5f,GameBalance.Current.Orcaladon.ModelHeight)/fallbackHeight;
+                visual.transform.localPosition=Vector3.up*(-fallbackFloor*scale);
+            }
+            visual.transform.localScale=Vector3.one*scale;
+        }
+        void MeasureFallbackHeight(){
+            // The temporary procedural shark has a different native height from the real rig.
+            // Measure it once rather than letting its old 1.7 multiplier create another giant.
+            visual.transform.localScale=Vector3.one;
+            float low=float.PositiveInfinity,high=float.NegativeInfinity;
+            foreach(var renderer in visual.GetComponentsInChildren<Renderer>(true)){
+                if(renderer is TrailRenderer||renderer is LineRenderer)continue;
+                var bounds=renderer.bounds;
+                for(int c=0;c<8;c++){
+                    float y=transform.InverseTransformPoint(bounds.center+Vector3.Scale(bounds.extents,new Vector3((c&1)==0?-1:1,(c&2)==0?-1:1,(c&4)==0?-1:1))).y;
+                    low=Mathf.Min(low,y);high=Mathf.Max(high,y);
+                }
+            }
+            if(high>low){fallbackHeight=high-low;fallbackFloor=low;}
+        }
         static float Size(EnemyKind kind)
         {
             return kind == EnemyKind.LiriliLarila ? 1.25f : kind == EnemyKind.BrrBrrPatapim ? 1.45f : kind == EnemyKind.BombardiroCrocodilo ? 1.25f : kind == EnemyKind.CappuccinoAssassino ? .95f : 1;

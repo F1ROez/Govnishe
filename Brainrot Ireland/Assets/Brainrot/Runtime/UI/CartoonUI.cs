@@ -112,31 +112,80 @@ namespace Brainrot
         void Awake(){rect=(RectTransform)transform;canvas=GetComponentInParent<Canvas>();}
         void LateUpdate(){if(canvas==null)return;float minimum=52/Mathf.Max(.1f,canvas.scaleFactor);if(rect.rect.width<minimum)rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal,minimum);if(rect.rect.height<minimum)rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical,minimum);}
     }
-    public sealed class CartoonButtonMotion:MonoBehaviour,IPointerEnterHandler,IPointerExitHandler,IPointerDownHandler,IPointerUpHandler,ISelectHandler,IDeselectHandler
+    /// <summary>Unscaled spring motion belongs to the visual child; the pointer hitbox stays still.</summary>
+    public sealed class CartoonButtonMotion:MonoBehaviour,IPointerEnterHandler,IPointerExitHandler,IPointerDownHandler,IPointerUpHandler,ISelectHandler,IDeselectHandler,ISubmitHandler
     {
         public Transform VisualTarget;
         public Color BaseColor=Color.white;
-        bool hover,pressed,selected;Button button;float scale=1,velocity;Graphic face;
+        public Graphic HoverGlow;
+        bool hover,pressed,selected,pointerHeld;
+        Button button;Transform captured;RectTransform visualRect;Graphic face,glow;
+        Vector3 restScale=Vector3.one,restPosition;
+        Vector2 restAnchor;
+        float scaleX=1,scaleY=1,velocityX,velocityY,lift,liftVelocity,submitRemaining,glowAmount,glowAlpha=1;
         void Awake(){button=GetComponent<Button>();}
-        public void Tick(float delta){
-            if(delta<=0)return;
+        bool Interactive=>button!=null&&button.IsActive()&&button.IsInteractable();
+        void Capture(){
             var visual=VisualTarget!=null?VisualTarget:transform;
-            bool active=button!=null&&button.IsActive()&&button.IsInteractable();
-            float target=active?(pressed?.96f:hover||selected?1.065f:1):1;
-            scale=Mathf.SmoothDamp(scale,target,ref velocity,pressed?.045f:.085f,Mathf.Infinity,Mathf.Min(.1f,Mathf.Max(0,delta)));
-            if(Mathf.Abs(scale-target)<.0001f){scale=target;velocity=0;}
-            if(!Mathf.Approximately(visual.localScale.x,scale))visual.localScale=Vector3.one*scale;
-            if(face==null&&button!=null)face=button.targetGraphic;
+            if(captured==visual)return;
+            RestoreVisual();captured=visual;visualRect=visual as RectTransform;
+            restScale=visual.localScale;restPosition=visual.localPosition;
+            if(visualRect!=null)restAnchor=visualRect.anchoredPosition;
+            scaleX=scaleY=1;velocityX=velocityY=lift=liftVelocity=0;
+        }
+        public void Tick(float delta){
+            if(delta<=0||float.IsNaN(delta)||float.IsInfinity(delta)||button==null)return;
+            Capture();bool active=Interactive;
+            if(!active){hover=pressed=selected=pointerHeld=false;submitRemaining=0;}
+            float dt=Mathf.Min(.1f,delta);
+            bool down=active&&(pressed||submitRemaining>0),raised=active&&(hover||selected);
+            submitRemaining=Mathf.Max(0,submitRemaining-dt);
+            float targetX=down?.985f:raised?1.06f:1,targetY=down?.945f:raised?1.06f:1;
+            float targetLift=down?-3.5f:raised?1.5f:0;
+            // Substeps keep a responsive, lightly damped spring stable after a dropped frame.
+            int count=Mathf.Max(1,Mathf.CeilToInt(dt*120));float step=dt/count;
+            for(int i=0;i<count;i++){
+                Spring(ref scaleX,ref velocityX,targetX,down?1000:480,down?48:32,step);
+                Spring(ref scaleY,ref velocityY,targetY,down?1000:480,down?48:32,step);
+                Spring(ref lift,ref liftVelocity,targetLift,down?1000:480,down?48:32,step);
+            }
+            captured.localScale=new Vector3(restScale.x*scaleX,restScale.y*scaleY,restScale.z);
+            if(visualRect!=null)visualRect.anchoredPosition=restAnchor+Vector2.up*lift;
+            else captured.localPosition=restPosition+Vector3.up*lift;
+            if(face!=button.targetGraphic)face=button.targetGraphic;
             if(face!=null&&VisualTarget!=null)face.color=active?BaseColor:BaseColor*new Color(.64f,.64f,.64f,.90f);
+            if(glow!=HoverGlow){glow=HoverGlow;if(glow!=null)glowAlpha=glow.color.a;}
+            glowAmount=Mathf.MoveTowards(glowAmount,active&&(hover||selected)&&!down?1:0,dt*9);
+            if(glow!=null){var color=glow.color;color.a=glowAlpha*glowAmount;glow.color=color;}
+        }
+        static void Spring(ref float value,ref float velocity,float target,float stiffness,float damping,float dt){
+            velocity+=((target-value)*stiffness-velocity*damping)*dt;value+=velocity*dt;
+            if(Mathf.Abs(value-target)<.00005f&&Mathf.Abs(velocity)<.0002f){value=target;velocity=0;}
         }
         void Update(){Tick(Time.unscaledDeltaTime);}
-        public void OnPointerEnter(PointerEventData data){hover=true;}
+        public void OnPointerEnter(PointerEventData data){if(!Interactive)return;hover=true;pressed=pointerHeld;}
         public void OnPointerExit(PointerEventData data){hover=pressed=false;}
-        public void OnPointerDown(PointerEventData data){pressed=true;}
-        public void OnPointerUp(PointerEventData data){pressed=false;}
-        public void OnSelect(BaseEventData data){selected=true;}
-        public void OnDeselect(BaseEventData data){selected=false;pressed=false;}
-        void OnDisable(){hover=pressed=selected=false;scale=1;velocity=0;if(VisualTarget!=null)VisualTarget.localScale=Vector3.one;else transform.localScale=Vector3.one;}
+        public void OnPointerDown(PointerEventData data){
+            if(!Interactive||(data!=null&&data.button!=PointerEventData.InputButton.Left))return;
+            pointerHeld=pressed=true;selected=false;
+        }
+        public void OnPointerUp(PointerEventData data){
+            if(data!=null&&data.button!=PointerEventData.InputButton.Left)return;
+            bool release=pressed&&Interactive;pressed=pointerHeld=false;
+            if(release){velocityY+=.35f;liftVelocity+=12;}
+        }
+        public void OnSelect(BaseEventData data){selected=!(data is PointerEventData);}
+        public void OnDeselect(BaseEventData data){selected=pressed=pointerHeld=false;}
+        public void OnSubmit(BaseEventData data){if(Interactive){selected=true;submitRemaining=.10f;}}
+        void RestoreVisual(){
+            if(captured==null)return;captured.localScale=restScale;
+            if(visualRect!=null)visualRect.anchoredPosition=restAnchor;else captured.localPosition=restPosition;
+        }
+        void OnDisable(){
+            hover=pressed=selected=pointerHeld=false;submitRemaining=glowAmount=0;
+            scaleX=scaleY=1;velocityX=velocityY=lift=liftVelocity=0;RestoreVisual();
+            if(glow!=null){var color=glow.color;color.a=0;glow.color=color;}
+        }
     }
     /// <summary>Uses Image.fillAmount as its value while preserving nine-sliced rounded caps.</summary>
     public sealed class CartoonBarFill:MonoBehaviour

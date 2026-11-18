@@ -31,7 +31,7 @@ namespace Brainrot.Editor
                 foreach(var node in model.GetComponentsInChildren<Transform>(true)){node.gameObject.SetActive(true);node.gameObject.layer=0;}
                 foreach(var collider in model.GetComponentsInChildren<Collider>(true))UnityEngine.Object.DestroyImmediate(collider);
                 foreach(var animator in model.GetComponentsInChildren<Animator>(true))UnityEngine.Object.DestroyImmediate(animator);
-                var bridge=root.AddComponent<ImportedEnemyVisual>();bridge.ModelRoot=model.transform;bridge.MotionRoot=motion;bridge.Normalization=normalization;bridge.IsOrcaladon=true;bridge.TargetHeight=3.4f;bridge.LegBones=Array.Empty<Transform>();
+                var bridge=root.AddComponent<ImportedEnemyVisual>();bridge.ModelRoot=model.transform;bridge.MotionRoot=motion;bridge.Normalization=normalization;bridge.IsOrcaladon=true;bridge.TargetHeight=Mathf.Max(.5f,GameBalance.Current.Orcaladon.ModelHeight);bridge.LegBones=Array.Empty<Transform>();
                 var visual=root.AddComponent<OrcaladonVisual>();visual.ModelRoot=model.transform;visual.MotionRoot=motion;
                 visual.Body=FindOrcaBone(model,"Body");visual.UpperLeft=FindOrcaBone(model,"UpperArm.L");visual.UpperRight=FindOrcaBone(model,"UpperArm.R");
                 visual.ForeLeft=FindOrcaBone(model,"Forearm.L");visual.ForeRight=FindOrcaBone(model,"Forearm.R");

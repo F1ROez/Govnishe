@@ -239,20 +239,19 @@ namespace Brainrot
         }
         void BuildScreen()
         {
-            ClearScreen();var gm=GameManager.Instance;screenShade.color=new Color(.025f,.04f,.065f,gm.State==GameState.Paused?.42f:.3f);
+            ClearOverlay();var gm=GameManager.Instance;screenShade.color=new Color(.025f,.04f,.065f,gm.State==GameState.Paused?.42f:.3f);
             if(gm.State==GameState.Menu)
             {
-                Title("ОСТРОВ САХУРА");
-                Label(overlay.transform,"Выживай среди акул. Держи биту крепче.",19,TextAnchor.MiddleCenter,new Vector2(.29f,.625f),new Vector2(.71f,.675f));
-                MenuButton("ИГРАТЬ",.49f,()=>gm.StartRun());MenuButton("МАГАЗИН",.37f,ShowShop);MenuButton("НАСТРОЙКИ",.25f,ShowSettings);MenuButton("ВЫХОД",.13f,()=>gm.Quit());
+                var viewport=ReferenceScreens.Viewport(overlay.transform,"Главное меню 16:9");
+                ReferenceScreens.MainMenu(viewport,()=>gm.StartRun(),ShowShop,ShowRecords,ShowSettings,()=>gm.Quit(),out _,out _,true);
             }
             else if(gm.State==GameState.Paused)
             {
-                ClearOverlay();ReferenceScreens.Pause(ReferenceScreens.Viewport(overlay.transform,"Пауза 16:9"),()=>gm.Resume(),ShowSettings,()=>gm.MainMenu());
+                ReferenceScreens.Pause(ReferenceScreens.Viewport(overlay.transform,"Пауза 16:9"),()=>gm.Resume(),ShowSettings,()=>gm.MainMenu());
             }
             else if(gm.State==GameState.Dead)
             {
-                ClearOverlay();var frame=ReferenceScreens.Panel(ReferenceScreens.Viewport(overlay.transform,"Результат забега"),"ЗАБЕГ ОКОНЧЕН",.28f,.10f,.44f,.81f);
+                var frame=ReferenceScreens.Panel(ReferenceScreens.Viewport(overlay.transform,"Результат забега"),"ЗАБЕГ ОКОНЧЕН",.28f,.10f,.44f,.81f);
                 ReferenceScreens.SeaText(frame,$"ВОЛНА {gm.Wave}  ·  {TimeLabel(gm.Elapsed)}  ·  ПОБЕД {gm.Kills}",20,.08f,.23f,.84f,.07f);
                 ReferenceScreens.SeaText(frame,$"СОБРАНО МОНЕТ: +{gm.RunCoins}\nВ КОШЕЛЬКЕ: {SaveSystem.Data.Coins}",25,.08f,.32f,.84f,.13f);
                 ReferenceScreens.SeaText(frame,"ЛИЧНЫЙ РЕКОРД · ВОЛНА "+SaveSystem.Data.BestWave,16,.08f,.475f,.84f,.05f);
@@ -263,7 +262,7 @@ namespace Brainrot
             }
             else if(gm.State==GameState.Upgrade)
             {
-                Title("НОВЫЙ УРОВЕНЬ!");Label(overlay.transform,"ВЫБЕРИ УЛУЧШЕНИЕ",23,TextAnchor.MiddleCenter,new Vector2(.1f,.66f),new Vector2(.9f,.74f)).color=cyan;
+                ClearScreen();Title("НОВЫЙ УРОВЕНЬ!");Label(overlay.transform,"ВЫБЕРИ УЛУЧШЕНИЕ",23,TextAnchor.MiddleCenter,new Vector2(.1f,.66f),new Vector2(.9f,.74f)).color=cyan;
                 var choices=gm.Upgrades.Choices;
                 for(int i=0;i<choices.Count && i<3;i++)
                 {
@@ -287,8 +286,7 @@ namespace Brainrot
         void MenuButton(string title,float y,UnityEngine.Events.UnityAction action) {Button(overlay.transform,title,new Vector2(.345f,y),new Vector2(.655f,y+.095f),action);}
         void ShowRecords()
         {
-            ClearScreen();Title("ЛЕГЕНДЫ ОСТРОВА");var d=SaveSystem.Data;
-            Label(overlay.transform,$"ВРЕМЯ ВЫЖИВАНИЯ    {TimeLabel(d.BestTime)}\n\nПОБЕЖДЕНО ВРАГОВ    {d.BestKills}",29,TextAnchor.MiddleCenter,new Vector2(.29f,.33f),new Vector2(.71f,.66f));MenuButton("НАЗАД",.16f,BuildScreen);
+            ClearOverlay();ReferenceScreens.Records(ReferenceScreens.Viewport(overlay.transform,"Рекорды 16:9"),BuildScreen);
         }
         void ClearOverlay(){foreach(Transform child in overlay.transform){child.gameObject.SetActive(false);Destroy(child.gameObject);}}
         void ShowShop(){

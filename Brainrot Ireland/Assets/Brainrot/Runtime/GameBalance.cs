@@ -108,6 +108,8 @@ namespace Brainrot
         [Range(.5f,1.5f),Tooltip("Выразительность движения рук; не меняет игровую дальность попадания.")]public float SwingStretch=1;
     }
     [Serializable] public sealed class OrcaladonTuning {
+        public const float DefaultModelHeight=2.6f;
+        [Min(.5f),Tooltip("Высота Оркаладона в нейтральной позе, м. Базовый размер 2,6 м; дополнительные множители размера моделей сохраняются. Высота капсулы следует этому значению, но не бывает меньше диаметра тела.")]public float ModelHeight=DefaultModelHeight;
         [Min(1),Tooltip("Начиная с этой волны Orcaladon выходит из океана. Первое появление гарантировано.")]public int FirstWave=3;
         [Range(0,.6f),Tooltip("Доля Orcaladon среди случайных появлений после открытия вида.")]public float SpawnChance=.14f;
         [Min(.5f),Tooltip("Радиус тела при столкновении и атаке рывком, м.")]public float CollisionRadius=1.15f;

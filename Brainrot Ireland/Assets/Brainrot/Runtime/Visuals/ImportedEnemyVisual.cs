@@ -14,7 +14,7 @@ namespace Brainrot
         EnemyController enemy;
         Quaternion[] legRest;
         bool movingKnown,animatorMoving;
-        float speed,phase,biteRemaining,biteDuration=.32f;
+        float speed,phase,biteRemaining,biteDuration=.32f,calibratedHeight;
         Vector3 restMotion;Quaternion restRotation=Quaternion.identity;
         static readonly int Moving=UnityEngine.Animator.StringToHash("Moving");
         void Awake(){enemy=GetComponentInParent<EnemyController>();CacheRest();}
@@ -27,6 +27,9 @@ namespace Brainrot
         }
         public bool CalibrateModel(){
             if(Normalization==null||ModelRoot==null)return false;
+            // Old generated prefabs still store 3.4 m. The balance profile is authoritative,
+            // so they shrink on first activation without requiring a manual prefab rebuild.
+            if(IsOrcaladon)TargetHeight=Mathf.Max(.5f,GameBalance.Current.Orcaladon.ModelHeight);
             if(IsOrcaladon&&Orcaladon!=null)Orcaladon.ResetPose();
             if(Animator!=null&&Animator.runtimeAnimatorController!=null){Animator.applyRootMotion=false;Animator.cullingMode=AnimatorCullingMode.AlwaysAnimate;Animator.Rebind();Animator.Update(0);movingKnown=false;}
             bool any=false;Bounds bounds=new Bounds();
@@ -58,7 +61,16 @@ namespace Brainrot
             if(!any||bounds.size.y<.00001f)return false;
             float factor=Mathf.Max(.2f,TargetHeight)/bounds.size.y;
             Normalization.localPosition=(Normalization.localPosition-new Vector3(bounds.center.x,bounds.min.y,bounds.center.z))*factor;
-            Normalization.localScale*=factor;CacheRest();return true;
+            Normalization.localScale*=factor;calibratedHeight=Mathf.Max(.2f,TargetHeight);CacheRest();return true;
+        }
+        /// <summary>Live height changes use the measured baseline; no meshes are baked during animation.</summary>
+        public void ApplyConfiguredHeight(){
+            if(!IsOrcaladon||Normalization==null||calibratedHeight<=0)return;
+            float height=Mathf.Max(.5f,GameBalance.Current.Orcaladon.ModelHeight);
+            if(Mathf.Approximately(height,calibratedHeight))return;
+            float factor=height/calibratedHeight;
+            Normalization.localPosition*=factor;Normalization.localScale*=factor;
+            calibratedHeight=TargetHeight=height;
         }
         static bool Finite(Vector3 point)=>!float.IsNaN(point.x)&&!float.IsInfinity(point.x)&&!float.IsNaN(point.y)&&!float.IsInfinity(point.y)&&!float.IsNaN(point.z)&&!float.IsInfinity(point.z);
         public void Animate(float movement,bool attacking){speed=Mathf.Max(0,movement);ApplyMoving();}
@@ -67,6 +79,7 @@ namespace Brainrot
         public void ResetBite(){biteRemaining=0;if(MotionRoot!=null){MotionRoot.localPosition=restMotion;MotionRoot.localRotation=restRotation;}}
         public void ResetVisual(){speed=phase=0;ResetBite();if(Orcaladon!=null)Orcaladon.ResetPose();if(legRest!=null)for(int i=0;i<legRest.Length;i++)if(LegBones[i]!=null)LegBones[i].localRotation=legRest[i];if(Animator!=null){if(!Animator.enabled)Animator.enabled=true;movingKnown=false;ApplyMoving();}}
         void LateUpdate(){
+            ApplyConfiguredHeight();
             bool physical=enemy!=null&&(!enemy.Alive||(enemy.PhysicsBody!=null&&enemy.PhysicsBody.IsPhysical));
             if(Animator!=null&&Animator.enabled==physical){Animator.enabled=!physical;movingKnown=false;if(!physical)ApplyMoving();}
             if(physical)return;
