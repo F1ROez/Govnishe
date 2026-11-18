@@ -103,6 +103,16 @@ namespace Brainrot.Tests
             FindButton("ПОВТОРИТЬ ОБУЧЕНИЕ").onClick.Invoke();Assert.IsNotNull(FindButton("ОБУЧЕНИЕ ВКЛЮЧЕНО"));SaveSystem.Load();Assert.IsFalse(SaveSystem.Data.TutorialCompleted);
             FindButton("НАЗАД").onClick.Invoke();Assert.AreEqual(1,backs);
         }
+        [Test]public void ProgressResetRequiresConfirmationAndCancelPreservesTheWallet(){
+            SaveSystem.Data.Coins=161;SaveSystem.Data.UpgradeRanks=new[]{1,2,0,0};SaveSystem.Data.BestWave=9;SaveSystem.Data.Volume=.42f;
+            Assert.IsTrue(SaveSystem.TrySave());int backs=0;ReferenceScreens.Settings(viewport,()=>backs++);
+            FindButton("СБРОСИТЬ ПРОГРЕСС").onClick.Invoke();Assert.AreEqual(161,SaveSystem.Data.Coins);
+            FindButton("ОТМЕНА").onClick.Invoke();Assert.AreEqual(161,SaveSystem.Data.Coins);Assert.AreEqual(9,SaveSystem.Data.BestWave);
+            FindButton("СБРОСИТЬ ПРОГРЕСС").onClick.Invoke();FindButton("ПОДТВЕРДИТЬ СБРОС").onClick.Invoke();
+            Assert.AreEqual(0,SaveSystem.Data.Coins);Assert.AreEqual(0,MetaProgression.Rank(0));Assert.AreEqual(0,SaveSystem.Data.BestWave);
+            Assert.AreEqual(.42f,SaveSystem.Data.Volume,.001f);Assert.AreEqual(1,backs);
+            SaveSystem.Load();Assert.AreEqual(0,SaveSystem.Data.Coins);
+        }
         [Test]public void MainMenuOffersOnePlayActionWithoutSavedRunOrNewGameButtons(){
             new GameObject("Main menu").AddComponent<MenuBootstrap>();
             var labels=new List<string>();

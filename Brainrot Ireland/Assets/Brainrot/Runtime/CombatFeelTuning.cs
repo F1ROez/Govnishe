@@ -4,6 +4,7 @@ namespace Brainrot
 {
     [Serializable] public sealed class CombatFeelTuning
     {
+        [Range(0,12),Tooltip("Короткое расширение обзора во время рывка, градусы.")]public float DashFovKick=4;
         [Tooltip("Песок под ногами и короткий след рывка на среднем/высоком качестве.")]public bool MovementEffects=true;
         [Range(0,1.5f),Tooltip("Размер мягкой песочной дымки от шагов.")]public float FootstepDustScale=.65f;
         [Range(0,24),Tooltip("Плавное сужение угла обзора при полном замахе, градусы.")]public float ChargeFovReduction=17;

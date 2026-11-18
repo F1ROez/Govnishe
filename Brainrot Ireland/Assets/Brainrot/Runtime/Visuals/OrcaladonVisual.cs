@@ -5,6 +5,7 @@ namespace Brainrot
     public sealed class OrcaladonVisual : MonoBehaviour
     {
         public Transform ModelRoot,MotionRoot,Body,UpperLeft,UpperRight,ForeLeft,ForeRight,ThighLeft,ThighRight,ShinLeft,ShinRight;
+        public bool NeutralArmsDown;
         Transform[] bones;Quaternion[] rest;Vector3[] restPositions;Vector3 motionPosition;Quaternion motionRotation;
         OrcaladonAttack attack;EnemyController enemy;
         float phase,upper,fore,lean,crouch;
@@ -25,7 +26,7 @@ namespace Brainrot
             if(MotionRoot!=null){MotionRoot.localPosition=motionPosition;MotionRoot.localRotation=motionRotation;}
         }
         public void ResetPose(){
-            RestoreBindPose();Rotate(1,0,0,-RelaxedArmRoll);Rotate(2,0,0,RelaxedArmRoll);
+            RestoreBindPose();if(!NeutralArmsDown){Rotate(1,0,0,-RelaxedArmRoll);Rotate(2,0,0,RelaxedArmRoll);}
         }
         public void Pose(float dt,float movement){
             Cache();if(ModelRoot==null||dt<=0)return;
@@ -54,9 +55,9 @@ namespace Brainrot
             for(int i=0;i<bones.Length;i++)if(bones[i]!=null){bones[i].localRotation=rest[i];bones[i].localPosition=restPositions[i];}
             float stride=Mathf.Sin(phase)*gait;
             Rotate(0,lean,0,Mathf.Sin(phase*.5f)*1.3f*(1-gait));
-            float armRoll=RelaxedArmRoll;
-            if(state==OrcaladonPhase.SlamWindup)armRoll=Mathf.Lerp(RelaxedArmRoll,3,Mathf.SmoothStep(0,1,progress/.6f));
-            else if(state==OrcaladonPhase.Charging||state==OrcaladonPhase.ChargeAim||state==OrcaladonPhase.SlamImpact)armRoll=12;
+            float armRoll=NeutralArmsDown?0:RelaxedArmRoll;
+            if(!NeutralArmsDown&&state==OrcaladonPhase.SlamWindup)armRoll=Mathf.Lerp(RelaxedArmRoll,3,Mathf.SmoothStep(0,1,progress/.6f));
+            else if(!NeutralArmsDown&&(state==OrcaladonPhase.Charging||state==OrcaladonPhase.ChargeAim||state==OrcaladonPhase.SlamImpact))armRoll=12;
             Rotate(1,upper-stride*13,0,-armRoll);Rotate(2,upper+stride*13,0,armRoll);
             Rotate(3,fore-Mathf.Max(0,stride)*9,0,0);Rotate(4,fore-Mathf.Max(0,-stride)*9,0,0);
             Rotate(5,stride*23,0,0);Rotate(6,-stride*23,0,0);

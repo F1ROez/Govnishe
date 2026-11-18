@@ -13,3 +13,5 @@
 - Новые FX движения: мягкий песок/короткий след рывка на medium/high, регулируются Feedback. RuntimeHDR/тени/море v6 уже были.
 - Не утверждать «проверено в Unity»: Editor/player отсутствуют. Статический валидатор/Python инструменты доступны, PlayModeтесты только подготовлены. Проверки запускать из проекта, подробности Docs/VALIDATION_STATUS.md.
 - Текущие детали: Docs/UI_V10.md иDocs/ATTEMPTS_V9.md. Сохранять исходные ассеты, пользовательский GameBalance. Пользователь не просит повторных проверок лицензий.
+
+- V11: новая OrcaladonNew.glb из main/orcaladon_new.glb, EditorGLBreader и процедурный риг; новая модель предпочтительнее старогоFBX. Исправление калибровки в координатах родителя Normalization. Рывок проходит врагов/тела с неуязвимостью; настройки Feedback.DashFovKick. Реальный фикс меню: точный Shadow вместо Outline, центрирование .5, CanvasRenderer/winding значков. SaveSystem.ResetProgress/SetTestCoins, UI-confirm и Editorбаланс. Подробнее Docs/UPDATE_V11.md.

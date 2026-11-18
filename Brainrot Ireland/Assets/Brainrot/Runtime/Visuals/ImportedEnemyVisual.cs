@@ -42,7 +42,7 @@ namespace Brainrot
                     var baked=new Mesh{name="Временное измерение Оркаладона"};
                     try{
                         skin.BakeMesh(baked);
-                        Matrix4x4 matrix=transform.worldToLocalMatrix*skin.transform.localToWorldMatrix;
+                        Matrix4x4 matrix=Normalization.parent.worldToLocalMatrix*skin.transform.localToWorldMatrix;
                         foreach(var vertex in baked.vertices){
                             Vector3 point=matrix.MultiplyPoint3x4(vertex);
                             if(!Finite(point))continue;
@@ -53,7 +53,7 @@ namespace Brainrot
                 }
                 var world=renderer.bounds;
                 for(int c=0;c<8;c++){
-                    Vector3 point=transform.InverseTransformPoint(world.center+Vector3.Scale(world.extents,new Vector3((c&1)==0?-1:1,(c&2)==0?-1:1,(c&4)==0?-1:1)));
+                    Vector3 point=Normalization.parent.InverseTransformPoint(world.center+Vector3.Scale(world.extents,new Vector3((c&1)==0?-1:1,(c&2)==0?-1:1,(c&4)==0?-1:1)));
                     if(float.IsNaN(point.x)||float.IsInfinity(point.x)||float.IsNaN(point.y)||float.IsInfinity(point.y)||float.IsNaN(point.z)||float.IsInfinity(point.z))continue;
                     if(!any){bounds=new Bounds(point,Vector3.zero);any=true;}else bounds.Encapsulate(point);
                 }

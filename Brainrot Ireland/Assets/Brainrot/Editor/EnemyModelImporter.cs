@@ -14,31 +14,34 @@ namespace Brainrot.Editor
         const string Art="Assets/Brainrot/Art/Enemies/",Out="Assets/Brainrot/Generated/Enemies/";
         [MenuItem("Tools/TungTung/Обновить модели врагов")]
         public static void GenerateAll(){if(Application.isPlaying)return;Build(false);Build(true);BuildOrcaladon();AssetDatabase.SaveAssets();}
-        static void BuildOrcaladon(){
+        public static void BuildOrcaladon(){
             const string source=Art+"Orcaladon/Orcaladon.fbx",output=Out+"Orcaladon/";
-            if(!File.Exists(source)){Debug.LogWarning("Модель Оркаладона отсутствует: "+source);return;}
+            bool newModel=File.Exists(OrcaladonGlbImporter.Source);
+            if(!newModel&&!File.Exists(source)){Debug.LogWarning("Модель Оркаладона отсутствует: "+source);return;}
             Directory.CreateDirectory(output);Directory.CreateDirectory("Assets/Brainrot/Generated/Resources");AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
-            var importer=AssetImporter.GetAtPath(source) as ModelImporter;if(importer==null)return;
-            if(importer.animationType!=ModelImporterAnimationType.Generic||importer.importAnimation||importer.optimizeGameObjects||importer.materialImportMode!=ModelImporterMaterialImportMode.None){
+            var importer=AssetImporter.GetAtPath(source) as ModelImporter;if(!newModel&&importer==null)return;
+            if(!newModel&&(importer.animationType!=ModelImporterAnimationType.Generic||importer.importAnimation||importer.optimizeGameObjects||importer.materialImportMode!=ModelImporterMaterialImportMode.None)){
                 importer.animationType=ModelImporterAnimationType.Generic;importer.importAnimation=false;importer.optimizeGameObjects=false;importer.materialImportMode=ModelImporterMaterialImportMode.None;importer.importCameras=false;importer.importLights=false;importer.SaveAndReimport();
             }
-            var asset=AssetDatabase.LoadAssetAtPath<GameObject>(source);if(asset==null){Debug.LogWarning("Unity ещё импортирует Оркаладона.");return;}
+            var asset=newModel?null:AssetDatabase.LoadAssetAtPath<GameObject>(source);if(!newModel&&asset==null){Debug.LogWarning("Unity ещё импортирует Оркаладона.");return;}
             var root=new GameObject("Оркаладон — большой океанский громила");
             try{
                 var motion=new GameObject("Движение модели").transform;motion.SetParent(root.transform,false);
                 var normalization=new GameObject("Нормализация").transform;normalization.SetParent(motion,false);
-                var model=(GameObject)PrefabUtility.InstantiatePrefab(asset);PrefabUtility.UnpackPrefabInstance(model,PrefabUnpackMode.Completely,InteractionMode.AutomatedAction);model.transform.SetParent(normalization,false);
+                Texture2D newTexture=null;
+                var model=newModel?OrcaladonGlbImporter.Build(out newTexture):(GameObject)PrefabUtility.InstantiatePrefab(asset);
+                if(!newModel)PrefabUtility.UnpackPrefabInstance(model,PrefabUnpackMode.Completely,InteractionMode.AutomatedAction);model.transform.SetParent(normalization,false);
                 foreach(var node in model.GetComponentsInChildren<Transform>(true)){node.gameObject.SetActive(true);node.gameObject.layer=0;}
                 foreach(var collider in model.GetComponentsInChildren<Collider>(true))UnityEngine.Object.DestroyImmediate(collider);
                 foreach(var animator in model.GetComponentsInChildren<Animator>(true))UnityEngine.Object.DestroyImmediate(animator);
                 var bridge=root.AddComponent<ImportedEnemyVisual>();bridge.ModelRoot=model.transform;bridge.MotionRoot=motion;bridge.Normalization=normalization;bridge.IsOrcaladon=true;bridge.TargetHeight=Mathf.Max(.5f,GameBalance.Current.Orcaladon.ModelHeight);bridge.LegBones=Array.Empty<Transform>();
-                var visual=root.AddComponent<OrcaladonVisual>();visual.ModelRoot=model.transform;visual.MotionRoot=motion;
+                var visual=root.AddComponent<OrcaladonVisual>();visual.ModelRoot=model.transform;visual.MotionRoot=motion;visual.NeutralArmsDown=newModel;
                 visual.Body=FindOrcaBone(model,"Body");visual.UpperLeft=FindOrcaBone(model,"UpperArm.L");visual.UpperRight=FindOrcaBone(model,"UpperArm.R");
                 visual.ForeLeft=FindOrcaBone(model,"Forearm.L");visual.ForeRight=FindOrcaBone(model,"Forearm.R");
                 visual.ThighLeft=FindOrcaBone(model,"Thigh.L");visual.ThighRight=FindOrcaBone(model,"Thigh.R");visual.ShinLeft=FindOrcaBone(model,"Shin.L");visual.ShinRight=FindOrcaBone(model,"Shin.R");bridge.Orcaladon=visual;
                 string texturePath=Art+"Orcaladon/OrcaladonAlbedo.jpg";var textureImporter=AssetImporter.GetAtPath(texturePath) as TextureImporter;
                 if(textureImporter!=null&&SahurModelImporter.ConfigureTexture2D(textureImporter,false,true,2048))textureImporter.SaveAndReimport();
-                var texture=AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
+                var texture=newModel?newTexture:AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
                 string materialPath=output+"OrcaladonToon.mat";var material=AssetDatabase.LoadAssetAtPath<Material>(materialPath);
                 var shader=Shader.Find("Brainrot/ToonCharacter");if(material==null){material=new Material(shader);AssetDatabase.CreateAsset(material,materialPath);}else material.shader=shader;
                 material.name="Оркаладон — мягкий морской мультяшный";material.SetTexture("_BaseMap",texture);material.SetColor("_BaseColor",new Color(.91f,.97f,1));

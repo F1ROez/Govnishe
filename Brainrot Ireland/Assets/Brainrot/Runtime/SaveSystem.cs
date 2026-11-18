@@ -76,6 +76,22 @@ namespace Brainrot
 
         public static void Save(){TrySave();}
 
+        public static bool SetTestCoins(int coins){
+            int old=Data.Coins;Data.Coins=Mathf.Clamp(coins,0,MetaProgression.MaximumCoins);
+            if(TrySave())return true;Data.Coins=old;return false;
+        }
+        /// <summary>Clear progression while retaining the player's display, audio and input preferences.</summary>
+        public static bool ResetProgress(){
+            var old=Data;
+            Data=new SaveData{Volume=old.Volume,Sensitivity=old.Sensitivity,Quality=old.Quality,CameraLocked=old.CameraLocked,
+                HasCameraPreference=old.HasCameraPreference,ShowAttackRange=old.ShowAttackRange,CameraShakeStrength=old.CameraShakeStrength};
+            if(!TrySave()){Data=old;return false;}
+            // Recovery must not resurrect the pre-reset wallet and upgrades.
+            try{File.Copy(SavePath,SavePath+".bak",true);}
+            catch(Exception exception) when(exception is IOException||exception is UnauthorizedAccessException){Debug.LogWarning("Не удалось обновить резервную копию после сброса: "+exception.Message);}
+            RunPersistence.Clear();return true;
+        }
+
         /// <summary>Returns success so wallet transactions can roll back after a storage error.</summary>
         public static bool TrySave()
         {

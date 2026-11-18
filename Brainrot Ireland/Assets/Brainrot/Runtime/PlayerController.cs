@@ -15,7 +15,7 @@ namespace Brainrot {
   public bool IsCaptured=>captor!=null;
   public float EscapeProgress{get;private set;}
   public bool IsCapturedBy(OctopusAttack source)=>captor==source;
-  public bool BeginCapture(OctopusAttack source){if(IsCaptured||Health<=0)return false;captor=source;EscapeProgress=0;captureHeld=GameInput.Attack||MobileInput.Attack;CancelAttacks();return true;}
+  public bool BeginCapture(OctopusAttack source){if(IsCaptured||IsDashing||Health<=0)return false;captor=source;EscapeProgress=0;captureHeld=GameInput.Attack||MobileInput.Attack;CancelAttacks();return true;}
   public void EndCapture(OctopusAttack source){if(captor==source){captor=null;EscapeProgress=0;CancelAttacks();}}
   public void EscapeTap(){if(!IsCaptured)return;EscapeProgress=Mathf.Clamp01(EscapeProgress+1f/Mathf.Max(1,GameBalance.Current.Octopus.EscapeClicks));if(EscapeProgress>=.999f)captor.Escape();}
   public CombatSystem Combat=>combat;
@@ -29,7 +29,9 @@ namespace Brainrot {
   public bool IsDashing => Time.time<dashUntil;
   CharacterController motor; CharacterVisual visual; CombatSystem combat; Camera cam;CameraCollision cameraCollision;
   float yaw,pitch,dashUntil,nextDash,invulnerableUntil,trauma;
-  float chargeCameraBlend;Vector3 externalVelocity;
+  float chargeCameraBlend,dashCameraBlend,dashStarted;Vector3 externalVelocity;
+  readonly System.Collections.Generic.List<Collider> dashIgnored=new System.Collections.Generic.List<Collider>(128);
+  readonly System.Collections.Generic.HashSet<Collider> dashIgnoredSet=new System.Collections.Generic.HashSet<Collider>();
   readonly CombatCameraFeedback combatCamera=new CombatCameraFeedback();
   const float BaseFieldOfView=62;
   public float CombatCameraImpact=>combatCamera.Impact;
@@ -43,7 +45,7 @@ namespace Brainrot {
    ResetRun();
   }
   public void ResetRun(bool applyMeta=true){
-   captor=null;EscapeProgress=0;captureHeld=false;DamageTakenCount=0;var settings=ActiveTuning;Stats=PlayerStats.From(settings);
+   EndDash();dashCameraBlend=0;captor=null;EscapeProgress=0;captureHeld=false;DamageTakenCount=0;var settings=ActiveTuning;Stats=PlayerStats.From(settings);
    var weapon=Character!=null?Character.Weapon:null;if(weapon!=null){Stats.Damage*=Mathf.Max(.1f,weapon.DamageMultiplier);Stats.Range*=Mathf.Max(.1f,weapon.RangeMultiplier);Stats.AttackInterval*=Mathf.Max(.1f,weapon.AttackIntervalMultiplier);}
    if(applyMeta)MetaProgression.Apply(Stats);
    Health=Stats.MaxHealth;Stamina.Reset(GameBalance.Current.Stamina);
@@ -73,12 +75,33 @@ namespace Brainrot {
   // All callers provide a world-space movement vector; a stationary dash does not consume cooldown.
   public bool TryDash(Vector3 movement){
    movement.y=0;
-   if(GameManager.Instance==null||!GameManager.Instance.IsPlaying||Time.time<nextDash||movement.sqrMagnitude<.001f)return false;
-   var settings=ActiveTuning;DashDirection=movement.normalized;dashUntil=Time.time+Mathf.Max(.05f,settings.DashDuration);nextDash=Time.time+Mathf.Max(.1f,Stats.DashCooldown);invulnerableUntil=dashUntil;
-   HitEffects.Burst(transform.position+Vector3.up,Color.cyan);return true;
+   if(GameManager.Instance==null||!GameManager.Instance.IsPlaying||Health<=0||Time.time<nextDash||movement.sqrMagnitude<.001f)return false;
+   var settings=ActiveTuning;DashDirection=movement.normalized;dashUntil=Time.time+Mathf.Max(.05f,settings.DashDuration);nextDash=Time.time+Mathf.Max(.1f,Stats.DashCooldown);dashStarted=Time.time;externalVelocity=Vector3.zero;RefreshDashCollisions();
+   GameAudio.Play(520,.06f,.055f);HitEffects.Burst(transform.position+Vector3.up,Color.cyan);return true;
   }
+  void RefreshDashCollisions(){
+   if(motor==null||!motor.enabled)return;
+   var spawner=GameManager.Instance!=null?GameManager.Instance.Spawner:null;if(spawner==null)return;
+   IgnoreDashEnemies(spawner.Active);IgnoreDashEnemies(spawner.Corpses);
+  }
+  void IgnoreDashEnemies(System.Collections.Generic.List<EnemyController> enemies){
+   for(int i=0;i<enemies.Count;i++){
+    var enemy=enemies[i];if(enemy==null||!enemy.gameObject.activeInHierarchy)continue;
+    var collider=enemy.GetComponent<CapsuleCollider>();
+    if(collider==null||!collider.enabled)continue;
+    if(dashIgnoredSet.Contains(collider)){if(!Physics.GetIgnoreCollision(motor,collider))Physics.IgnoreCollision(motor,collider,true);continue;}
+    if(Physics.GetIgnoreCollision(motor,collider))continue;
+    Physics.IgnoreCollision(motor,collider,true);dashIgnored.Add(collider);dashIgnoredSet.Add(collider);
+   }
+  }
+  void RestoreDashCollisions(){
+   if(motor!=null)foreach(var collider in dashIgnored)if(collider!=null)Physics.IgnoreCollision(motor,collider,false);
+   dashIgnored.Clear();dashIgnoredSet.Clear();
+  }
+  public void EndDash(){dashUntil=Time.time;RestoreDashCollisions();}
   void Update(){
-   var gm=GameManager.Instance;if(gm==null||!gm.IsPlaying)return;
+   var gm=GameManager.Instance;if(gm==null||!gm.IsPlaying){EndDash();return;}
+   if(IsDashing)RefreshDashCollisions();else if(dashIgnored.Count>0)RestoreDashCollisions();
    if(IsCaptured){bool held=GameInput.Attack||MobileInput.Attack;if(held&&!captureHeld)EscapeTap();captureHeld=held;EscapeProgress=Mathf.Max(0,EscapeProgress-Time.deltaTime*.025f);}
    if(GameInput.CameraToggle)ToggleCameraLock();
    Vector2 look=Application.isMobilePlatform?MobileInput.Look:GameInput.Look;MobileInput.Look=Vector2.zero;
@@ -88,7 +111,8 @@ namespace Brainrot {
    var settings=ActiveTuning;
    if(GameInput.Dash||MobileInput.Dash)TryDash(move);MobileInput.Dash=false;
    sprint=Stamina.Tick(sprint,move.sqrMagnitude>.01f,IsDashing,Time.deltaTime,GameBalance.Current.Stamina);
-   Vector3 velocity=IsDashing?DashDirection*Mathf.Max(1,settings.DashSpeed):move*Stats.MoveSpeed*(sprint?Mathf.Max(1,settings.SprintMultiplier):1);
+   float dashProgress=Mathf.Clamp01((Time.time-dashStarted)/Mathf.Max(.05f,settings.DashDuration));
+   Vector3 velocity=IsDashing?DashDirection*Mathf.Max(1,settings.DashSpeed)*Mathf.Lerp(1.2f,.8f,Mathf.SmoothStep(0,1,dashProgress)):move*Stats.MoveSpeed*(sprint?Mathf.Max(1,settings.SprintMultiplier):1);
    // Integrate the decaying shove exactly: low frame rates must not enlarge boss knockback.
    float pushDecay=Mathf.Exp(-6*Time.deltaTime);Vector3 pushStep=externalVelocity*((1-pushDecay)/6);externalVelocity*=pushDecay;
    if(externalVelocity.sqrMagnitude<.001f)externalVelocity=Vector3.zero;
@@ -112,7 +136,9 @@ namespace Brainrot {
    if(!playing){combatCamera.Reset();chargeCameraBlend=trauma=0;}
    float zoomTarget=combat!=null&&combat.IsCharging&&combat.HeavyReady?Mathf.SmoothStep(0,1,combat.ChargeProgress):0;
    combatCamera.Tick(playing?zoomTarget:0,playing?Time.deltaTime:0,feedback);
-   cam.fieldOfView=combatCamera.FieldOfView(BaseFieldOfView,feedback,SaveSystem.Data.CameraShakeStrength);
+   dashCameraBlend=Mathf.Lerp(dashCameraBlend,playing&&IsDashing?1:0,1-Mathf.Exp(-(IsDashing?24:14)*Time.unscaledDeltaTime));
+   if(!playing)dashCameraBlend=0;
+   cam.fieldOfView=combatCamera.FieldOfView(BaseFieldOfView,feedback,SaveSystem.Data.CameraShakeStrength)+Mathf.Max(0,feedback.DashFovKick)*dashCameraBlend;
    float zoomSpeed=zoomTarget>chargeCameraBlend?settings.ChargeZoomInSpeed:settings.ChargeZoomOutSpeed;
    chargeCameraBlend=Mathf.Lerp(chargeCameraBlend,zoomTarget,1-Mathf.Exp(-Mathf.Max(.1f,zoomSpeed)*Time.deltaTime));
    Vector3 target=transform.position+Vector3.up*(1.9f*visualScale+Mathf.Max(0,settings.HeightAboveHead));
@@ -129,15 +155,16 @@ namespace Brainrot {
   }
   public void Heal(float amount){Health=Mathf.Min(Stats.MaxHealth,Health+Mathf.Max(0,amount));}
   public void TakeDamage(float amount,Vector3 source,float knockbackSpeed=0){
-   if(GameManager.Instance==null||!GameManager.Instance.IsPlaying||Time.time<invulnerableUntil||amount<=0)return;
+   if(GameManager.Instance==null||!GameManager.Instance.IsPlaying||IsDashing||Time.time<invulnerableUntil||amount<=0)return;
    DamageTakenCount++;Health=Mathf.Max(0,Health-amount);foreach(var ability in abilities)ability.OnDamageTaken(amount);
    if(knockbackSpeed>0){Vector3 away=transform.position-source;away.y=0;if(away.sqrMagnitude<.001f)away=-transform.forward;externalVelocity=away.normalized*Mathf.Clamp(knockbackSpeed,0,40);}
    invulnerableUntil=Time.time+.5f;trauma=.18f;HitEffects.Burst(transform.position+Vector3.up,new Color(1,.2f,.1f));GameAudio.Play(130,.1f,.15f);if(Health<=0)GameManager.Instance.Die();
   }
-  public void CancelAttacks(){combat?.CancelPendingSwings();ResetCombatCamera();}
+  public void CancelAttacks(){EndDash();combat?.CancelPendingSwings();ResetCombatCamera();}
   public void ResetCombatCamera(){chargeCameraBlend=trauma=0;combatCamera.Reset();if(cam!=null)cam.fieldOfView=BaseFieldOfView;}
   public void ConfirmBatHit(bool heavy,int hits){if(hits<=0)return;combatCamera.ConfirmHit(transform.forward,heavy,GameBalance.Current.Feedback);}
   public void NotifyAttack(){foreach(var ability in abilities)ability.OnAttack();}
-  void OnDestroy(){cameraCollision?.Dispose();foreach(var ability in abilities)ability.Dispose();abilities.Clear();if(cam!=null)Destroy(cam.gameObject);}
+  void OnDisable(){EndDash();dashCameraBlend=0;}
+  void OnDestroy(){RestoreDashCollisions();cameraCollision?.Dispose();foreach(var ability in abilities)ability.Dispose();abilities.Clear();if(cam!=null)Destroy(cam.gameObject);}
  }
 }

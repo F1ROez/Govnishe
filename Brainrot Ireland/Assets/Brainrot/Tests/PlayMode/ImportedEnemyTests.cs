@@ -45,7 +45,7 @@ namespace Brainrot.Tests
             actor=Object.Instantiate(prefab,new Vector3(4,0,-3),Quaternion.Euler(0,53,0));actor.transform.localScale=Vector3.one*1.3f;yield return null;
             var bridge=actor.GetComponent<ImportedEnemyVisual>();var pose=actor.GetComponent<OrcaladonVisual>();pose.ResetPose();
             var relaxed=pose.UpperLeft.localRotation;pose.RestoreBindPose();
-            Assert.That(Quaternion.Angle(relaxed,pose.UpperLeft.localRotation),Is.EqualTo(OrcaladonVisual.RelaxedArmRoll).Within(.1f));
+            Assert.That(Quaternion.Angle(relaxed,pose.UpperLeft.localRotation),Is.EqualTo(pose.NeutralArmsDown?0:OrcaladonVisual.RelaxedArmRoll).Within(.1f));
             pose.ResetPose();pose.ResetPose();Assert.Less(Quaternion.Angle(relaxed,pose.UpperLeft.localRotation),.01f);
             Assert.Less(Vector3.Dot(pose.ForeLeft.position-pose.UpperLeft.position,actor.transform.up),-.05f,"Левая рука должна естественно опускаться от плеча.");
             Assert.Less(Vector3.Dot(pose.ForeRight.position-pose.UpperRight.position,actor.transform.up),-.05f,"Правая рука должна естественно опускаться от плеча.");
@@ -58,6 +58,18 @@ namespace Brainrot.Tests
                 foreach(var vertex in baked.vertices){float y=matrix.MultiplyPoint3x4(vertex).y;low=Mathf.Min(low,y);high=Mathf.Max(high,y);}
                 Assert.That(high-low,Is.EqualTo(GameBalance.Current.Orcaladon.ModelHeight).Within(.015f));Assert.That(low,Is.EqualTo(0).Within(.015f));
             }finally{Object.Destroy(baked);}
+        }
+        [Test]public void NestedMotionTransformCalibrationUsesNormalizationParentCoordinates(){
+            actor=new GameObject("Grounding with nested transform");
+            var motion=new GameObject("Motion").transform;motion.SetParent(actor.transform,false);motion.localPosition=new Vector3(1,.7f,-2);motion.localRotation=Quaternion.Euler(0,31,0);motion.localScale=Vector3.one*.7f;
+            var norm=new GameObject("Normalization").transform;norm.SetParent(motion,false);
+            var model=GameObject.CreatePrimitive(PrimitiveType.Cube);model.transform.SetParent(norm,false);model.transform.localScale=new Vector3(1,3,1);model.transform.localPosition=new Vector3(.5f,0,.2f);
+            var bridge=actor.AddComponent<ImportedEnemyVisual>();bridge.MotionRoot=motion;bridge.Normalization=norm;bridge.ModelRoot=model.transform;bridge.TargetHeight=2.6f;
+            Assert.IsTrue(bridge.CalibrateModel());
+            float low=motion.InverseTransformPoint(model.transform.TransformPoint(new Vector3(0,-.5f,0))).y;
+            float high=motion.InverseTransformPoint(model.transform.TransformPoint(new Vector3(0,.5f,0))).y;
+            Assert.That(low,Is.EqualTo(0).Within(.001f));Assert.That(high-low,Is.EqualTo(2.6f).Within(.001f));
+            var scale=norm.localScale;var offset=norm.localPosition;Assert.IsTrue(bridge.CalibrateModel());Assert.Less(Vector3.Distance(scale,norm.localScale),.001f);Assert.Less(Vector3.Distance(offset,norm.localPosition),.001f);
         }
         [Test]public void LegacyOrcaladonPrefabUsesConfiguredHeightWithoutAccumulatingScale(){
             var tuning=GameBalance.Current.Orcaladon;float original=tuning.ModelHeight;

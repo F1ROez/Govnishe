@@ -6,10 +6,18 @@ namespace Brainrot
     public enum IslandSymbol { Play, Shop, Trophy, Settings, Exit, Camera, Target, Shake, Leaf, Laurel }
 
     /// <summary>Small, resolution-independent menu pictograms. No font glyphs or input interception.</summary>
+    [RequireComponent(typeof(CanvasRenderer))]
     public sealed class IslandMenuSymbol:MaskableGraphic
     {
         [SerializeField] IslandSymbol symbol;
         Color paint;
+        readonly System.Collections.Generic.List<Vector2> points=new System.Collections.Generic.List<Vector2>(512);
+        public override Texture mainTexture=>Texture2D.whiteTexture;
+        void Tri(VertexHelper mesh,int a,int b,int c){
+            var u=points[b]-points[a];var v=points[c]-points[a];
+            // Match UGUI Image's clockwise front face for every generated primitive.
+            if(u.x*v.y-u.y*v.x>0)mesh.AddTriangle(a,c,b);else mesh.AddTriangle(a,b,c);
+        }
         public IslandSymbol Symbol {get=>symbol;set{if(symbol==value)return;symbol=value;SetVerticesDirty();}}
         public static IslandMenuSymbol Place(Transform parent,IslandSymbol symbol,float x,float y,float w,float h,Color color)
         {
@@ -24,18 +32,18 @@ namespace Brainrot
         }
         int Vertex(VertexHelper mesh,float x,float y)
         {
-            int index=mesh.currentVertCount;mesh.AddVert(Point(x,y),paint,Vector2.zero);return index;
+            int index=mesh.currentVertCount;var point=Point(x,y);points.Add(point);mesh.AddVert(point,paint,new Vector2(.5f,.5f));return index;
         }
         void Quad(VertexHelper mesh,Vector2 a,Vector2 b,Vector2 c,Vector2 d)
         {
             int start=Vertex(mesh,a.x,a.y);Vertex(mesh,b.x,b.y);Vertex(mesh,c.x,c.y);Vertex(mesh,d.x,d.y);
-            mesh.AddTriangle(start,start+1,start+2);mesh.AddTriangle(start,start+2,start+3);
+            Tri(mesh,start,start+1,start+2);Tri(mesh,start,start+2,start+3);
         }
         void Disc(VertexHelper mesh,float x,float y,float radius)
         {
             const int steps=24;int center=Vertex(mesh,x,y);
             for(int i=0;i<=steps;i++){float angle=i*Mathf.PI*2/steps;Vertex(mesh,x+Mathf.Cos(angle)*radius,y+Mathf.Sin(angle)*radius);}
-            for(int i=0;i<steps;i++)mesh.AddTriangle(center,center+i+1,center+i+2);
+            for(int i=0;i<steps;i++)Tri(mesh,center,center+i+1,center+i+2);
         }
         void Stroke(VertexHelper mesh,float ax,float ay,float bx,float by,float width)
         {
@@ -62,11 +70,11 @@ namespace Brainrot
                 float cx=corner<2?x+width-radius:x+radius,cy=corner==0||corner==3?y+radius:y+height-radius;
                 Vertex(mesh,cx+Mathf.Cos(angle)*radius,cy+Mathf.Sin(angle)*radius);
             }
-            for(int i=0;i<count;i++)mesh.AddTriangle(center,center+i+1,center+i+2);
+            for(int i=0;i<count;i++)Tri(mesh,center,center+i+1,center+i+2);
         }
         void Triangle(VertexHelper mesh,Vector2 a,Vector2 b,Vector2 c)
         {
-            int index=Vertex(mesh,a.x,a.y);Vertex(mesh,b.x,b.y);Vertex(mesh,c.x,c.y);mesh.AddTriangle(index,index+1,index+2);
+            int index=Vertex(mesh,a.x,a.y);Vertex(mesh,b.x,b.y);Vertex(mesh,c.x,c.y);Tri(mesh,index,index+1,index+2);
         }
         void Camera(VertexHelper mesh)
         {
@@ -90,7 +98,7 @@ namespace Brainrot
                 Vertex(mesh,inner.x,inner.y);Vertex(mesh,outer.x,outer.y);
             }
             for(int i=0;i<steps;i++){
-                int index=start+i*2;mesh.AddTriangle(index,index+1,index+3);mesh.AddTriangle(index,index+3,index+2);
+                int index=start+i*2;Tri(mesh,index,index+1,index+3);Tri(mesh,index,index+3,index+2);
             }
             RoundedBox(mesh,.40f,.66f,.17f,.10f,.025f);
         }
@@ -110,12 +118,12 @@ namespace Brainrot
                 for(int j=0;j<=steps;j++){
                     float angle=j*Mathf.PI*2/steps;var point=center+along*Mathf.Cos(angle)+across*Mathf.Sin(angle);Vertex(mesh,point.x,point.y);
                 }
-                for(int j=0;j<steps;j++)mesh.AddTriangle(start,start+j+1,start+j+2);
+                for(int j=0;j<steps;j++)Tri(mesh,start,start+j+1,start+j+2);
             }
         }
         protected override void OnPopulateMesh(VertexHelper mesh)
         {
-            mesh.Clear();paint=color;if(rectTransform.rect.width<=0||rectTransform.rect.height<=0)return;
+            mesh.Clear();points.Clear();paint=color;if(rectTransform.rect.width<=0||rectTransform.rect.height<=0)return;
             switch(symbol){
                 case IslandSymbol.Play:
                     paint=new Color(.35f,.13f,.02f,color.a);

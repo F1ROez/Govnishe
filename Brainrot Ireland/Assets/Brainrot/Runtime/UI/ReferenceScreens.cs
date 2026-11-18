@@ -38,7 +38,7 @@ namespace Brainrot
             var label=go.GetComponent<Text>();label.text=value;label.fontSize=size;label.alignment=TextAnchor.MiddleCenter;label.raycastTarget=false;
             CartoonUI.Typography(label,true);label.horizontalOverflow=HorizontalWrapMode.Wrap;label.resizeTextMinSize=Mathf.Max(9,size-4);
             label.GetComponent<Outline>().effectDistance=new Vector2(2,-2);
-            label.GetComponent<Shadow>().effectColor=new Color(.17f,.075f,.02f,.8f);label.GetComponent<Shadow>().effectDistance=new Vector2(0,-3.5f);return label;
+            DropShadow(label).effectColor=new Color(.17f,.075f,.02f,.8f);DropShadow(label).effectDistance=new Vector2(0,-2.5f);return label;
         }
         public static Button Hotspot(Transform parent,string title,float x,float y,float w,float h,UnityAction action,int size=28){
             var image=Surface(parent,title,x,y,w,h,Color.clear);image.raycastTarget=true;
@@ -54,11 +54,16 @@ namespace Brainrot
         public static Text SeaText(Transform parent,string value,int size,float x,float y,float w,float h){
             var text=Text(parent,value,size,x,y,w,h);SetTextStyle(text,false);return text;
         }
+        static Shadow DropShadow(Text text){
+            // Outline derives from Shadow; GetComponent<Shadow>() selects the outline first.
+            foreach(var effect in text.GetComponents<Shadow>())if(effect.GetType()==typeof(Shadow))return effect;
+            return text.gameObject.AddComponent<Shadow>();
+        }
         static void SetTextStyle(Text text,bool primary){
             text.color=primary?Cream:Cocoa;
             var outline=text.GetComponent<Outline>();outline.effectColor=primary?new Color(.20f,.085f,.018f,1):new Color(1,.97f,.80f,.48f);
             outline.effectDistance=primary?new Vector2(2.1f,-2.1f):new Vector2(.7f,-.7f);
-            var shadow=text.GetComponent<Shadow>();shadow.effectColor=primary?new Color(.10f,.075f,.02f,.7f):new Color(.58f,.25f,.025f,.20f);
+            var shadow=DropShadow(text);shadow.effectColor=primary?new Color(.10f,.075f,.02f,.7f):new Color(.58f,.25f,.025f,.20f);
             shadow.effectDistance=new Vector2(0,primary?-3.2f:-1);
         }
         /// <summary>Decorated title is independent of the nine-sliced sand board; its art contains no baked text.</summary>
@@ -79,10 +84,10 @@ namespace Brainrot
             float left=primary&&waves?.16f:.08f,right=primary&&waves?.68f:.84f;
             if(symbol.HasValue){
                 bool play=symbol.Value==IslandSymbol.Play;
-                IslandMenuSymbol.Place(face.transform,symbol.Value,play?.78f:.105f,.22f,play?.105f:.13f,.56f,play?new Color(1,.78f,.05f):Cocoa);
-                left=play?.17f:.265f;right=play?.57f:.64f;
+                IslandMenuSymbol.Place(face.transform,symbol.Value,play?.80f:.085f,.18f,play?.10f:.125f,.64f,play?new Color(1,.78f,.05f):Cocoa);
+                left=play?.22f:.24f;right=play?.56f:.52f;
             }
-            var label=SeaText(face.transform,title,size,left,.145f,right,.70f);SetTextStyle(label,primary);
+            var label=SeaText(face.transform,title,size,left,.12f,right,.76f);label.resizeTextMinSize=Mathf.Min(size,14);SetTextStyle(label,primary);
             var button=hit.gameObject.AddComponent<Button>();button.targetGraphic=face;button.transition=Selectable.Transition.None;
             var motion=hit.gameObject.AddComponent<CartoonButtonMotion>();motion.VisualTarget=visual;motion.BaseColor=Color.white;motion.HoverGlow=glow;
             button.onClick.AddListener(GameMusic.PlayButtonClick);button.onClick.AddListener(action);CartoonUI.EnsureTouchTarget(button);return button;
@@ -152,8 +157,22 @@ namespace Brainrot
                     for(int j=0;j<buttons.Length;j++)SetButtonStyle(buttons[j],j==level);
                 },23,SaveSystem.Data.Quality==i,null,false);
             }
-            SeaButton(frame,"НАЗАД",.19f,.878f,.62f,.135f,back,36,true);
+            SeaButton(frame,"СБРОСИТЬ ПРОГРЕСС",.035f,.915f,.20f,.058f,()=>ConfirmReset(viewport,back),11);
+            SeaButton(frame,"НАЗАД",.24f,.885f,.55f,.125f,back,36,true);
             if(EventSystem.current!=null)EventSystem.current.SetSelectedGameObject(camera.gameObject);
+        }
+        static void ConfirmReset(Transform viewport,UnityAction back){
+            var shade=Surface(viewport,"Подтверждение сброса",0,0,1,1,new Color(.015f,.06f,.09f,.72f));shade.raycastTarget=true;
+            var dialog=Panel(shade.transform,"СБРОС ПРОГРЕССА",.27f,.30f,.46f,.45f,29);
+            var message=SeaText(dialog,"Монеты, покупки, рекорды и обучение будут сброшены. Настройки сохранятся.",20,.10f,.19f,.80f,.24f);
+            SeaButton(dialog,"ПОДТВЕРДИТЬ СБРОС",.08f,.49f,.84f,.18f,()=>{
+                var game=GameManager.Instance;if(game!=null)game.EndRun();
+                if(!SaveSystem.ResetProgress()){message.text="Не удалось сохранить сброс. Попробуй ещё раз.";return;}
+                shade.gameObject.SetActive(false);Object.Destroy(shade.gameObject);
+                if(game!=null)game.MainMenu();else back();
+            },25,true);
+            var cancel=SeaButton(dialog,"ОТМЕНА",.20f,.72f,.60f,.15f,()=>{shade.gameObject.SetActive(false);Object.Destroy(shade.gameObject);},23);
+            if(EventSystem.current!=null)EventSystem.current.SetSelectedGameObject(cancel.gameObject);
         }
         static Button ToggleRow(Transform frame,string title,IslandSymbol icon,float top,bool initial,UnityAction<bool> change){
             bool value=initial;
