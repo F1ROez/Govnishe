@@ -1,0 +1,6 @@
+{
+  "name": "Brainrot.EditModeTests",
+  "references": ["Brainrot.Runtime", "Brainrot.Editor"],
+  "includePlatforms": ["Editor"],
+  "optionalUnityReferences": ["TestAssemblies"]
+}
