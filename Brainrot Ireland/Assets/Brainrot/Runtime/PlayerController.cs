@@ -87,7 +87,7 @@ namespace Brainrot {
   void IgnoreDashEnemies(System.Collections.Generic.List<EnemyController> enemies){
    for(int i=0;i<enemies.Count;i++){
     var enemy=enemies[i];if(enemy==null||!enemy.gameObject.activeInHierarchy)continue;
-    var collider=enemy.GetComponent<CapsuleCollider>();
+    var collider=enemy.BodyCollider;
     if(collider==null||!collider.enabled)continue;
     if(dashIgnoredSet.Contains(collider)){if(!Physics.GetIgnoreCollision(motor,collider))Physics.IgnoreCollision(motor,collider,true);continue;}
     if(Physics.GetIgnoreCollision(motor,collider))continue;

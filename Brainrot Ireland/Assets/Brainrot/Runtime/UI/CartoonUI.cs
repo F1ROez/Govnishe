@@ -149,9 +149,10 @@ namespace Brainrot
                 Spring(ref scaleY,ref velocityY,targetY,down?1000:480,down?48:32,step);
                 Spring(ref lift,ref liftVelocity,targetLift,down?1000:480,down?48:32,step);
             }
-            captured.localScale=new Vector3(restScale.x*scaleX,restScale.y*scaleY,restScale.z);
-            if(visualRect!=null)visualRect.anchoredPosition=restAnchor+Vector2.up*lift;
-            else captured.localPosition=restPosition+Vector3.up*lift;
+            var scale=new Vector3(restScale.x*scaleX,restScale.y*scaleY,restScale.z);
+            if(captured.localScale!=scale)captured.localScale=scale;
+            if(visualRect!=null){var point=restAnchor+Vector2.up*lift;if(visualRect.anchoredPosition!=point)visualRect.anchoredPosition=point;}
+            else{var point=restPosition+Vector3.up*lift;if(captured.localPosition!=point)captured.localPosition=point;}
             if(face!=button.targetGraphic)face=button.targetGraphic;
             if(face!=null&&VisualTarget!=null)face.color=active?BaseColor:BaseColor*new Color(.64f,.64f,.64f,.90f);
             if(glow!=HoverGlow){glow=HoverGlow;if(glow!=null)glowAlpha=glow.color.a;}

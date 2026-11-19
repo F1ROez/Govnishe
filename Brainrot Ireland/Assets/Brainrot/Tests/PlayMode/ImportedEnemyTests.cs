@@ -112,6 +112,13 @@ namespace Brainrot.Tests
                 Assert.AreEqual(1.2f,balance.EnemyModelScale);Assert.AreEqual(1.1f,balance.OrcaladonEnemy.ModelScale);
             }finally{balance.Orcaladon.ModelHeight=height;balance.EnemyModelScale=global;balance.OrcaladonEnemy.ModelScale=local;}
         }
+        [Test]public void OrcaladonDerivativeKeepsCrowdGeometryWithinBudget(){
+            var prefab=Resources.Load<GameObject>("ImportedOrcaladon");if(prefab==null)Assert.Ignore("Сначала обновите графику и материалы.");
+            var pose=prefab.GetComponent<OrcaladonVisual>();if(pose==null||!pose.NeutralArmsDown)Assert.Ignore("Нужна новая модель Оркаладона.");
+            var mesh=prefab.GetComponentInChildren<SkinnedMeshRenderer>().sharedMesh;
+            Assert.LessOrEqual(mesh.vertexCount,20000,"Ресурс должен пересобраться с упрощённой геометрией.");
+            Assert.LessOrEqual(mesh.triangles.Length/3,20000);
+        }
         static void CheckVisibleMesh(GameObject root){
             var model=root.GetComponent<ImportedEnemyVisual>().ModelRoot;
             var renderers=model.GetComponentsInChildren<Renderer>();Assert.AreEqual(1,renderers.Length);var skin=renderers[0];Assert.IsTrue(skin.enabled);

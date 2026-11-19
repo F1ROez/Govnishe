@@ -87,6 +87,19 @@ namespace Brainrot.Tests
             first.TakeDamage(9999,Vector3.zero);second.Tick(.01f);Assert.AreEqual(EnemyAction.MeleeWindup,second.Action);
             yield return null;
         }
+        [UnityTest] public IEnumerator LoweringAttackBudgetDoesNotHideAlreadyCommittedWarnings()
+        {
+            profile.Crowd.MaxSimultaneousMelee=3;profile.Crowd.MaxMeleeWarnings=3;
+            var first=game.Spawner.Spawn(EnemyKind.Normal,Vector3.back*1.6f);
+            var second=game.Spawner.Spawn(EnemyKind.Normal,Vector3.forward*1.6f);
+            var third=game.Spawner.Spawn(EnemyKind.Normal,Vector3.right*1.6f);
+            first.Tick(.61f);second.Tick(.61f);third.Tick(.61f);
+            Assert.AreEqual(EnemyAction.MeleeWindup,first.Action);Assert.AreEqual(EnemyAction.MeleeWindup,second.Action);Assert.AreEqual(EnemyAction.MeleeWindup,third.Action);
+            profile.Crowd.MaxSimultaneousMelee=1;profile.Crowd.MaxMeleeWarnings=1;
+            Assert.IsTrue(game.Spawner.IsMeleeWarningVisible(first));Assert.IsTrue(game.Spawner.IsMeleeWarningVisible(second));Assert.IsTrue(game.Spawner.IsMeleeWarningVisible(third));
+            Assert.IsFalse(game.Spawner.CanBeginMeleeAttack(first),"An existing warning remains readable, but the lower budget cannot grant additional attacks.");
+            yield return null;
+        }
         void KillLiving(){for(int i=game.Spawner.Active.Count-1;i>=0;i--)game.Spawner.Active[i].TakeDamage(9999,Vector3.zero);}
     }
 }

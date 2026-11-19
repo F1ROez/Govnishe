@@ -26,6 +26,7 @@ namespace Brainrot
         EnemySpawner owner;OctopusAttack octopus;OrcaladonAttack orcaladon;
         CharacterVisual visual;
         CapsuleCollider capsule;
+        public CapsuleCollider BodyCollider=>capsule;
         ImportedEnemyVisual importedVisual;
         float fallbackHeight,fallbackFloor;
         EnemyTelegraph telegraph;
@@ -105,9 +106,9 @@ namespace Brainrot
             float scale=Size(Kind)*Mathf.Max(.1f,GameBalance.Current.EnemyModelScale)*Mathf.Max(.1f,tuning.ModelScale);
             if(Kind==EnemyKind.Orcaladon&&importedVisual==null&&fallbackHeight>.0001f){
                 scale*=Mathf.Max(.5f,GameBalance.Current.Orcaladon.ModelHeight)/fallbackHeight;
-                visual.transform.localPosition=Vector3.up*(-fallbackFloor*scale);
+                var floor=Vector3.up*(-fallbackFloor*scale);if(visual.transform.localPosition!=floor)visual.transform.localPosition=floor;
             }
-            visual.transform.localScale=Vector3.one*scale;
+            var size=Vector3.one*scale;if(visual.transform.localScale!=size)visual.transform.localScale=size;
         }
         void MeasureFallbackHeight(){
             // The temporary procedural shark has a different native height from the real rig.

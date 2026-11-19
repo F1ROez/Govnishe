@@ -17,7 +17,7 @@ namespace Brainrot.Editor
             queued=true;
             try{
                 string stamp="Assets/Brainrot/Generated/Enemies/OrcaladonNew/source.sha256";
-                string hash;using(var sha=System.Security.Cryptography.SHA256.Create())hash=BitConverter.ToString(sha.ComputeHash(File.ReadAllBytes(OrcaladonGlbImporter.Source)));
+                string hash;using(var sha=System.Security.Cryptography.SHA256.Create())hash=BitConverter.ToString(sha.ComputeHash(File.ReadAllBytes(OrcaladonGlbImporter.Source)))+"|"+OrcaladonOptimizedGeometry.Signature;
                 var prefab=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Brainrot/Generated/Resources/ImportedOrcaladon.prefab");
                 if(File.Exists(stamp)&&File.ReadAllText(stamp)==hash&&prefab!=null&&prefab.GetComponent<OrcaladonVisual>()!=null&&prefab.GetComponent<OrcaladonVisual>().NeutralArmsDown)return;
                 EnemyModelImporter.BuildOrcaladon();
@@ -49,20 +49,23 @@ namespace Brainrot.Editor
             int jsonLength=checked((int)BitConverter.ToUInt32(data,12));doc=JsonUtility.FromJson<Document>(Encoding.UTF8.GetString(data,20,jsonLength));bin=checked(20+jsonLength+8);
             if(doc==null||doc.meshes==null||doc.meshes.Length!=1||doc.meshes[0].primitives.Length!=1)throw new InvalidDataException("Ожидалась одна сетка нового Оркаладона.");
             var primitive=doc.meshes[0].primitives[0];if(primitive.mode!=4)throw new InvalidDataException("GLB должен содержать треугольники.");
-            var at=primitive.attributes;int count=doc.accessors[at.POSITION].count;var positions=new Vector3[count];var normals=new Vector3[count];var uv=new Vector2[count];var bounds=new Bounds();
-            for(int i=0;i<count;i++){
+            Vector3[] positions,normals;Vector2[] uv;int[] triangles;
+            if(!OrcaladonOptimizedGeometry.TryLoad(data,out positions,out normals,out uv,out triangles)){
+            var at=primitive.attributes;int sourceCount=doc.accessors[at.POSITION].count;positions=new Vector3[sourceCount];normals=new Vector3[sourceCount];uv=new Vector2[sourceCount];
+            for(int i=0;i<sourceCount;i++){
                 // The source faces -X. Reflect/rotate into Unity's +Z forward, +Y up.
                 positions[i]=new Vector3(-Float(at.POSITION,i,2,3),Float(at.POSITION,i,1,3),-Float(at.POSITION,i,0,3));
                 normals[i]=new Vector3(-Float(at.NORMAL,i,2,3),Float(at.NORMAL,i,1,3),-Float(at.NORMAL,i,0,3));uv[i]=new Vector2(Float(at.TEXCOORD_0,i,0,2),1-Float(at.TEXCOORD_0,i,1,2));
-                if(i==0)bounds=new Bounds(positions[i],Vector3.zero);else bounds.Encapsulate(positions[i]);
             }
+            var indicesAccessor=doc.accessors[primitive.indices];triangles=new int[indicesAccessor.count];
+            for(int i=0;i<triangles.Length;i++){int o=Offset(primitive.indices,i,1);triangles[i]=indicesAccessor.componentType==5125?checked((int)BitConverter.ToUInt32(data,o)):indicesAccessor.componentType==5123?BitConverter.ToUInt16(data,o):throw new InvalidDataException("Неверный индекс GLB.");}
+            }
+            int count=positions.Length;var bounds=new Bounds(positions[0],Vector3.zero);foreach(var position in positions)bounds.Encapsulate(position);
             float scale=2.6f/Mathf.Max(.001f,bounds.size.y);var center=new Vector3(bounds.center.x,bounds.min.y,bounds.center.z);
             for(int i=0;i<count;i++)positions[i]=(positions[i]-center)*scale;
-            var indicesAccessor=doc.accessors[primitive.indices];var triangles=new int[indicesAccessor.count];
-            for(int i=0;i<triangles.Length;i++){int o=Offset(primitive.indices,i,1);triangles[i]=indicesAccessor.componentType==5125?checked((int)BitConverter.ToUInt32(data,o)):indicesAccessor.componentType==5123?BitConverter.ToUInt16(data,o):throw new InvalidDataException("Неверный индекс GLB.");}
             for(int i=0;i<triangles.Length;i+=3){int swap=triangles[i+1];triangles[i+1]=triangles[i+2];triangles[i+2]=swap;}
             Directory.CreateDirectory(Root);AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
-            var mesh=new Mesh{name="OrcaladonNew — исходная геометрия с мягким ригом",indexFormat=IndexFormat.UInt32};mesh.vertices=positions;mesh.normals=normals;mesh.uv=uv;mesh.triangles=triangles;
+            var mesh=new Mesh{name="OrcaladonNew — исходная геометрия с мягким ригом",indexFormat=count<=65535?IndexFormat.UInt16:IndexFormat.UInt32};mesh.vertices=positions;mesh.normals=normals;mesh.uv=uv;mesh.triangles=triangles;
             var model=new GameObject("OrcaladonNew");
             string[] names={"Body","UpperArm.L","UpperArm.R","Forearm.L","Forearm.R","Thigh.L","Thigh.R","Shin.L","Shin.R"};
             Vector3[] pivots={new Vector3(0,1,0),new Vector3(.72f,1.28f,.45f),new Vector3(-.72f,1.28f,.45f),new Vector3(.91f,.64f,.70f),new Vector3(-.91f,.64f,.70f),new Vector3(.65f,.85f,-.65f),new Vector3(-.65f,.85f,-.65f),new Vector3(.70f,.36f,-.65f),new Vector3(-.70f,.36f,-.65f)};

@@ -11,13 +11,16 @@ namespace Brainrot
         public bool IsOctopus;
         public bool IsOrcaladon;
         public OrcaladonVisual Orcaladon;
-        EnemyController enemy;
+        EnemyController enemy;Renderer[] visibility;
         Quaternion[] legRest;
         bool movingKnown,animatorMoving;
         float speed,phase,biteRemaining,biteDuration=.32f,calibratedHeight;
         Vector3 restMotion;Quaternion restRotation=Quaternion.identity;
         static readonly int Moving=UnityEngine.Animator.StringToHash("Moving");
-        void Awake(){enemy=GetComponentInParent<EnemyController>();CacheRest();}
+        void Awake(){enemy=GetComponentInParent<EnemyController>();CacheRest();
+            visibility=GetComponentsInChildren<Renderer>(true);
+            foreach(var renderer in visibility)if(renderer is SkinnedMeshRenderer skin)skin.updateWhenOffscreen=false;
+        }
         void Start(){CalibrateModel();}
         void CacheRest(){
             if(MotionRoot!=null){restMotion=MotionRoot.localPosition;restRotation=MotionRoot.localRotation;}
@@ -31,7 +34,7 @@ namespace Brainrot
             // so they shrink on first activation without requiring a manual prefab rebuild.
             if(IsOrcaladon)TargetHeight=Mathf.Max(.5f,GameBalance.Current.Orcaladon.ModelHeight);
             if(IsOrcaladon&&Orcaladon!=null)Orcaladon.ResetPose();
-            if(Animator!=null&&Animator.runtimeAnimatorController!=null){Animator.applyRootMotion=false;Animator.cullingMode=AnimatorCullingMode.AlwaysAnimate;Animator.Rebind();Animator.Update(0);movingKnown=false;}
+            if(Animator!=null&&Animator.runtimeAnimatorController!=null){Animator.applyRootMotion=false;Animator.cullingMode=AnimatorCullingMode.CullUpdateTransforms;Animator.Rebind();Animator.Update(0);movingKnown=false;}
             bool any=false;Bounds bounds=new Bounds();
             foreach(var renderer in ModelRoot.GetComponentsInChildren<Renderer>(true)){
                 if(renderer is TrailRenderer||renderer is LineRenderer)continue;
@@ -85,6 +88,9 @@ namespace Brainrot
             if(physical)return;
             if(GameManager.Instance!=null&&!GameManager.Instance.IsPlaying)return;
             float dt=Time.deltaTime;if(dt<=0)return;
+            bool visible=visibility==null||visibility.Length==0;
+            if(visibility!=null)foreach(var renderer in visibility)if(renderer!=null&&renderer.isVisible){visible=true;break;}
+            if(!visible)return;
             if(IsOrcaladon){if(Orcaladon!=null)Orcaladon.Pose(dt,speed);return;}
             if(IsOctopus&&Animator==null){
                 float gait=Mathf.Clamp01(speed/2f);phase=Mathf.Repeat(phase+dt*(gait>0?7.5f:1.7f),Mathf.PI*4);

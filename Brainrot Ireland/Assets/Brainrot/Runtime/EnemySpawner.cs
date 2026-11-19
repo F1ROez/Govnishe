@@ -42,7 +42,7 @@ namespace Brainrot {
    int maximum=Mathf.Min(Mathf.Clamp(GameBalance.Current.Crowd.MaxMeleeWarnings,1,12),Mathf.Clamp(GameBalance.Current.Crowd.MaxSimultaneousMelee,1,8)),attacking=0;
    for(int i=0;i<Active.Count;i++){
     var enemy=Active[i];if(enemy==null||!enemy.Alive||enemy==candidate||enemy.Kind!=EnemyKind.Normal)continue;
-    if(enemy.Action==EnemyAction.MeleeWindup||enemy.Action==EnemyAction.Biting)attacking++;
+    if(enemy.Action==EnemyAction.MeleeWindup||enemy.Action==EnemyAction.Biting){attacking++;if(attacking>=maximum)return false;}
    }
    return attacking<maximum;
   }
@@ -53,7 +53,7 @@ namespace Brainrot {
   public int LastCrowdNeighbourChecks=>crowd.LastNeighbourChecks;
   public bool IsMeleeWarningVisible(EnemyController enemy){
    int maximum=Mathf.Clamp(GameBalance.Current.Crowd.MaxMeleeWarnings,1,12);
-   if(Active.Count<=maximum||enemy!=null&&enemy.Action==EnemyAction.MeleeWindup&&CanBeginMeleeAttack(enemy))return true;
+   if(Active.Count<=maximum||enemy!=null&&enemy.Action==EnemyAction.MeleeWindup)return true;
    for(int i=0;i<meleeWarningCount;i++)if(meleeWarnings[i]==enemy)return true;
    return false;
   }

@@ -40,6 +40,12 @@ namespace Brainrot.Tests
             Assert.AreEqual(1,face.localScale.y,.001f);Assert.AreEqual(0,face.anchoredPosition.y,.001f);
         }
 
+        [Test] public void SettledButtonDoesNotDirtyItsTransformEveryFrame()
+        {
+            Tick(120);face.hasChanged=false;Tick(120);
+            Assert.IsFalse(face.hasChanged,"A settled button must not force canvas transforms to rebuild every frame.");
+        }
+
         [Test] public void KeyboardSubmitAnimatesWhileTimeIsPaused()
         {
             float previous=Time.timeScale;

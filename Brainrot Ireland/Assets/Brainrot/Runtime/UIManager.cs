@@ -128,7 +128,7 @@ namespace Brainrot
         {
             var player=gm.Player;
             if(shownCoins!=SaveSystem.Data.Coins||shownRunCoins!=gm.RunCoins){if(shownCoins>=0&&SaveSystem.Data.Coins>shownCoins)coinFlashUntil=Time.unscaledTime+.3f;shownCoins=SaveSystem.Data.Coins;shownRunCoins=gm.RunCoins;coinLabel.text=shownCoins.ToString();coinRunLabel.text="+"+shownRunCoins+" за забег";}
-            float coinPop=Mathf.Clamp01((coinFlashUntil-Time.unscaledTime)/.3f);coinLabel.transform.localScale=Vector3.one*(1+Mathf.Sin(coinPop*Mathf.PI)*.12f);coinLabel.color=Color.Lerp(CartoonUI.Cream,new Color(1,.82f,.25f),coinPop);
+            float coinPop=Mathf.Clamp01((coinFlashUntil-Time.unscaledTime)/.3f);var coinScale=Vector3.one*(1+Mathf.Sin(coinPop*Mathf.PI)*.12f);if(coinLabel.transform.localScale!=coinScale)coinLabel.transform.localScale=coinScale;coinLabel.color=Color.Lerp(CartoonUI.Cream,new Color(1,.82f,.25f),coinPop);
 
             if(player!=null){
                 int health=Mathf.CeilToInt(player.Health),maximum=Mathf.CeilToInt(player.Stats.MaxHealth);
