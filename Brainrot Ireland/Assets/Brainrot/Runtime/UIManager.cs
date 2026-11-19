@@ -11,9 +11,10 @@ namespace Brainrot
     public sealed class UIManager : MonoBehaviour
     {
         Font font;
-        Sprite solid;
+        Sprite solid;Texture2D solidTexture;
         Canvas canvas;
-        GameObject hud, overlay, mobile, fullMap, controlHints;
+        GameObject hud, overlay, mobile, fullMap, controlHints,intermissionPanel,stallPrompt;
+        Image nextWaveFill;Camera promptCamera;bool shownIntermission;
         bool mapExpanded;
         Text waveTitle,stageText,soundMute;Text stats, healthText, xpText, notification, aimHint, hitMarker, hitLabel,chargeLabel;
         Text tutorialLabel,waveProgressText;GameObject tutorialPanel,questBoard;
@@ -40,8 +41,8 @@ namespace Brainrot
         {
             if (canvas != null) return;
             font = CartoonUI.Font;
-            var pixel = new Texture2D(1,1); pixel.SetPixel(0,0,Color.white); pixel.Apply();
-            solid = Sprite.Create(pixel,new Rect(0,0,1,1),new Vector2(.5f,.5f));
+            solidTexture = new Texture2D(1,1); solidTexture.SetPixel(0,0,Color.white); solidTexture.Apply();
+            solid = Sprite.Create(solidTexture,new Rect(0,0,1,1),new Vector2(.5f,.5f));
             var root = new GameObject("Brainrot UI", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             root.transform.SetParent(transform, false);
             canvas = root.GetComponent<Canvas>(); canvas.renderMode = RenderMode.ScreenSpaceOverlay;
@@ -74,7 +75,7 @@ namespace Brainrot
             var waveBanner=Box("Событие волны",hud.transform,new Vector2(.355f,.765f),new Vector2(.645f,.85f),Color.clear);
             waveNotice=waveBanner.AddComponent<HudWaveNotice>();waveNotice.Build();
             notification=Label(hud.transform,"",20,TextAnchor.MiddleCenter,new Vector2(.20f,.60f),new Vector2(.80f,.66f));notification.color=gold;
-            BuildQuestBoard();
+            BuildQuestBoard();BuildIntermissionHud();
             tutorialPanel=TropicalUIArt.Place("Короткое обучение",hud.transform,new Vector2(.24f,.12f),new Vector2(.80f,.195f),"StatsStrip").gameObject;
             tutorialLabel=Label(tutorialPanel.transform,"",14,TextAnchor.MiddleCenter,new Vector2(.04f,.15f),new Vector2(.79f,.85f));tutorialLabel.color=new Color(.06f,.18f,.25f);tutorialLabel.GetComponent<Outline>().effectColor=new Color(1,1,.85f,.8f);
             var skip=Button(tutorialPanel.transform,"СКРЫТЬ",new Vector2(.82f,.20f),new Vector2(.98f,.80f),()=>GameManager.Instance.Goals.SkipTutorial());skip.GetComponentInChildren<Text>().fontSize=11;
@@ -127,7 +128,7 @@ namespace Brainrot
         void RefreshHud(GameManager gm)
         {
             var player=gm.Player;
-            if(shownCoins!=SaveSystem.Data.Coins||shownRunCoins!=gm.RunCoins){if(shownCoins>=0&&SaveSystem.Data.Coins>shownCoins)coinFlashUntil=Time.unscaledTime+.3f;shownCoins=SaveSystem.Data.Coins;shownRunCoins=gm.RunCoins;coinLabel.text=shownCoins.ToString();coinRunLabel.text="+"+shownRunCoins+" за забег";}
+            if(shownCoins!=gm.RunBalance||shownRunCoins!=gm.RunCoins){if(shownCoins>=0&&gm.RunBalance>shownCoins)coinFlashUntil=Time.unscaledTime+.3f;shownCoins=gm.RunBalance;shownRunCoins=gm.RunCoins;coinLabel.text=shownCoins.ToString();coinRunLabel.text="СОБРАНО "+shownRunCoins;}
             float coinPop=Mathf.Clamp01((coinFlashUntil-Time.unscaledTime)/.3f);var coinScale=Vector3.one*(1+Mathf.Sin(coinPop*Mathf.PI)*.12f);if(coinLabel.transform.localScale!=coinScale)coinLabel.transform.localScale=coinScale;coinLabel.color=Color.Lerp(CartoonUI.Cream,new Color(1,.82f,.25f),coinPop);
 
             if(player!=null){
@@ -143,7 +144,7 @@ namespace Brainrot
             string stage=gm.Spawner.Waves.Stage;int remaining=Mathf.CeilToInt(gm.Spawner.Waves.Remaining);
             int alive=gm.Spawner.Active.Count;
             bool clearing=gm.Spawner.Waves.WaitingForClear;
-            if(stage!=shownStage||remaining!=shownRemaining||alive!=shownAlive){shownStage=stage;shownRemaining=remaining;shownAlive=alive;stageText.text=clearing?"ЗАЧИСТКА":stage=="ПОДКРЕПЛЕНИЯ"?"ПОДКРЕПЛЕНИЯ":$"{stage} · {remaining} с";}
+            if(stage!=shownStage||remaining!=shownRemaining||alive!=shownAlive){shownStage=stage;shownRemaining=remaining;shownAlive=alive;stageText.text=clearing?"ЗАЧИСТКА":gm.Spawner.Waves.Resting?"ЛАВКА ОТКРЫТА":stage=="ПОДКРЕПЛЕНИЯ"?"ПОДКРЕПЛЕНИЯ":$"{stage} · {remaining} с";}
             int resolved=gm.Spawner.WaveResolved,planned=gm.Spawner.WavePlanned;
             if(resolved!=shownWaveResolved||planned!=shownWavePlanned){shownWaveResolved=resolved;shownWavePlanned=planned;waveProgressText.text=planned>0?$"ПРОЙДЕНО {Mathf.Min(resolved,planned)} / {planned}":"ПОДГОТОВКА";}
             waveMeter.Set(gm.Spawner.WaveCompletion);
@@ -152,6 +153,7 @@ namespace Brainrot
                 bool complete=gm.Spawner.Waves.Resting&&!clearing;
                 if(complete&&!announcedClear){announcedClear=true;waveNotice.Show(wave,true,"");GameAudio.PlayWave(true);}
             }
+            RefreshIntermission(gm);
             if(gm.Kills!=shownKills){shownKills=gm.Kills;stats.text=$"ПОБЕД: {gm.Kills}";}
             SetActive(capturePanel,player!=null&&player.IsCaptured);if(player!=null)escapeFill.fillAmount=player.EscapeProgress;
             notification.text=gm.Notification ?? "";SetActive(soundMute.gameObject,GameMusic.IsMuted);
@@ -160,7 +162,7 @@ namespace Brainrot
             if(gm.Goals!=null)for(int i=0;i<questCards.Length;i++)questCards[i].Present(gm.Goals.GetCard(i));
             if(hint!=shownTutorial){shownTutorial=hint;tutorialLabel.text=hint;}
             bool guidance=gm.IsPlaying&&(player==null||!player.IsCaptured);
-            SetActive(tutorialPanel,guidance&&!string.IsNullOrEmpty(hint));SetActive(questBoard,guidance);
+            SetActive(tutorialPanel,guidance&&!string.IsNullOrEmpty(hint));SetActive(questBoard,guidance&&!gm.IsIntermission);
             if(player!=null){heavyAbility.Update(player.Combat.HeavyCooldownRemaining,player.Combat.HeavyCooldownDuration);dashAbility.Update(player.DashCooldownRemaining,player.DashCooldownDuration);}
             var combat=player!=null?player.Combat:null;
             int chargeMode=combat==null?0:combat.HeavyCooldownNotice?1:!combat.IsCharging?0:combat.ChargeProgress>=1?3:2;
@@ -176,6 +178,39 @@ namespace Brainrot
                 float alpha=Mathf.Clamp01((hitUntil-Time.unscaledTime)/.12f);
                 Color feedback=lastHitCritical?gold:Color.white;feedback.a=alpha;
                 hitMarker.color=feedback;hitLabel.color=feedback;
+            }
+        }
+
+        void BuildIntermissionHud(){
+            intermissionPanel=Box("Между волнами",hud.transform,new Vector2(.305f,.715f),new Vector2(.695f,.842f),new Color(.025f,.20f,.24f,.94f));
+            Label(intermissionPanel.transform,"ВОЛНА ПРОЙДЕНА",20,TextAnchor.MiddleCenter,new Vector2(.04f,.61f),new Vector2(.96f,.96f)).color=new Color(1,.91f,.57f);
+            Label(intermissionPanel.transform,"Удерживай F — следующая волна",16,TextAnchor.MiddleCenter,new Vector2(.04f,.24f),new Vector2(.96f,.59f));
+            var track=Box("Подготовка следующей волны",intermissionPanel.transform,new Vector2(.10f,.10f),new Vector2(.90f,.18f),new Color(.01f,.09f,.13f));
+            nextWaveFill=Box("Удержание F",track.transform,Vector2.zero,Vector2.one,new Color(.10f,.90f,.81f)).GetComponent<Image>();
+            nextWaveFill.type=Image.Type.Filled;nextWaveFill.fillMethod=Image.FillMethod.Horizontal;nextWaveFill.fillAmount=0;
+            stallPrompt=Box("Подсказка лавки",hud.transform,Vector2.zero,Vector2.one,new Color(.025f,.16f,.19f,.94f));
+            var rect=(RectTransform)stallPrompt.transform;rect.anchorMin=rect.anchorMax=new Vector2(.5f,.5f);rect.pivot=new Vector2(.5f,0);rect.sizeDelta=new Vector2(250,46);
+            Label(stallPrompt.transform,"[E]  ОТКРЫТЬ ЛАВКУ",18,TextAnchor.MiddleCenter,new Vector2(.04f,.12f),new Vector2(.96f,.88f));
+            intermissionPanel.SetActive(false);stallPrompt.SetActive(false);
+        }
+        void RefreshIntermission(GameManager game){
+            bool active=game.IsIntermission;
+            SetActive(intermissionPanel,active);
+            if(active!=shownIntermission){shownIntermission=active;SetActive(waveNotice.gameObject,!active);}
+            if(!active){SetActive(stallPrompt,false);nextWaveFill.fillAmount=0;return;}
+            var shop=game.Stall;nextWaveFill.fillAmount=shop!=null?shop.StartHoldProgress:0;
+            bool near=shop!=null&&shop.CanInteract;
+            SetActive(stallPrompt,near);
+            if(!near)return;
+            if(promptCamera==null){
+                promptCamera=Camera.main;
+                if(promptCamera==null)foreach(var view in Camera.allCameras)if(view.name=="Arena Camera"){promptCamera=view;break;}
+            }
+            if(promptCamera==null){SetActive(stallPrompt,false);return;}
+            Vector3 screen=promptCamera.WorldToScreenPoint(shop.WorldPosition);
+            if(screen.z<=0||screen.x<0||screen.x>Screen.width||screen.y<0||screen.y>Screen.height){SetActive(stallPrompt,false);return;}
+            if(RectTransformUtility.ScreenPointToLocalPointInRectangle((RectTransform)hud.transform,screen,null,out var local)){
+                var rect=(RectTransform)stallPrompt.transform;if(rect.anchoredPosition!=local)rect.anchoredPosition=local;
             }
         }
 
@@ -249,16 +284,20 @@ namespace Brainrot
             {
                 ReferenceScreens.Pause(ReferenceScreens.Viewport(overlay.transform,"Пауза 16:9"),()=>gm.Resume(),ShowSettings,()=>gm.MainMenu());
             }
+            else if(gm.State==GameState.RunShop)
+            {
+                ShopScreen.ShowRun(ReferenceScreens.Viewport(overlay.transform,"Лавка 16:9"),()=>gm.CloseRunShop());
+            }
             else if(gm.State==GameState.Dead)
             {
                 var frame=ReferenceScreens.Panel(ReferenceScreens.Viewport(overlay.transform,"Результат забега"),"ЗАБЕГ ОКОНЧЕН",.28f,.10f,.44f,.81f);
                 ReferenceScreens.SeaText(frame,$"ВОЛНА {gm.Wave}  ·  {TimeLabel(gm.Elapsed)}  ·  ПОБЕД {gm.Kills}",20,.08f,.23f,.84f,.07f);
-                ReferenceScreens.SeaText(frame,$"СОБРАНО МОНЕТ: +{gm.RunCoins}\nВ КОШЕЛЬКЕ: {SaveSystem.Data.Coins}",25,.08f,.32f,.84f,.13f);
+                ReferenceScreens.SeaText(frame,$"СОБРАНО МОНЕТ: {gm.RunCoins}\nВ ЭТОМ ЗАБЕГЕ",25,.08f,.32f,.84f,.13f);
                 ReferenceScreens.SeaText(frame,"ЛИЧНЫЙ РЕКОРД · ВОЛНА "+SaveSystem.Data.BestWave,16,.08f,.475f,.84f,.05f);
-                var shop=ReferenceScreens.SeaButton(frame,"МАГАЗИН УЛУЧШЕНИЙ",.10f,.57f,.80f,.10f,ShowShop,22,true);
-                ReferenceScreens.SeaButton(frame,"ИГРАТЬ СНОВА",.10f,.70f,.80f,.09f,()=>gm.StartRun(),21);
-                ReferenceScreens.SeaButton(frame,"ГЛАВНОЕ МЕНЮ",.10f,.82f,.80f,.09f,()=>gm.MainMenu(),20);
-                if(EventSystem.current!=null)EventSystem.current.SetSelectedGameObject(shop.gameObject);
+                ReferenceScreens.SeaText(frame,"Монеты и улучшения этой попытки завершены. Новый забег — новое начало.",18,.10f,.55f,.80f,.11f);
+                var again=ReferenceScreens.SeaButton(frame,"ИГРАТЬ СНОВА",.10f,.70f,.80f,.11f,()=>gm.StartRun(),27,true);
+                ReferenceScreens.SeaButton(frame,"ГЛАВНОЕ МЕНЮ",.10f,.84f,.80f,.09f,()=>gm.MainMenu(),23);
+                if(EventSystem.current!=null)EventSystem.current.SetSelectedGameObject(again.gameObject);
             }
             else if(gm.State==GameState.Upgrade)
             {
@@ -290,7 +329,7 @@ namespace Brainrot
         }
         void ClearOverlay(){foreach(Transform child in overlay.transform){child.gameObject.SetActive(false);Destroy(child.gameObject);}}
         void ShowShop(){
-            var gm=GameManager.Instance;if(gm==null||gm.State!=GameState.Dead&&gm.State!=GameState.Menu)return;
+            var gm=GameManager.Instance;if(gm==null||gm.State!=GameState.Menu)return;
             ClearOverlay();ShopScreen.Show(ReferenceScreens.Viewport(overlay.transform,"Магазин 16:9"),BuildScreen);
         }
         void ShowSettings()
@@ -390,6 +429,11 @@ namespace Brainrot
             CartoonUI.Image("Блик полоски",fill.transform,new Vector2(.018f,.61f),new Vector2(.982f,.91f),new Color(1,1,1,.36f));
             CartoonUI.Image("Отражение полоски",fill.transform,new Vector2(.025f,.11f),new Vector2(.975f,.19f),new Color(1,1,1,.18f));
             fill.gameObject.AddComponent<CartoonBarFill>();return fill;
+        }
+        void OnDestroy(){
+            if(canvas!=null){if(Application.isPlaying)Destroy(canvas.gameObject);else DestroyImmediate(canvas.gameObject);canvas=null;}
+            if(solid!=null){if(Application.isPlaying)Destroy(solid);else DestroyImmediate(solid);solid=null;}
+            if(solidTexture!=null){if(Application.isPlaying)Destroy(solidTexture);else DestroyImmediate(solidTexture);solidTexture=null;}
         }
         static string TimeLabel(float seconds) {int n=Mathf.Max(0,Mathf.FloorToInt(seconds));return $"{n/60:00}:{n%60:00}";}
     }

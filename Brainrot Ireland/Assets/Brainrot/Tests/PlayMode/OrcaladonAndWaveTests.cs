@@ -24,7 +24,7 @@ namespace Brainrot.Tests
             if(profile!=null)Object.Destroy(profile);yield return null;
         }
         EnemyController Orca(Vector3 position){var enemy=game.Spawner.Spawn(EnemyKind.Orcaladon,position);Assert.IsNotNull(enemy);return enemy;}
-        void FinishWave(){game.Spawner.Waves.Advance(profile.Waves.Duration,0);game.Spawner.Waves.Advance(.01f,0);}
+        void FinishWave(){game.Spawner.Waves.Advance(profile.Waves.Duration,0);game.Spawner.Waves.Advance(.01f,0);Assert.IsTrue(game.Spawner.Waves.StartNextWave());}
 
         [UnityTest]public IEnumerator ChargeLocksAimAndHitsOnlyOnceAcrossALargeFrame(){
             profile.Orcaladon.ChargeWindup=.2f;profile.Orcaladon.ChargeSpeed=20;profile.Orcaladon.ChargeDuration=1;

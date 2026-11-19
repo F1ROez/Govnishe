@@ -69,6 +69,20 @@ namespace Brainrot {
    return Input.GetKeyDown(KeyCode.V);
 #endif
   }}
+  public static bool InteractDown {get {
+#if ENABLE_INPUT_SYSTEM
+   return Keyboard.current!=null&&Keyboard.current.eKey.wasPressedThisFrame;
+#else
+   return Input.GetKeyDown(KeyCode.E);
+#endif
+  }}
+  public static bool StartWaveHeld {get {
+#if ENABLE_INPUT_SYSTEM
+   return Keyboard.current!=null&&Keyboard.current.fKey.isPressed;
+#else
+   return Input.GetKey(KeyCode.F);
+#endif
+  }}
   public static bool Pause {get {
 #if ENABLE_INPUT_SYSTEM
    return Keyboard.current!=null&&Keyboard.current.escapeKey.wasPressedThisFrame;

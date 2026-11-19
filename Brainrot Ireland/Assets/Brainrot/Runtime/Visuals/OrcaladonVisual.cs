@@ -1,14 +1,15 @@
 using UnityEngine;
 namespace Brainrot
 {
-    /// <summary>Visual-only poses for the owner's corrected Orcaladon rig; gameplay stays on the actor root.</summary>
+    /// <summary>Visual-only layered poses. Gait follows travelled distance; combat contact stays owned by the attack.</summary>
     public sealed class OrcaladonVisual : MonoBehaviour
     {
         public Transform ModelRoot,MotionRoot,Body,UpperLeft,UpperRight,ForeLeft,ForeRight,ThighLeft,ThighRight,ShinLeft,ShinRight;
         public bool NeutralArmsDown;
         Transform[] bones;Quaternion[] rest;Vector3[] restPositions;Vector3 motionPosition;Quaternion motionRotation;
         OrcaladonAttack attack;EnemyController enemy;
-        float phase,upper,fore,lean,crouch;
+        float phase,breathPhase,upper,fore,lean,crouch,gait;
+        Vector3 previousPosition;bool trackedPosition;
         void Awake(){Cache();}
         void Cache(){
             if(bones!=null)return;
@@ -17,62 +18,75 @@ namespace Brainrot
             if(MotionRoot!=null){motionPosition=MotionRoot.localPosition;motionRotation=MotionRoot.localRotation;}
             enemy=GetComponentInParent<EnemyController>();
         }
-        // FBX inspection: shoulder-to-elbow vectors are nearly horizontal (about 11° down).
-        // A mirrored actor-space roll lowers both arms without changing bind poses or stretching bones.
         public const float RelaxedArmRoll=22;
         public void RestoreBindPose(){
-            Cache();phase=upper=fore=lean=crouch=0;
-            for(int i=0;i<bones.Length;i++)if(bones[i]!=null){bones[i].localRotation=rest[i];bones[i].localPosition=restPositions[i];}
+            Cache();phase=breathPhase=upper=fore=lean=crouch=gait=0;trackedPosition=false;
+            RestoreBones();
             if(MotionRoot!=null){MotionRoot.localPosition=motionPosition;MotionRoot.localRotation=motionRotation;}
         }
-        public void ResetPose(){
-            RestoreBindPose();if(!NeutralArmsDown){Rotate(1,0,0,-RelaxedArmRoll);Rotate(2,0,0,RelaxedArmRoll);}
-        }
+        void RestoreBones(){for(int i=0;i<bones.Length;i++)if(bones[i]!=null){bones[i].localRotation=rest[i];bones[i].localPosition=restPositions[i];}}
+        public void ResetPose(){RestoreBindPose();if(!NeutralArmsDown){Rotate(1,0,0,-RelaxedArmRoll);Rotate(2,0,0,RelaxedArmRoll);}}
         public void Pose(float dt,float movement){
-            Cache();if(ModelRoot==null||dt<=0)return;
+            Cache();if(attack==null&&enemy!=null)attack=GetComponentInParent<OrcaladonAttack>();
+            Pose(dt,movement,attack!=null?attack.Phase:OrcaladonPhase.Approach,attack!=null?attack.PhaseProgress:0);
+        }
+        /// <summary>Deterministic visual sampling also used by pose previews; does not advance or execute combat.</summary>
+        public void Pose(float dt,float movement,OrcaladonPhase state,float progress){
+            Cache();if(ModelRoot==null||dt<=0||float.IsNaN(dt)||float.IsInfinity(dt))return;
             if(enemy!=null&&(!enemy.Alive||(enemy.PhysicsBody!=null&&enemy.PhysicsBody.IsPhysical)))return;
-            if(attack==null)attack=GetComponentInParent<OrcaladonAttack>();
-            var state=attack!=null?attack.Phase:OrcaladonPhase.Approach;
-            float progress=attack!=null?attack.PhaseProgress:0;
-            float gait=Mathf.Clamp01(movement/2.2f),upperTarget=0,foreTarget=0,leanTarget=0,crouchTarget=0;
-            bool charging=state==OrcaladonPhase.Charging;
-            if(charging)gait=1;
-            phase=Mathf.Repeat(phase+dt*(charging?17:Mathf.Lerp(1.5f,5.8f,gait)),Mathf.PI*4);
+            progress=Mathf.Clamp01(progress);movement=Mathf.Max(0,movement);
+            bool charging=state==OrcaladonPhase.Charging,walking=state==OrcaladonPhase.Approach||charging;
+            float visualScale=Mathf.Max(.1f,transform.lossyScale.y*GameBalance.Current.Orcaladon.ModelHeight/OrcaladonTuning.DefaultModelHeight),travel=movement*dt;
+            if(enemy!=null){
+                // Stop cycling legs against a neighbour or during a turn in place. A newly visible
+                // enemy cannot convert an entire offscreen journey into one exaggerated step.
+                if(trackedPosition){var delta=transform.position-previousPosition;delta.y=0;travel=Mathf.Min(travel,delta.magnitude);}
+                previousPosition=transform.position;trackedPosition=true;
+            }
+            float actualSpeed=travel/dt;
+            float targetGait=walking?Mathf.Clamp01(actualSpeed/(charging?8:2.2f)):0;
+            gait=Mathf.Lerp(gait,targetGait,1-Mathf.Exp(-14*dt));
+            phase=Mathf.Repeat(phase+(walking?travel*(charging?1.3f:2.65f)/visualScale:0),Mathf.PI*2);
+            breathPhase=Mathf.Repeat(breathPhase+dt*1.65f,Mathf.PI*2);
+            float upperTarget=0,foreTarget=0,leanTarget=0,crouchTarget=0;
             switch(state){
-                case OrcaladonPhase.ChargeAim:upperTarget=25;foreTarget=-28;leanTarget=12;gait=0;break;
+                case OrcaladonPhase.ChargeAim:
+                    float settle=Mathf.SmoothStep(0,1,progress);
+                    upperTarget=Mathf.Lerp(15,25,settle);foreTarget=-28;leanTarget=Mathf.Lerp(5,12,settle);crouchTarget=.055f*settle;break;
                 case OrcaladonPhase.Charging:upperTarget=34;foreTarget=-35;leanTarget=20;break;
                 case OrcaladonPhase.SlamWindup:
                     float wind=Mathf.SmoothStep(0,1,progress/.6f);
                     float strike=Mathf.SmoothStep(0,1,(progress-.68f)/.32f);
-                    upperTarget=Mathf.Lerp(-142*wind,12,strike);foreTarget=Mathf.Lerp(28*wind,25,strike);leanTarget=Mathf.Lerp(-9*wind,21,strike);crouchTarget=.32f*strike;gait=0;break;
-                case OrcaladonPhase.SlamImpact:upperTarget=12;foreTarget=25;leanTarget=21;crouchTarget=.32f;gait=0;break;
-                case OrcaladonPhase.Recovery:gait=0;break;
+                    upperTarget=Mathf.Lerp(-142*wind,12,strike);foreTarget=Mathf.Lerp(28*wind,25,strike);leanTarget=Mathf.Lerp(-9*wind,21,strike);crouchTarget=.18f*strike;break;
+                case OrcaladonPhase.SlamImpact:upperTarget=12;foreTarget=25;leanTarget=21;crouchTarget=.18f;break;
             }
-            float blend=1-Mathf.Exp(-(state==OrcaladonPhase.SlamImpact?32:12)*dt);
-            // AI applies damage on entry to SlamImpact: hands must already be down at that exact boundary.
+            float blend=1-Mathf.Exp(-12*dt);
+            // Exact AI contact has priority over smoothing. The end of the windup is already
+            // the accelerating downswing; no visual delay can make a damaging airborne slam.
             if(state==OrcaladonPhase.SlamImpact||(state==OrcaladonPhase.SlamWindup&&progress>=.68f))blend=1;
             upper=Mathf.Lerp(upper,upperTarget,blend);fore=Mathf.Lerp(fore,foreTarget,blend);lean=Mathf.Lerp(lean,leanTarget,blend);crouch=Mathf.Lerp(crouch,crouchTarget,blend);
-            for(int i=0;i<bones.Length;i++)if(bones[i]!=null){bones[i].localRotation=rest[i];bones[i].localPosition=restPositions[i];}
+            RestoreBones();
             float stride=Mathf.Sin(phase)*gait;
-            Rotate(0,lean,0,Mathf.Sin(phase*.5f)*1.3f*(1-gait));
+            float breath=Mathf.Sin(breathPhase)*(1-gait);
+            bool resting=state==OrcaladonPhase.Approach||state==OrcaladonPhase.Recovery;
+            Rotate(0,lean+(resting?breath*.65f:0),0,resting?breath*.6f:0);
             float armRoll=NeutralArmsDown?0:RelaxedArmRoll;
             if(!NeutralArmsDown&&state==OrcaladonPhase.SlamWindup)armRoll=Mathf.Lerp(RelaxedArmRoll,3,Mathf.SmoothStep(0,1,progress/.6f));
-            else if(!NeutralArmsDown&&(state==OrcaladonPhase.Charging||state==OrcaladonPhase.ChargeAim||state==OrcaladonPhase.SlamImpact))armRoll=12;
+            else if(!NeutralArmsDown&&(charging||state==OrcaladonPhase.ChargeAim||state==OrcaladonPhase.SlamImpact))armRoll=12;
             Rotate(1,upper-stride*13,0,-armRoll);Rotate(2,upper+stride*13,0,armRoll);
             Rotate(3,fore-Mathf.Max(0,stride)*9,0,0);Rotate(4,fore-Mathf.Max(0,-stride)*9,0,0);
             Rotate(5,stride*23,0,0);Rotate(6,-stride*23,0,0);
             Rotate(7,Mathf.Max(0,-stride)*19,0,0);Rotate(8,Mathf.Max(0,stride)*19,0,0);
-            if(Body!=null&&crouch>0){
-                // Compress the torso into the impact while keeping both legs planted.
+            if(Body!=null){
+                // Torso compression/rebound belongs to the torso. Previously moving the whole
+                // MotionRoot below its rest height also drove every planted foot into the sand.
                 Vector3 left=ThighLeft!=null?ThighLeft.position:Vector3.zero,right=ThighRight!=null?ThighRight.position:Vector3.zero;
-                Body.position-=transform.TransformVector(Vector3.up*crouch);
+                float bob=Mathf.Abs(Mathf.Sin(phase))*.023f*gait;
+                float breathing=resting?(breath+1)*.004f:0;
+                Body.position+=transform.TransformVector(Vector3.up*(bob+breathing-crouch));
                 if(ThighLeft!=null)ThighLeft.position=left;if(ThighRight!=null)ThighRight.position=right;
             }
-            if(MotionRoot!=null){
-                float impact=state==OrcaladonPhase.SlamImpact?Mathf.Sin(progress*Mathf.PI)*.11f:0;
-                MotionRoot.localPosition=motionPosition+Vector3.up*(Mathf.Abs(Mathf.Sin(phase))*.035f*gait-impact);
-                MotionRoot.localRotation=motionRotation*Quaternion.Euler(0,0,stride*1.8f);
-            }
+            if(MotionRoot!=null){MotionRoot.localPosition=motionPosition;MotionRoot.localRotation=motionRotation;}
         }
         void Rotate(int index,float pitch,float yaw,float roll){
             var bone=bones[index];if(bone==null||bone.parent==null)return;

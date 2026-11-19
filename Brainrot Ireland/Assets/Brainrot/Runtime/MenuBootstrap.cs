@@ -5,7 +5,7 @@ namespace Brainrot
     public sealed class MenuBootstrap:MonoBehaviour
     {
         RectTransform viewport;GameObject page;Image backdrop;
-        Text wallet,notice;int shownCoins=-1;
+        Text notice;
         readonly System.Collections.Generic.List<Button> mainButtons=new System.Collections.Generic.List<Button>();
         void Awake(){
             SaveSystem.Load();Time.timeScale=0;Cursor.lockState=CursorLockMode.None;Cursor.visible=true;
@@ -23,16 +23,15 @@ namespace Brainrot
         void Update(){
             bool ready=!SceneFlow.Instance.Busy;
             foreach(var button in mainButtons)if(button!=null)button.interactable=ready;
-            if(wallet!=null&&shownCoins!=SaveSystem.Data.Coins){shownCoins=SaveSystem.Data.Coins;wallet.text=shownCoins+" МОНЕТ";}
         }
         RectTransform Clear(){
-            if(page!=null){page.SetActive(false);Destroy(page);}wallet=notice=null;shownCoins=-1;mainButtons.Clear();
+            if(page!=null){page.SetActive(false);Destroy(page);}notice=null;mainButtons.Clear();
             page=new GameObject("Активный экран",typeof(RectTransform));page.transform.SetParent(viewport,false);var rect=(RectTransform)page.transform;ReferenceScreens.Rect(rect,0,0,1,1);
             page.AddComponent<MainMenuEntrance>();return rect;
         }
         void Main(){
             backdrop.sprite=TropicalUIArt.Get("IslandMenuScene");var root=Clear();
-            var buttons=ReferenceScreens.MainMenu(root,Guard(()=>SceneFlow.Instance.Play(true)),Guard(Shop),Guard(Records),Guard(Settings),Guard(Exit),out wallet,out notice);
+            var buttons=ReferenceScreens.MainMenu(root,Guard(()=>SceneFlow.Instance.Play(true)),Guard(Shop),Guard(Records),Guard(Settings),Guard(Exit),out _,out notice);
             mainButtons.AddRange(buttons);
         }
         UnityEngine.Events.UnityAction Guard(UnityEngine.Events.UnityAction action){return ()=>{if(!SceneFlow.Instance.Busy)action();};}

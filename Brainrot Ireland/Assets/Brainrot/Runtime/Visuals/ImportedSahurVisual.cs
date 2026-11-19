@@ -28,7 +28,7 @@ namespace Brainrot
         SahurCombatPose procedural;
         Vector3 localVelocity,shownVelocity;
         bool dashing;
-        float locomotionSpeed;
+        float locomotionSpeed,dashLean,locomotionWeight=1;
         Transform body;
         Quaternion bodyBaseline;
         bool bodyPosed;
@@ -40,9 +40,12 @@ namespace Brainrot
             float dt=Mathf.Max(0,Time.deltaTime);
             shownVelocity=Vector3.Lerp(shownVelocity,localVelocity,1-Mathf.Exp(-14*dt));
             // Only the visual torso leans: actor/collider/camera pivot remain immediately responsive.
-            float weight=AttackActive||charging?.25f:1;
+            float targetWeight=AttackActive||charging?.25f:1;
+            locomotionWeight=Mathf.Lerp(locomotionWeight,targetWeight,1-Mathf.Exp(-24*dt));
+            dashLean=Mathf.Lerp(dashLean,dashing?1:0,1-Mathf.Exp(-(dashing?22:16)*dt));
+            float weight=locomotionWeight;
             var forward=transform.forward;var right=transform.right;
-            float lean=Mathf.Clamp(shownVelocity.z*.7f,-5,7)+(dashing?5:0);
+            float lean=Mathf.Clamp(shownVelocity.z*.7f,-5,7)+dashLean*5;
             float bank=Mathf.Clamp(-shownVelocity.x*.7f,-5,5);
             body.rotation=Quaternion.AngleAxis(lean*weight,right)*Quaternion.AngleAxis(bank*weight,forward)*body.rotation;
         }
@@ -210,8 +213,8 @@ namespace Brainrot
         }
         void RestoreArms(){if(RightUpperArm!=null)RightUpperArm.localRotation=upperRest;if(RightForearm!=null)RightForearm.localRotation=foreRest;}
         public void ResetAttack(){ResetAttackState(true);}
-        void ResetAttackState(bool resetMovement){if(resetMovement){shownVelocity=localVelocity=Vector3.zero;locomotionSpeed=0;dashing=false;if(Animator!=null&&Animator.runtimeAnimatorController!=null)Animator.SetFloat(Speed,0);}
+        void ResetAttackState(bool resetMovement){if(resetMovement){shownVelocity=localVelocity=Vector3.zero;locomotionSpeed=dashLean=0;locomotionWeight=1;dashing=false;if(Animator!=null&&Animator.runtimeAnimatorController!=null)Animator.SetFloat(Speed,0);}
             bool retargeted=UsesRetargetedAttack;RestoreSampledPose();procedural?.Restore();RestoreLocomotion();remaining=impactPause=pausedAttackTime=0;charging=heavyAttack=fromCharge=false;chargeProgress=0;if(!retargeted&&!UsesProceduralAttack)RestoreArms();if(Weapon!=null)Weapon.localScale=Vector3.one;if(Trail!=null){Trail.emitting=false;Trail.Clear();}}
-        void OnDisable(){ResetAttack();shownVelocity=localVelocity=Vector3.zero;locomotionSpeed=0;dashing=false;}
+        void OnDisable(){ResetAttack();shownVelocity=localVelocity=Vector3.zero;locomotionSpeed=dashLean=0;locomotionWeight=1;dashing=false;}
     }
 }

@@ -100,21 +100,22 @@ namespace Brainrot
         public static Text Wallet(Transform parent,float x,float y,float w,float h,bool prefix=false){
             var body=SlicedArt(parent,"IslandSecondary",x,y,w,h).transform;
             var coin=Art(body,"IslandCoin",-.04f,-.27f,.29f,1.54f);coin.preserveAspect=true;
-            return SeaText(body,prefix?"МОНЕТЫ "+SaveSystem.Data.Coins:SaveSystem.Data.Coins+" МОНЕТ",24,.235f,.12f,.71f,.76f);
+            int coins=GameManager.Instance!=null?GameManager.Instance.RunBalance:0;return SeaText(body,prefix?"МОНЕТЫ "+coins:coins+" МОНЕТ",24,.235f,.12f,.71f,.76f);
         }
         public static Button[] MainMenu(Transform root,UnityAction play,UnityAction shop,UnityAction records,UnityAction settings,UnityAction exit,out Text wallet,out Text notice,bool background=false){
             if(background)Art(root,"IslandMenuScene",0,0,1,1);
             var logo=Art(root,"IslandTitle",.008f,-.055f,.46f,.29f);
             Text(logo.transform,"ОСТРОВ",28,.21f,.265f,.58f,.20f);
             Text(logo.transform,"ТУН ТУН САХУРА",38,.13f,.465f,.74f,.27f).color=new Color(1,.92f,.62f);
-            wallet=Wallet(root,.695f,.055f,.255f,.075f);
+            var record=SlicedArt(root,"IslandSecondary",.695f,.055f,.255f,.075f).transform;
+            wallet=SeaText(record,"РЕКОРД · ВОЛНА "+SaveSystem.Data.BestWave,23,.06f,.12f,.88f,.76f);
             var dock=Group(root,"Панель главного меню",.565f,.215f,.405f,.705f);
             SlicedArt(dock,"IslandSandPanel",0,0,1,1);
             var welcome=SlicedArt(dock,"IslandSecondary",.16f,-.06f,.68f,.135f).transform;
             SeaText(welcome,"ПРИКЛЮЧЕНИЕ ЖДЁТ",25,.06f,.15f,.88f,.70f);
             var buttons=new[]{
                 SeaButton(dock,"ИГРАТЬ",.035f,.11f,.93f,.21f,play,49,true,IslandSymbol.Play),
-                SeaButton(dock,"МАГАЗИН",.12f,.35f,.76f,.125f,shop,31,false,IslandSymbol.Shop),
+                SeaButton(dock,"СКИНЫ",.12f,.35f,.76f,.125f,shop,31,false,IslandSymbol.Shop),
                 SeaButton(dock,"РЕКОРДЫ",.12f,.48f,.76f,.125f,records,31,false,IslandSymbol.Trophy),
                 SeaButton(dock,"НАСТРОЙКИ",.12f,.61f,.76f,.125f,settings,31,false,IslandSymbol.Settings),
                 SeaButton(dock,"ВЫХОД",.12f,.74f,.76f,.125f,exit,31,false,IslandSymbol.Exit)
@@ -133,7 +134,7 @@ namespace Brainrot
             var first=SeaButton(frame,"ПРОДОЛЖИТЬ",.045f,.235f,.91f,.19f,resume,36,true);
             SeaButton(frame,"НАСТРОЙКИ",.115f,.455f,.77f,.145f,settings,30,false,IslandSymbol.Settings);
             SeaButton(frame,"ЗАВЕРШИТЬ ЗАБЕГ",.115f,.625f,.77f,.145f,menu,25,false,IslandSymbol.Exit);
-            SeaText(frame,"Выход завершит попытку. Монеты и покупки сохранятся.",14,.105f,.805f,.79f,.095f);
+            SeaText(frame,"При выходе монеты и улучшения забега пропадут.",14,.105f,.805f,.79f,.095f);
             if(EventSystem.current!=null)EventSystem.current.SetSelectedGameObject(first.gameObject);
         }
         public static void Settings(Transform viewport,UnityAction back){
@@ -164,7 +165,7 @@ namespace Brainrot
         static void ConfirmReset(Transform viewport,UnityAction back){
             var shade=Surface(viewport,"Подтверждение сброса",0,0,1,1,new Color(.015f,.06f,.09f,.72f));shade.raycastTarget=true;
             var dialog=Panel(shade.transform,"СБРОС ПРОГРЕССА",.27f,.30f,.46f,.45f,29);
-            var message=SeaText(dialog,"Монеты, покупки, рекорды и обучение будут сброшены. Настройки сохранятся.",20,.10f,.19f,.80f,.24f);
+            var message=SeaText(dialog,"Текущий забег, рекорды и обучение будут сброшены. Настройки сохранятся.",20,.10f,.19f,.80f,.24f);
             SeaButton(dialog,"ПОДТВЕРДИТЬ СБРОС",.08f,.49f,.84f,.18f,()=>{
                 var game=GameManager.Instance;if(game!=null)game.EndRun();
                 if(!SaveSystem.ResetProgress()){message.text="Не удалось сохранить сброс. Попробуй ещё раз.";return;}

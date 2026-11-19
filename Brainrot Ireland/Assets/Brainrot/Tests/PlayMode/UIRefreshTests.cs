@@ -40,7 +40,7 @@ namespace Brainrot.Tests
             StringAssert.Contains("80 / 100",health.text);StringAssert.Contains("75 / 100",stamina.text);
             Assert.IsNotNull(LabelStartingWith("10 с"));
             game.Spawner.Waves.Advance(profile.Waves.Duration,0);ui.Refresh();Assert.IsNotNull(LabelStartingWith("ПЕРЕДЫШКА"));
-            game.Spawner.Waves.Advance(profile.Waves.Rest,0);ui.Refresh();Assert.AreEqual("ВОЛНА 2",wave.text);
+            game.Spawner.Waves.StartNextWave();ui.Refresh();Assert.AreEqual("ВОЛНА 2",wave.text);
             yield return null;
         }
 #if UNITY_EDITOR

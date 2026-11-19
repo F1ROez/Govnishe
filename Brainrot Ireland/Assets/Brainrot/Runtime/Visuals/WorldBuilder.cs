@@ -57,6 +57,10 @@ namespace Brainrot
                 waterMat.SetFloat("_WaveSpeed",ocean.WaveSpeed);
                 waterMat.SetFloat("_WaveScale",ocean.WaveScale);
                 waterMat.SetFloat("_WaveStrength",ocean.WaveStrength);
+                waterMat.SetColor("_FoamColor",new Color(.94f,.995f,.97f));
+                waterMat.SetFloat("_CausticStrength",.23f);
+                // Match the skirt/ocean intersection, rather than the dry arena disk.
+                waterMat.SetVector("_Shoreline",new Vector4(22.58f,.30f,.17f,16));
             }
             Primitive("Endless ocean", PrimitiveType.Plane, root, new Vector3(0,-.43f,0), new Vector3(400,1,400), waterMat);
             // Animated foam now lives in the water shader; no opaque floating foam ring.

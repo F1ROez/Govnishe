@@ -109,20 +109,22 @@ namespace Brainrot
             group=gameObject.AddComponent<CanvasGroup>();group.blocksRaycasts=group.interactable=false;group.alpha=0;
             TropicalUIArt.Place("Морская лента",transform,Vector2.zero,Vector2.one,"StageRibbon");
             title=QuestHUD.Label(transform,"Событие волны","",21,new Vector2(.12f,.43f),new Vector2(.88f,.94f),TextAnchor.MiddleCenter);
-            subtitle=QuestHUD.Label(transform,"Описание","",12,new Vector2(.10f,.12f),new Vector2(.90f,.46f),TextAnchor.MiddleCenter);
+            subtitle=QuestHUD.Label(transform,"Описание","",12,new Vector2(.10f,.12f),new Vector2(.90f,.46f),TextAnchor.MiddleCenter);enabled=false;
         }
         public void Show(int wave,bool complete,string eventTitle)
         {
             title.text=complete?"ВОЛНА "+wave+" ПРОЙДЕНА!":"ВОЛНА "+wave;
             subtitle.text=complete?"ПЕРЕВЕДИ ДУХ. ОКЕАН ЕЩЁ НЕ УСПОКОИЛСЯ":!string.IsNullOrEmpty(eventTitle)?eventTitle:wave==2?"ОСЬМИНОГ ВЫХОДИТ ИЗ ВОДЫ":wave==3?"ПРИБЛИЖАЕТСЯ ОРКАЛАДОН":"ДЕРЖИ ОБОРОНУ ОСТРОВА";
-            started=Time.unscaledTime;duration=complete?2.6f:2.2f;group.alpha=0;
+            started=Time.unscaledTime;duration=complete?2.6f:2.2f;group.alpha=0;enabled=true;
         }
-        public void Hide(){duration=0;if(group!=null)group.alpha=0;}
+        public void Hide(){duration=0;if(group!=null)group.alpha=0;enabled=false;}
         void Update()
         {
             float age=Time.unscaledTime-started;
+            if(age>=duration){Hide();return;}
             float fade=Mathf.Clamp01(age/.18f)*Mathf.Clamp01((duration-age)/.35f);
-            group.alpha=fade;transform.localScale=Vector3.one*Mathf.Lerp(.94f,1,Mathf.SmoothStep(0,1,Mathf.Clamp01(age/.25f)));
+            if(!Mathf.Approximately(group.alpha,fade))group.alpha=fade;
+            var scale=Vector3.one*Mathf.Lerp(.94f,1,Mathf.SmoothStep(0,1,Mathf.Clamp01(age/.25f)));if(transform.localScale!=scale)transform.localScale=scale;
         }
     }
 }

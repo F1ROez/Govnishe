@@ -69,7 +69,7 @@ namespace Brainrot.Tests {
   }
   [UnityTest]public IEnumerator RestartResetsWavesAndCorpsesAndKeepsXpDisabled(){
    var enemy=Spawn();enemy.TakeDamage(9999,Vector3.zero);Assert.AreEqual(0,game.Upgrades.Experience);Assert.AreEqual(1,game.Upgrades.Level);
-   game.Spawner.Waves.Advance(60);game.Spawner.Waves.Advance(8);Assert.Greater(game.Wave,1);game.StartRun();Assert.AreEqual(1,game.Wave);Assert.AreEqual(0,game.Spawner.Corpses.Count);Assert.AreEqual(0,game.Spawner.Active.Count);yield return null;
+   game.Spawner.Waves.Advance(60);game.Spawner.Waves.Advance(8);Assert.AreEqual(1,game.Wave);Assert.IsTrue(game.Spawner.Waves.StartNextWave());Assert.Greater(game.Wave,1);game.StartRun();Assert.AreEqual(1,game.Wave);Assert.AreEqual(0,game.Spawner.Corpses.Count);Assert.AreEqual(0,game.Spawner.Active.Count);yield return null;
   }
   [UnityTest]public IEnumerator HeavyCooldownIsIndependentAndResetsOnNewRun(){
    Assert.That(profile.Combat.StrongDamageMultiplier,Is.EqualTo(2.5f));Assert.That(profile.Combat.StrongCooldownSeconds,Is.EqualTo(10));
@@ -105,7 +105,7 @@ namespace Brainrot.Tests {
   }
   [Test]public void WaveWaitsForEveryLiveEnemyBeforeStartingBreak(){
    var w=new WaveDirector();w.Reset();w.Advance(60,2);Assert.IsTrue(w.WaitingForClear);w.Advance(100,1);Assert.AreEqual(1,w.Number);
-   w.Advance(.01f,0);Assert.IsFalse(w.WaitingForClear);w.Advance(8,0);Assert.AreEqual(2,w.Number);
+   w.Advance(.01f,0);Assert.IsFalse(w.WaitingForClear);w.Advance(800,0);Assert.AreEqual(1,w.Number);Assert.IsTrue(w.StartNextWave());Assert.AreEqual(2,w.Number);
   }
   [Test]public void StaminaDrainsOnlyForMovingSprintAndRecovers(){
    var t=new StaminaTuning();var stamina=new StaminaPool();stamina.Reset(t);
@@ -116,7 +116,7 @@ namespace Brainrot.Tests {
   }
   [Test]public void NewBodyLifetimeIsFourSeconds(){Assert.AreEqual(4,profile.Bodies.DeathBodyLifetime);}
   [Test]public void WaveHasQuietEdgesAndMiddlePeak(){Assert.That(WaveDirector.Envelope(0),Is.EqualTo(0).Within(.00001));Assert.That(WaveDirector.Envelope(1),Is.EqualTo(0).Within(.00001));Assert.That(WaveDirector.Envelope(.5f),Is.EqualTo(1).Within(.00001));Assert.Greater(EnemySpawner.Interval(profile.Waves,0),EnemySpawner.Interval(profile.Waves,1));}
-  [Test]public void RestAndNextWaveAreDeterministic(){var wave=new WaveDirector();wave.Reset();wave.Advance(60);Assert.IsTrue(wave.Resting);Assert.AreEqual(1,wave.Number);wave.Advance(8);Assert.IsFalse(wave.Resting);Assert.AreEqual(2,wave.Number);}
+  [Test]public void RestAndNextWaveRequireExplicitConfirmation(){var wave=new WaveDirector();wave.Reset();Assert.IsFalse(wave.StartNextWave());wave.Advance(60);Assert.IsTrue(wave.Resting);Assert.AreEqual(1,wave.Number);wave.Advance(800);Assert.IsTrue(wave.Resting);Assert.AreEqual(1,wave.Number);Assert.IsTrue(wave.StartNextWave());Assert.IsFalse(wave.StartNextWave());Assert.AreEqual(2,wave.Number);}
   [Test]public void NormalOnlySpawnAndSmallIsland(){Assert.IsNotNull(Spawn());Assert.IsNull(game.Spawner.Spawn(EnemyKind.King,Vector3.zero));Assert.IsNull(game.Spawner.Spawn(EnemyKind.LiriliLarila,Vector3.zero));Assert.IsFalse(IslandMap.IsWalkable(Vector3.forward*23));}
  }
 }

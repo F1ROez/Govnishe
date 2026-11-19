@@ -14,8 +14,7 @@ namespace Brainrot.Tests
                 Assert.AreEqual(0,SaveSystem.Data.Coins);Assert.AreEqual(0,MetaProgression.Rank(0));Assert.AreEqual(0,SaveSystem.Data.BestWave);
                 Assert.IsFalse(SaveSystem.Data.TutorialCompleted);Assert.AreEqual(.35f,SaveSystem.Data.Volume,.001f);Assert.AreEqual(1.7f,SaveSystem.Data.Sensitivity,.001f);
                 File.WriteAllText(Path.Combine(folder,"brainrot-save.json"),"broken");SaveSystem.Load();Assert.AreEqual(0,SaveSystem.Data.Coins);Assert.AreEqual(0,SaveSystem.Data.BestWave);
-                Assert.IsTrue(SaveSystem.SetTestCoins(12345));SaveSystem.Load();Assert.AreEqual(12345,SaveSystem.Data.Coins);
-                Assert.IsTrue(SaveSystem.SetTestCoins(-5));Assert.AreEqual(0,SaveSystem.Data.Coins);
+                Assert.IsFalse(SaveSystem.SetTestCoins(12345),"There is no persistent or future-attempt wallet outside a run.");SaveSystem.Load();Assert.AreEqual(0,SaveSystem.Data.Coins);
             }}finally{if(Directory.Exists(folder))Directory.Delete(folder,true);}
         }
     }

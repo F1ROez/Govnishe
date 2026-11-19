@@ -41,6 +41,15 @@ namespace Brainrot.Tests
             state.Health=95;game.Player.RestoreRunState(state);game.Hearts.Restore(new[]{new HeartDropSnapshot{Position=game.Player.transform.position,Remaining=20}});
             game.Hearts.Tick(.1f,game.Player);Assert.AreEqual(100,game.Player.Health);
         }
+        [Test]public void SimultaneousHeartsDoNotConsumeTheSecondAfterTheFirstFillsHealth(){
+            var state=game.Player.CaptureRunState();state.Health=game.Player.Stats.MaxHealth-5;game.Player.RestoreRunState(state);
+            var position=game.Player.transform.position;
+            game.Hearts.Restore(new[]{new HeartDropSnapshot{Position=position,Remaining=30},new HeartDropSnapshot{Position=position,Remaining=30}});
+            game.Hearts.Tick(.1f,game.Player);
+            Assert.AreEqual(game.Player.Stats.MaxHealth,game.Player.Health);
+            Assert.AreEqual(1,game.Hearts.ActiveCount,"Only the heart that restored health should be consumed.");
+            game.Hearts.Tick(.1f,game.Player);Assert.AreEqual(1,game.Hearts.ActiveCount,"The remaining heart must wait while health is full.");
+        }
         [Test]public void PoolIsBoundedAndCheckpointRestoresRemainingLifetime(){
             for(int i=0;i<100;i++)game.Hearts.Drop(EnemyKind.BlueberrinniOctopusini,Vector3.zero);
             Assert.AreEqual(HeartDrops.Capacity,game.Hearts.ActiveCount);

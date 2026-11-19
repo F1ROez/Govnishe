@@ -32,15 +32,15 @@ namespace Brainrot.Tests
             foreach(var coin in game.Coins.Capture()){Assert.AreEqual(1,coin.Amount);Assert.IsTrue(ids.Add(coin.Id));}
             Assert.AreEqual(0,SaveSystem.Data.Coins,"Выпадение само по себе не пополняет кошелёк.");
         }
-        [Test]public void EachPhysicalPickupAddsOneAndWalletSurvivesDeath(){
+        [Test]public void EachPhysicalPickupAddsOneAndDeathDiscardsSpendableCoins(){
             profile.Coins.MagnetRadius=.8f;profile.Coins.PickupRadius=.2f;
             game.Reward(0,1);game.Coins.Drop(EnemyKind.BlueberrinniOctopusini,game.Player.transform.position,game.Kills);
             for(int i=0;i<30;i++)game.Coins.Tick(.1f,game.Player);
-            Assert.AreEqual(1,SaveSystem.Data.Coins);Assert.AreEqual(2,game.Coins.ActiveCount);
+            Assert.AreEqual(1,game.RunBalance);Assert.AreEqual(2,game.Coins.ActiveCount);
             profile.Coins.MagnetRadius=3;
             for(int i=0;i<30;i++)game.Coins.Tick(.1f,game.Player);
-            Assert.AreEqual(3,SaveSystem.Data.Coins);Assert.AreEqual(0,game.Coins.ActiveCount);Assert.AreEqual(3,game.RunCoins);
-            game.Die();SaveSystem.Load();Assert.AreEqual(3,SaveSystem.Data.Coins);
+            Assert.AreEqual(3,game.RunBalance);Assert.AreEqual(0,game.Coins.ActiveCount);Assert.AreEqual(3,game.RunCoins);
+            game.Die();SaveSystem.Load();Assert.AreEqual(0,game.RunBalance);Assert.AreEqual(0,SaveSystem.Data.Coins);Assert.AreEqual(3,game.RunCoins);
         }
         [Test]public void PoolOverflowNeverBanksUncollectedCurrency(){
             profile.Coins.OrcaladonValue=100;
@@ -49,12 +49,33 @@ namespace Brainrot.Tests
             foreach(var coin in game.Coins.Capture())Assert.AreEqual(1,coin.Amount);
             game.Coins.Clear();Assert.AreEqual(0,game.Coins.ActiveCount);Assert.AreEqual(0,SaveSystem.Data.Coins);
         }
-        [Test]public void PermanentPurchaseAppliesOnEveryNewRunWithoutStacking(){
+        [UnityTest]public IEnumerator ShopPurchaseAppliesImmediatelyButOnlyForThisAttempt(){
             var before=game.Player.Stats.Copy();
-            SaveSystem.Data.Coins=100;Assert.IsTrue(SaveSystem.TrySave());Assert.IsTrue(MetaProgression.Buy(1));
-            Assert.AreEqual(before.MaxHealth,game.Player.Stats.MaxHealth);
-            game.StartRun();Assert.AreEqual(before.MaxHealth+15,game.Player.Stats.MaxHealth);Assert.AreEqual(50,SaveSystem.Data.Coins);
-            game.StartRun();Assert.AreEqual(before.MaxHealth+15,game.Player.Stats.MaxHealth);Assert.AreEqual(50,SaveSystem.Data.Coins);
+            Assert.IsTrue(SaveSystem.SetTestCoins(100));Assert.IsFalse(MetaProgression.Buy(1),"Purchases are unavailable during a live wave.");
+            game.Spawner.Waves.RestoreRunState(new WaveRunSnapshot{Number=1,Time=profile.Waves.Duration,Resting=true});yield return null;game.Stall.Tick(1,false,false);
+            var spot=game.Stall.WorldPosition;spot.y=0;var motor=game.Player.GetComponent<CharacterController>();motor.enabled=false;game.Player.transform.position=spot;motor.enabled=true;
+            Assert.IsTrue(game.OpenRunShop());
+            var shopBounds=new GameObject("Run shop test",typeof(RectTransform));shopBounds.GetComponent<RectTransform>().sizeDelta=new Vector2(1280,720);
+            var viewport=ReferenceScreens.Viewport(shopBounds.transform,"Run shop");var shop=ShopScreen.ShowRun(viewport,()=>game.CloseRunShop());
+            UnityEngine.UI.Button buy=null;
+            foreach(var button in shop.GetComponentsInChildren<UnityEngine.UI.Button>())if(button.GetComponentInChildren<UnityEngine.UI.Text>().text=="КУПИТЬ • 50")buy=button;
+            Assert.IsNotNull(buy);Assert.IsTrue(buy.interactable);buy.onClick.Invoke();
+            bool walletShown=false,rankShown=false;
+            foreach(var text in shop.GetComponentsInChildren<UnityEngine.UI.Text>()){
+                if(text.text=="МОНЕТЫ 50")walletShown=true;if(text.text=="1/5")rankShown=true;
+            }
+            Assert.IsTrue(walletShown);Assert.IsTrue(rankShown);UnityEngine.Object.DestroyImmediate(shopBounds);
+            Assert.AreEqual(before.MaxHealth+15,game.Player.Stats.MaxHealth);Assert.AreEqual(before.MaxHealth+15,game.Player.Health);Assert.AreEqual(50,game.RunBalance);
+            SaveSystem.Load();Assert.AreEqual(0,SaveSystem.Data.Coins);Assert.AreEqual(1,MetaProgression.Rank(1));
+            game.CloseRunShop();Assert.IsTrue(game.StartNextWave());Assert.AreEqual(before.MaxHealth+15,game.Player.Stats.MaxHealth);
+            game.StartRun();Assert.AreEqual(before.MaxHealth,game.Player.Stats.MaxHealth);Assert.AreEqual(0,game.RunBalance);Assert.AreEqual(0,MetaProgression.Rank(1));
+        }
+        [UnityTest]public IEnumerator IntermissionDoesNotFarmSurvivalTime(){
+            game.Spawner.Waves.RestoreRunState(new WaveRunSnapshot{Number=1,Time=profile.Waves.Duration,Resting=true});
+            float before=game.Elapsed;game.enabled=true;yield return new WaitForSeconds(.08f);
+            Assert.AreEqual(before,game.Elapsed,"Standing at the stall must not increase a survival record.");
+            Assert.IsTrue(game.StartNextWave());yield return new WaitForSeconds(.08f);Assert.Greater(game.Elapsed,before);
+            game.enabled=false;
         }
         [Test]public void UnitReceiptIdsNeverOverlapAcrossKills(){
             var ids=new System.Collections.Generic.HashSet<int>();

@@ -85,7 +85,7 @@ namespace Brainrot
             Quaternion wristTurn=Quaternion.FromToRotation(up,axis);
             SolveArm(rightUpper,rightFore,rightHand,goal,right+forward*.12f-up*.35f,wristTurn*rightWrist);
             if(twoHands&&leftUpper!=null&&leftFore!=null&&leftHand!=null){
-                Vector3 secondGrip=rightHand.position+axis*(arm*.17f);
+                Vector3 secondGrip=rightHand.position+axis*(arm*.13f);
                 SolveArm(leftUpper,leftFore,leftHand,secondGrip,-right+forward*.08f-up*.35f,wristTurn*leftWrist);
             }
             owner.Weapon.position=rightHand.position+forward*(arm*.035f);
@@ -112,8 +112,9 @@ namespace Brainrot
             if(bend.sqrMagnitude<epsilon*epsilon)bend=Vector3.Cross(direction,Vector3.right);
             float cosine=Mathf.Clamp((first*first+distance*distance-second*second)/(2*first*distance),-1,1);
             Vector3 elbow=a+direction*(first*cosine)+bend.normalized*(first*Mathf.Sqrt(Mathf.Max(0,1-cosine*cosine)));
+            Vector3 reachableGoal=a+direction*distance;
             upper.rotation=Quaternion.FromToRotation(b-a,elbow-a)*upper.rotation;
-            fore.rotation=Quaternion.FromToRotation(hand.position-fore.position,goal-fore.position)*fore.rotation;hand.rotation=wrist;
+            fore.rotation=Quaternion.FromToRotation(hand.position-fore.position,reachableGoal-fore.position)*fore.rotation;hand.rotation=wrist;
         }
     }
 }

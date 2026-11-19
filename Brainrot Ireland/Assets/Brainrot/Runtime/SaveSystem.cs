@@ -77,8 +77,7 @@ namespace Brainrot
         public static void Save(){TrySave();}
 
         public static bool SetTestCoins(int coins){
-            int old=Data.Coins;Data.Coins=Mathf.Clamp(coins,0,MetaProgression.MaximumCoins);
-            if(TrySave())return true;Data.Coins=old;return false;
+            var game=GameManager.Instance;return game!=null&&game.HasRun&&game.Economy.SetBalanceForTesting(coins);
         }
         /// <summary>Clear progression while retaining the player's display, audio and input preferences.</summary>
         public static bool ResetProgress(){

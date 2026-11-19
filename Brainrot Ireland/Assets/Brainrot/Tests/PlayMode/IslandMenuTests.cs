@@ -75,26 +75,22 @@ namespace Brainrot.Tests
             Assert.IsFalse(SaveSystem.Data.CameraLocked);Assert.IsFalse(SaveSystem.Data.ShowAttackRange);Assert.AreEqual(0,SaveSystem.Data.CameraShakeStrength);
             FindButton("НАЗАД").onClick.Invoke();Assert.AreEqual(1,backs);
         }
-        [Test]public void PurchaseUpdatesRealWalletRankAndNextPriceAndSurvivesReload(){
-            SaveSystem.Data.Coins=1000;Assert.IsTrue(SaveSystem.TrySave());ShopScreen.Show(viewport,()=>{});
-            var title=FindText(MetaProgression.Catalog[0].Title);var card=title.transform.parent;
-            FindButton("КУПИТЬ • 30",card).onClick.Invoke();
-            Assert.AreEqual(970,SaveSystem.Data.Coins);Assert.AreEqual(1,MetaProgression.Rank(0));
-            Assert.IsNotNull(FindText("МОНЕТЫ 970"));title=FindText(MetaProgression.Catalog[0].Title);card=title.transform.parent;
-            Assert.IsNotNull(FindButton("КУПИТЬ • "+MetaProgression.Cost(0),card));
-            bool rankVisible=false;foreach(var text in card.GetComponentsInChildren<Text>())if(text.text=="1/5")rankVisible=true;
-            Assert.IsTrue(rankVisible,"The bought card must show its current persistent rank.");
-            SaveSystem.Load();Assert.AreEqual(970,SaveSystem.Data.Coins);Assert.AreEqual(1,MetaProgression.Rank(0));
-        }
-        [Test]public void ShopRejectsUnavailablePurchasesAndSkinsTabDoesNotSpendCoins(){
-            SaveSystem.Data.Coins=17;SaveSystem.Data.UpgradeRanks=new[]{5,0,0,0};int backs=0;ShopScreen.Show(viewport,()=>backs++);
-            Assert.IsFalse(FindButton("МАКСИМУМ").interactable);
+        [Test]public void MenuShopContainsCosmeticsOnlyAndNoRunUpgradePurchases(){
+            int backs=0;ShopScreen.Show(viewport,()=>backs++);
+            Assert.IsNotNull(FindText("СКИНЫ ПОЯВЯТСЯ ПОЗЖЕ"));
             foreach(var button in root.GetComponentsInChildren<Button>()){
-                var text=button.GetComponentInChildren<Text>();if(text!=null&&text.text.StartsWith("КУПИТЬ",StringComparison.Ordinal))Assert.IsFalse(button.interactable);
+                var text=button.GetComponentInChildren<Text>();Assert.IsNotNull(text);
+                Assert.IsFalse(text.text.StartsWith("КУПИТЬ",StringComparison.Ordinal));
+                Assert.AreNotEqual("УЛУЧШЕНИЯ",text.text);
             }
-            FindButton("СКИНЫ").onClick.Invoke();Assert.IsNotNull(FindText("СКИНЫ ПОЯВЯТСЯ ПОЗЖЕ"));Assert.AreEqual(17,SaveSystem.Data.Coins);
-            FindButton("УЛУЧШЕНИЯ").onClick.Invoke();Assert.AreEqual(17,SaveSystem.Data.Coins);Assert.AreEqual(5,MetaProgression.Rank(0));
+            foreach(var text in root.GetComponentsInChildren<Text>())foreach(var upgrade in MetaProgression.Catalog)Assert.AreNotEqual(upgrade.Title,text.text);
+            Assert.AreEqual(1,root.GetComponentsInChildren<Button>().Length);
             FindButton("НАЗАД").onClick.Invoke();Assert.AreEqual(1,backs);
+        }
+        [Test]public void RunShopCannotExposePurchasesOutsideAnActiveStallContext(){
+            ShopScreen.ShowRun(viewport,()=>{});
+            Assert.IsNotNull(FindText("ЛАВКА ОТКРЫВАЕТСЯ МЕЖДУ ВОЛНАМИ"));
+            foreach(var button in root.GetComponentsInChildren<Button>())Assert.IsFalse(button.GetComponentInChildren<Text>().text.StartsWith("КУПИТЬ",StringComparison.Ordinal));
         }
         [Test]public void RecordsUseSavedNumbersAndReplayTutorialChangesPreference(){
             SaveSystem.Data.BestTime=814;SaveSystem.Data.BestKills=1554;SaveSystem.Data.BestWave=11;SaveSystem.Data.TutorialCompleted=true;
@@ -103,11 +99,11 @@ namespace Brainrot.Tests
             FindButton("ПОВТОРИТЬ ОБУЧЕНИЕ").onClick.Invoke();Assert.IsNotNull(FindButton("ОБУЧЕНИЕ ВКЛЮЧЕНО"));SaveSystem.Load();Assert.IsFalse(SaveSystem.Data.TutorialCompleted);
             FindButton("НАЗАД").onClick.Invoke();Assert.AreEqual(1,backs);
         }
-        [Test]public void ProgressResetRequiresConfirmationAndCancelPreservesTheWallet(){
-            SaveSystem.Data.Coins=161;SaveSystem.Data.UpgradeRanks=new[]{1,2,0,0};SaveSystem.Data.BestWave=9;SaveSystem.Data.Volume=.42f;
+        [Test]public void ProgressResetRequiresConfirmationAndCancelPreservesRecords(){
+            SaveSystem.Data.BestWave=9;SaveSystem.Data.Volume=.42f;
             Assert.IsTrue(SaveSystem.TrySave());int backs=0;ReferenceScreens.Settings(viewport,()=>backs++);
-            FindButton("СБРОСИТЬ ПРОГРЕСС").onClick.Invoke();Assert.AreEqual(161,SaveSystem.Data.Coins);
-            FindButton("ОТМЕНА").onClick.Invoke();Assert.AreEqual(161,SaveSystem.Data.Coins);Assert.AreEqual(9,SaveSystem.Data.BestWave);
+            FindButton("СБРОСИТЬ ПРОГРЕСС").onClick.Invoke();Assert.AreEqual(9,SaveSystem.Data.BestWave);
+            FindButton("ОТМЕНА").onClick.Invoke();Assert.AreEqual(9,SaveSystem.Data.BestWave);
             FindButton("СБРОСИТЬ ПРОГРЕСС").onClick.Invoke();FindButton("ПОДТВЕРДИТЬ СБРОС").onClick.Invoke();
             Assert.AreEqual(0,SaveSystem.Data.Coins);Assert.AreEqual(0,MetaProgression.Rank(0));Assert.AreEqual(0,SaveSystem.Data.BestWave);
             Assert.AreEqual(.42f,SaveSystem.Data.Volume,.001f);Assert.AreEqual(1,backs);
@@ -117,7 +113,9 @@ namespace Brainrot.Tests
             new GameObject("Main menu").AddComponent<MenuBootstrap>();
             var labels=new List<string>();
             foreach(var menu in Object.FindObjectsByType<MenuBootstrap>(FindObjectsSortMode.None))foreach(var button in menu.GetComponentsInChildren<Button>())labels.Add(button.GetComponentInChildren<Text>().text);
-            CollectionAssert.AreEquivalent(new[]{"ИГРАТЬ","МАГАЗИН","РЕКОРДЫ","НАСТРОЙКИ","ВЫХОД"},labels);
+            CollectionAssert.AreEquivalent(new[]{"ИГРАТЬ","СКИНЫ","РЕКОРДЫ","НАСТРОЙКИ","ВЫХОД"},labels);
+            Assert.IsFalse(labels.Contains("МАГАЗИН"));
+            foreach(var menu in Object.FindObjectsByType<MenuBootstrap>(FindObjectsSortMode.None))foreach(var text in menu.GetComponentsInChildren<Text>())Assert.IsFalse(text.text.Contains("МОНЕТ"),"The menu must not display an attempt wallet.");
             Assert.IsFalse(labels.Contains("ПРОДОЛЖИТЬ"));Assert.IsFalse(labels.Contains("НОВАЯ ИГРА"));
         }
     }

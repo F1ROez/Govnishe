@@ -7,6 +7,9 @@ Shader "Brainrot/TropicalWater"
   _WaveSpeed("Скорость волн",Range(0,3))=.6
   _WaveScale("Масштаб волн",Range(.05,2))=.45
   _WaveStrength("Сила ряби",Range(0,.4))=.12
+  _FoamColor("Мягкая морская пена",Color)=(.94,.995,.97,1)
+  _CausticStrength("Свет на мелководье",Range(0,.5))=.23
+  _Shoreline("Радиус берега и ширина лагуны",Vector)=(22.58,.30,.17,16)
  }
  SubShader
  {
@@ -24,10 +27,13 @@ Shader "Brainrot/TropicalWater"
    struct Attributes {float4 positionOS:POSITION;};
    struct Varyings {float4 positionCS:SV_POSITION;float3 world:TEXCOORD0;half fog:TEXCOORD1;};
    CBUFFER_START(UnityPerMaterial)
-    half4 _BaseColor,_ShallowColor;
-    float _WaveSpeed,_WaveScale,_WaveStrength;
+    half4 _BaseColor,_ShallowColor,_FoamColor;
+    float4 _Shoreline;
+    float _WaveSpeed,_WaveScale,_WaveStrength,_CausticStrength;
    CBUFFER_END
-   float Hash(float2 p){return frac(sin(dot(p,float2(127.1,311.7)))*43758.5453);}
+   // Arithmetic hash avoids a transcendental per noise corner. Use full precision here:
+   // half precision loses the small world-locked water cells on a wide ocean plane.
+   float Hash(float2 p){float3 h=frac(float3(p.x,p.y,p.x)*.1031);h+=dot(h,h.yzx+33.33);return frac((h.x+h.y)*h.z);}
    float Noise(float2 p){float2 i=floor(p),f=frac(p);f=f*f*(3-2*f);return lerp(lerp(Hash(i),Hash(i+float2(1,0)),f.x),lerp(Hash(i+float2(0,1)),Hash(i+1),f.x),f.y);}
    // Value and analytic derivatives share four hash samples. Avoids three height evaluations
    // per pixel and removes the coherent parallel slopes that looked like horizon stripes.
@@ -43,23 +49,30 @@ Shader "Brainrot/TropicalWater"
    {
     float2 p=i.world.xz*max(.05,_WaveScale);float t=_Time.y*_WaveSpeed;
     // Domain warping breaks the former parallel sine bands into long organic water cells.
-    float2 warped=p+float2(sin(p.y*.36+t*.12),sin(p.x*.29-t*.16))*1.15;
+    float2 warpPhase=float2(p.y*.36+t*.12,p.x*.29-t*.16);
+    float2 warped=p+sin(warpPhase)*1.15;
     float3 large=NoiseSlope(warped*.76+float2(t*.15,-t*.11));
     float2 crossDirection=float2(warped.x*.83+warped.y*.55,-warped.x*.55+warped.y*.83);
     float3 small=NoiseSlope(crossDirection*1.73+float2(-t*.22,t*.17)+19.3);
     float broad=Noise(p*.26+float2(t*.035,-t*.028));
     float wave=(large.x*.64+small.x*.36-.5)*2;
     float2 smallSlope=float2(small.y*.83-small.z*.55,small.y*.55+small.z*.83)*1.73;
-    float2 slope=large.yz*(.76*.64)+smallSlope*.36;
+    float2 warpedSlope=large.yz*(.76*.64)+smallSlope*.36;
+    // Chain rule keeps light moving with the warped height instead of sliding across it.
+    float2 slope=float2(warpedSlope.x+warpedSlope.y*cos(warpPhase.y)*(.29*1.15),
+                        warpedSlope.y+warpedSlope.x*cos(warpPhase.x)*(.36*1.15));
+    float2 swellPhase=float2(dot(p,float2(.37,.15))-t*.45,dot(p,float2(-.19,.31))+t*.33);
+    float2 swell=cos(swellPhase);
+    slope+=float2(swell.x*.37-swell.y*.19,swell.x*.15+swell.y*.31)*.18;
     // Calm long swell plus smaller crossed ripples: no single sine direction spans the sea.
     float3 normal=normalize(float3(-slope.x*_WaveStrength*2.4,1,-slope.y*_WaveStrength*2.4));
     float3 view=SafeNormalize(GetWorldSpaceViewDir(i.world));
     Light sun=GetMainLight();float3 halfVector=SafeNormalize(view+sun.direction);
     float angle=atan2(i.world.z,i.world.x);
     // Same coastline as the playable island; no depth/opaque texture dependency or extra render passes.
-    float coast=22.58+sin(angle*5)*.3+cos(angle*9)*.17;
+    float coast=_Shoreline.x+sin(angle*5)*_Shoreline.y+cos(angle*9)*_Shoreline.z;
     float shore=max(0,length(i.world.xz)-coast);
-    half shallow=1-smoothstep(.2,16,shore);
+    half shallow=1-smoothstep(.2,max(.21,_Shoreline.w),shore);
     // Colour controls remain authoritative; the editor supplies the bright default palette.
     half3 deep=_BaseColor.rgb;
     half3 lagoon=_ShallowColor.rgb;
@@ -80,14 +93,16 @@ Shader "Brainrot/TropicalWater"
     half spec=pow(saturate(sunFacing-fwidth(sunFacing)*.65),110)*.22;
     half sheen=pow(sunFacing,20)*.07;
     color+=sun.color*(spec+sheen);
-    float cells=abs(sin(warped.x*2.9+sin(warped.y*2.1)+t*.13)*sin(warped.y*2.6+sin(warped.x*1.7)-t*.18));
+    float2 causticFlow=warped+float2(large.x,small.x)*.42;
+    float cells=abs(sin(causticFlow.x*2.9+sin(causticFlow.y*2.1)+t*.13)*sin(causticFlow.y*2.6+sin(causticFlow.x*1.7)-t*.18));
     float cellsAA=max(.004,fwidth(cells));
     half caustic=1-smoothstep(.025-cellsAA*.35,.10+cellsAA,cells);
-    color+=half3(.22,.45,.36)*caustic*shallow*detail*.23;
+    color+=half3(.22,.45,.36)*caustic*shallow*detail*_CausticStrength;
     // Advancing and dissolving surf. The irregular front is confined to the shore, not
     // repeated concentric stripes across the ocean. A second band is only a faint trailing wash.
     float along=angle*19;
-    float front=1.35+sin(t*.65)*.72+sin(along+t*.13)*.22+sin(angle*34-t*.21)*.12;
+    float surfPhase=t*.65+sin(angle*4)*.23;
+    float front=1.35+sin(surfPhase)*.72+sin(along+t*.13)*.22+sin(angle*34-t*.21)*.12;
     float foamDistance=abs(shore-front);
     float surfAA=max(.025,fwidth(shore));
     float crestBand=1-smoothstep(.08,.28+surfAA,foamDistance);
@@ -95,8 +110,18 @@ Shader "Brainrot/TropicalWater"
     float lace=Noise(warped*3.2+float2(-t*.09,t*.12));
     half broken=.50+.50*smoothstep(.16,.76,large.x*.6+small.x*.4);
     half holes=smoothstep(.20,.64,lace);
-    float retreat=.68+.32*sin(t*.65+1.2);
+    float retreat=.68+.32*sin(surfPhase+1.2);
     half foam=saturate((crestBand+trailing)*broken*lerp(.24,1,holes)*retreat);
+    // Tiny rings follow the surf, never a full-screen tiled foam layer. Analytic AA
+    // dissolves sub-pixel bubbles smoothly rather than making the shore sparkle.
+    float2 bubblePoint=warped*3.2+float2(-t*.09,t*.12);
+    float2 bubbleCell=floor(bubblePoint),bubbleLocal=frac(bubblePoint)-.5;
+    float2 bubbleOffset=float2(Hash(bubbleCell+7.1),Hash(bubbleCell+23.7))*.24-.12;
+    float bubbleRadius=.18+Hash(bubbleCell+41.3)*.13;
+    float bubbleEdge=abs(length(bubbleLocal-bubbleOffset)-bubbleRadius);
+    float bubbleAA=max(.008,fwidth(bubbleEdge));
+    half bubbles=1-smoothstep(.018,.035+bubbleAA,bubbleEdge);
+    foam=saturate(foam+bubbles*(crestBand+trailing)*holes*detail*.22);
     // The very thin permanent contact line plus irregular bubbles prevents a hard beach cutoff.
     foam=max(foam,(1-smoothstep(.025,.30,shore))*lerp(.45,.88,holes));
     // Small broken whitecaps beyond the beach make the ocean feel lively without stripe bands.
@@ -104,7 +129,7 @@ Shader "Brainrot/TropicalWater"
     float whitecap=crest*smoothstep(.45,.76,small.x)*smoothstep(3,12,shore)*detail*.60;
     foam=max(foam,whitecap);
     // Tiny warm translucent-looking gaps keep the surf like bubbly lace, not opaque white ribbons.
-    color=lerp(color,half3(.94,.995,.97),foam);
+    color=lerp(color,_FoamColor.rgb,foam);
     float spark=pow(saturate(sin(warped.x*6.1+t)*sin(warped.y*7.3-t*.7)),28);
     color+=half3(.92,.97,1)*spark*spec*detail*.30;
     return half4(MixFog(saturate(color),i.fog),1);

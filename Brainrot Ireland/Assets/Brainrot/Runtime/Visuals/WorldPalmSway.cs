@@ -15,7 +15,11 @@ namespace Brainrot
             float gust=.75f+.25f*Mathf.Sin(time*.19f);
             return Quaternion.Euler((Mathf.Sin(t)*1.8f+Mathf.Sin(t*2.13f)*.28f)*gust,Mathf.Sin(t*.63f)*1.2f,Mathf.Cos(t*.81f)*1.4f*gust);
         }
-        void Update(){transform.localRotation=baseline*Offset(Time.time,Phase);}
+        void Update(){
+            if(Time.deltaTime<=0)return;
+            var rotation=baseline*Offset(Time.time,Phase);
+            if(transform.localRotation!=rotation)transform.localRotation=rotation;
+        }
         void OnDisable(){if(cached)transform.localRotation=baseline;}
     }
 }

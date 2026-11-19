@@ -58,7 +58,9 @@ namespace Brainrot
         public void Tick(float dt,PlayerController player)
         {
             if(dt<=0||player==null||player.Health<=0)return;
-            var settings=GameBalance.Current.Hearts;bool wounded=player.Health<player.Stats.MaxHealth-.001f;
+            var settings=GameBalance.Current.Hearts;
+            float magnetRadius=Mathf.Max(settings.PickupRadius,settings.MagnetRadius),magnetSquare=magnetRadius*magnetRadius;
+            var playerPosition=player.transform.position;
             var camera=player.ViewCamera;
             foreach(var item in pool){
                 if(!item.Active)continue;
@@ -66,7 +68,7 @@ namespace Brainrot
                     item.CollectAge+=dt;item.Root.position+=Vector3.up*(dt*1.2f);
                     item.Label.color=new Color(.55f,1,.65f,Mathf.Clamp01(1-item.CollectAge/.65f));
                     if(camera!=null)item.Label.transform.rotation=camera.transform.rotation;
-                    else item.Label.transform.rotation=Quaternion.LookRotation(item.Root.position-player.transform.position);
+                    else item.Label.transform.rotation=Quaternion.LookRotation(item.Root.position-playerPosition);
                     if(item.CollectAge>=.65f)Hide(item);continue;
                 }
                 item.Age+=dt;item.Remaining-=dt;if(item.Remaining<=0){Hide(item);continue;}
@@ -74,13 +76,15 @@ namespace Brainrot
                 if(t<1)item.Root.position=Vector3.Lerp(item.Start,item.Landing+Vector3.up*.55f,t)+Vector3.up*(Mathf.Sin(t*Mathf.PI)*1.35f);
                 else{
                     var p=item.Root.position;p.y=.55f+Mathf.Sin(item.Age*3)*.07f;item.Root.position=p;
-                    Vector3 delta=player.transform.position-p;delta.y=0;
-                    if(wounded&&delta.sqrMagnitude<=Mathf.Pow(Mathf.Max(settings.PickupRadius,settings.MagnetRadius),2)){
+                    Vector3 delta=playerPosition-p;delta.y=0;
+                    // An earlier heart in this same tick may already have filled the player's health.
+                    if(player.Health<player.Stats.MaxHealth-.001f&&delta.sqrMagnitude<=magnetSquare){
                         if(delta.magnitude>settings.PickupRadius)item.Root.position+=delta.normalized*Mathf.Min(delta.magnitude,dt*5);
                         else{
                             float before=player.Health;player.Heal(Mathf.Max(1,settings.Healing));float healed=player.Health-before;
+                            if(healed<=0)continue;
                             item.Collected=true;item.CollectAge=0;item.Visual.gameObject.SetActive(false);item.Label.text="+"+Mathf.CeilToInt(healed);item.Label.gameObject.SetActive(true);
-                            item.Root.position=player.transform.position+Vector3.up*2.2f;GameAudio.PlayHealing();HitEffects.Burst(player.transform.position+Vector3.up*.7f,new Color(.5f,1,.65f),5,0);continue;
+                            item.Root.position=playerPosition+Vector3.up*2.2f;GameAudio.PlayHealing();HitEffects.Burst(playerPosition+Vector3.up*.7f,new Color(.5f,1,.65f),5,0);continue;
                         }
                     }
                 }

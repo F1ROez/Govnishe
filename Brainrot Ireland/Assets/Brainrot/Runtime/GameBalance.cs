@@ -32,6 +32,7 @@ namespace Brainrot
         public CoinTuning Coins = new CoinTuning();
         public SahurAnimationTuning SahurAnimation = new SahurAnimationTuning();
         public WaveTuning Waves = new WaveTuning();
+        public IntermissionTuning Intermission = new IntermissionTuning();
         public BodyTuning Bodies = new BodyTuning();
         public OctopusTuning Octopus = new OctopusTuning();
         public OrcaladonTuning Orcaladon = new OrcaladonTuning();
@@ -71,7 +72,7 @@ namespace Brainrot
             heroFeelVersion=1;return true;
         }
         void OnEnable(){EnsureExploration();UpgradeHeroFeel();}
-        public void EnsureExploration(){if(Coins==null)Coins=new CoinTuning();if(Hearts==null)Hearts=new HeartDropTuning();if(Feedback==null)Feedback=new CombatFeelTuning();if(Crowd==null)Crowd=new CrowdTuning();if(Camera==null)Camera=new ThirdPersonCameraTuning();if(Camera.MaxPitch<=0){Camera.MinPitch=-20;Camera.MaxPitch=65;}if(Stamina==null)Stamina=new StaminaTuning();if(Exploration==null)Exploration=new ExplorationTuning();if(Waves==null)Waves=new WaveTuning();if(Bodies==null)Bodies=new BodyTuning();if(Octopus==null)Octopus=new OctopusTuning();if(Orcaladon==null)Orcaladon=new OrcaladonTuning();if(OrcaladonEnemy==null)OrcaladonEnemy=new EnemyTuning {Health=100,Speed=2.2f,Damage=30,AttackRange=3.8f,MeleeWindup=.85f,Recovery=.65f,KnockbackResistance=4,HitStagger=.1f,Experience=0};if(SahurAnimation==null)SahurAnimation=new SahurAnimationTuning();}
+        public void EnsureExploration(){if(Intermission==null)Intermission=new IntermissionTuning();if(Coins==null)Coins=new CoinTuning();if(Hearts==null)Hearts=new HeartDropTuning();if(Feedback==null)Feedback=new CombatFeelTuning();if(Crowd==null)Crowd=new CrowdTuning();if(Camera==null)Camera=new ThirdPersonCameraTuning();if(Camera.MaxPitch<=0){Camera.MinPitch=-20;Camera.MaxPitch=65;}if(Stamina==null)Stamina=new StaminaTuning();if(Exploration==null)Exploration=new ExplorationTuning();if(Waves==null)Waves=new WaveTuning();if(Bodies==null)Bodies=new BodyTuning();if(Octopus==null)Octopus=new OctopusTuning();if(Orcaladon==null)Orcaladon=new OrcaladonTuning();if(OrcaladonEnemy==null)OrcaladonEnemy=new EnemyTuning {Health=100,Speed=2.2f,Damage=30,AttackRange=3.8f,MeleeWindup=.85f,Recovery=.65f,KnockbackResistance=4,HitStagger=.1f,Experience=0};if(SahurAnimation==null)SahurAnimation=new SahurAnimationTuning();}
         public EnemyTuning Enemy(EnemyKind kind) {
             switch (kind) { case EnemyKind.Orcaladon:return OrcaladonEnemy;case EnemyKind.BlueberrinniOctopusini:return BlueOctopus;case EnemyKind.LiriliLarila:return Lirili;case EnemyKind.BrrBrrPatapim:return Patapim;case EnemyKind.CappuccinoAssassino:return Cappuccino;case EnemyKind.BombardiroCrocodilo:return Crocodilo;case EnemyKind.Fast:return Fast;case EnemyKind.Tank:return Tank;case EnemyKind.MiniBoss:return MiniBoss;case EnemyKind.King:return King;default:return Normal; }
         }
@@ -82,6 +83,13 @@ namespace Brainrot
             return (int)Math.Min(int.MaxValue,Math.Max(1,Math.Ceiling(value)));
         }
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)] static void ResetCached(){fallback=null;}
+    }
+    [Serializable] public sealed class IntermissionTuning
+    {
+        [Range(1.5f,6),Tooltip("Дистанция открытия лавки по E, м.")]public float InteractionRadius=3;
+        [Range(.35f,3),Tooltip("Сколько удерживать F для начала следующей волны, с.")]public float StartHoldSeconds=1;
+        [Range(.2f,1.5f),Tooltip("Длительность появления торговой лавки, с.")]public float SpawnSeconds=.6f;
+        [Tooltip("Предпочтительное место лавки на острове; при появлении проверяется свобода площадки.")]public Vector3 Position=new Vector3(5,0,3);
     }
     [Serializable] public sealed class ThirdPersonCameraTuning {
         [Tooltip("Приближать камеру перед препятствиями.")]public bool ObstacleCollision=true;

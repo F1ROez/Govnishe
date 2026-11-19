@@ -88,6 +88,9 @@ namespace Brainrot
             if(physical)return;
             if(GameManager.Instance!=null&&!GameManager.Instance.IsPlaying)return;
             float dt=Time.deltaTime;if(dt<=0)return;
+            // Pose culling must not pause the bite clock. Otherwise an offscreen completed
+            // attack reappeared as a fresh lunge when its renderer became visible again.
+            if(biteRemaining>0)biteRemaining=Mathf.Max(0,biteRemaining-dt);
             bool visible=visibility==null||visibility.Length==0;
             if(visibility!=null)foreach(var renderer in visibility)if(renderer!=null&&renderer.isVisible){visible=true;break;}
             if(!visible)return;
@@ -99,7 +102,7 @@ namespace Brainrot
                 float gait=Mathf.Clamp01(speed/2f);phase=Mathf.Repeat(phase+dt*Mathf.Lerp(0,9,gait),Mathf.PI*4);
                 if(legRest!=null)for(int i=0;i<legRest.Length;i++)if(LegBones[i]!=null)LegBones[i].localRotation=legRest[i]*Quaternion.Euler(Mathf.Sin(phase+(i==1?Mathf.PI:i==2?Mathf.PI*.5f:0))*26*gait,0,0);
                 float lunge=0;
-                if(biteRemaining>0){biteRemaining=Mathf.Max(0,biteRemaining-dt);float t=1-biteRemaining/biteDuration;lunge=t<.38f?Mathf.SmoothStep(0,1,t/.38f):1-Mathf.SmoothStep(0,1,(t-.38f)/.62f);}
+                if(biteRemaining>0){float t=1-biteRemaining/biteDuration;lunge=t<.38f?Mathf.SmoothStep(0,1,t/.38f):1-Mathf.SmoothStep(0,1,(t-.38f)/.62f);}
                 if(MotionRoot!=null){MotionRoot.localPosition=restMotion+Vector3.up*(Mathf.Abs(Mathf.Sin(phase))*.045f*gait)+Vector3.forward*(lunge*.48f);MotionRoot.localRotation=restRotation*Quaternion.Euler(lunge*9,0,Mathf.Sin(phase)*2.5f*gait);}
             }
         }
