@@ -6,7 +6,7 @@ namespace Brainrot {
   readonly List<PendingContact> contacts=new List<PendingContact>(16);
   PlayerController player;CharacterVisual visual;AttackRangeVisual rangeVisual;
   float nextAttack,nextHeavyAttack,chargeStarted,bufferUntil;bool charging,inputSuppressed,chargeReadyEffect,bufferedAttack,bufferedHeavy,holdBlocked;
-  float cooldownNoticeUntil;BatBoomerang boomerang;
+  float cooldownNoticeUntil;BatBoomerang boomerang;bool boomerangSuppressed=true;
   public bool BoomerangActive=>boomerang!=null&&boomerang.Flying;
   public float BoomerangRemaining=>boomerang!=null?boomerang.Remaining:0;
   public bool HeavyCooldownNotice=>Time.time<cooldownNoticeUntil;
@@ -20,7 +20,7 @@ namespace Brainrot {
   public bool HeavyVisualActive{get;private set;}
   public void Initialize(PlayerController p,CharacterVisual v){player=p;visual=v;boomerang=gameObject.AddComponent<BatBoomerang>();boomerang.Initialize(p,v);}
   public void SetRangeVisual(AttackRangeVisual value){rangeVisual=value;}
-  public void CancelPendingSwings(){HeavyVisualActive=false;boomerang?.Cancel();contacts.Clear();bufferedAttack=false;bufferUntil=0;charging=false;holdBlocked=false;cooldownNoticeUntil=0;chargeReadyEffect=false;inputSuppressed=true;GameAudio.EndCharge();player?.ResetCombatCamera();if(visual!=null)visual.ResetAttack();}
+  public void CancelPendingSwings(){boomerangSuppressed=true;HeavyVisualActive=false;boomerang?.Cancel();contacts.Clear();bufferedAttack=false;bufferUntil=0;charging=false;holdBlocked=false;cooldownNoticeUntil=0;chargeReadyEffect=false;inputSuppressed=true;GameAudio.EndCharge();player?.ResetCombatCamera();if(visual!=null)visual.ResetAttack();}
   public void ResetRun(){nextAttack=nextHeavyAttack=0;CancelPendingSwings();}
   public void RestoreHeavyCooldown(float remaining){CancelPendingSwings();nextAttack=Time.time+.2f;nextHeavyAttack=Time.time+Mathf.Clamp(float.IsNaN(remaining)||float.IsInfinity(remaining)?0:remaining,0,HeavyCooldownDuration);}
   public void UpdateAttackInput(bool held,bool pressed=false,bool released=false){
@@ -53,15 +53,23 @@ namespace Brainrot {
    if(BoomerangActive||heavy&&!HeavyReady)return false;
    // Direct ability/test calls use the same lifecycle as releasing LMB. Keep the visual charge until PlayAttack consumes it.
    charging=false;bufferedAttack=false;GameAudio.EndCharge();
-   nextAttack=Time.time+Mathf.Max(Mathf.Max(.12f,player.Stats.AttackInterval),heavy?0:Mathf.Clamp(GameBalance.Current.Boomerang.OutSeconds,.15f,1)+Mathf.Clamp(GameBalance.Current.Boomerang.ReturnSeconds,.2f,1.5f));
+   nextAttack=Time.time+Mathf.Max(.12f,player.Stats.AttackInterval);
    if(heavy)nextHeavyAttack=Time.time+HeavyCooldownDuration;
    HeavyVisualActive=heavy;
-   if(!heavy){
-    if(!boomerang.Launch())return false;
-    visual.PlayAttack(.23f,.06f,false);player.NotifyAttack();GameAudio.Swing(false);return true;
-   }
-   BeginSwing(Mathf.Max(1,GameBalance.Current.Combat.StrongDamageMultiplier),true);return true;
+   BeginSwing(heavy?Mathf.Max(1,GameBalance.Current.Combat.StrongDamageMultiplier):1,heavy);return true;
   }
+  public void UpdateBoomerangInput(bool held,bool pressed){
+   if(boomerangSuppressed){if(!held)boomerangSuppressed=false;return;}
+   if(pressed&&!charging)ExecuteBoomerang();
+  }
+  public bool ExecuteBoomerang(){
+   var game=GameManager.Instance;
+   if(!isActiveAndEnabled||game==null||!game.IsPlaying||player==null||visual==null||player.IsCaptured||player.Health<=0||charging||IsAttacking||Time.time<nextAttack||BoomerangActive)return false;
+   if(!boomerang.Launch())return false;
+   nextAttack=Time.time+Mathf.Max(Mathf.Max(.12f,player.Stats.AttackInterval),Mathf.Clamp(GameBalance.Current.Boomerang.OutSeconds,.15f,1)+Mathf.Clamp(GameBalance.Current.Boomerang.ReturnSeconds,.2f,1.5f));
+   HeavyVisualActive=false;visual.PlayAttack(.23f,.06f,false);player.NotifyAttack();GameAudio.Swing(false);return true;
+  }
+
   void BeginSwing(float power,bool heavy=false){
    var tuning=GameBalance.Current.Combat;var weapon=player.Character!=null?player.Character.Weapon:null;
    float duration=Mathf.Min(weapon!=null&&weapon.UseCustomTiming?weapon.SwingDuration:tuning.SwingDuration,Mathf.Max(.15f,player.Stats.AttackInterval*.95f));

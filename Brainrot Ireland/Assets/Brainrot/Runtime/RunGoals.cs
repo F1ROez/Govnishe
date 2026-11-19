@@ -22,7 +22,7 @@ namespace Brainrot
         public string Hint(bool touch,bool charging=false,bool readyToRelease=false)
         {
             if((Actions&TutorialActions.Move)==0)return touch?"ДВИГАЙ ДЖОЙСТИК — ОБОЙДИ ОСТРОВ":"WASD — ПОДВИГАЙСЯ ПО ОСТРОВУ";
-            if((Actions&TutorialActions.Attack)==0)return touch?"НАЖМИ «УДАР» — БРОСЬ БИТУ-БУМЕРАНГ":"НАЖМИ И ОТПУСТИ ЛКМ — БИТА-БУМЕРАНГ";
+            if((Actions&TutorialActions.Attack)==0)return touch?"НАЖМИ «УДАР» — УДАРЬ БИТОЙ":"НАЖМИ И ОТПУСТИ ЛКМ — УДАР БИТОЙ";
             if((Actions&TutorialActions.Dash)==0)return touch?"ДВИГАЙСЯ И НАЖМИ «РЫВОК», ЧТОБЫ УКЛОНИТЬСЯ":"ДВИГАЙСЯ И НАЖМИ ПРОБЕЛ — РЫВОК";
             if((Actions&TutorialActions.Heavy)==0){
                 if(charging&&readyToRelease)return touch?"ОТПУСТИ «УДАР» — СИЛЬНЫЙ ВЗМАХ!":"ОТПУСТИ ЛКМ — СИЛЬНЫЙ ВЗМАХ!";

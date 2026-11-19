@@ -41,6 +41,20 @@ namespace Brainrot {
    return Input.GetMouseButtonUp(0);
 #endif
   }}
+  public static bool BoomerangHeld {get {
+#if ENABLE_INPUT_SYSTEM
+   return Mouse.current!=null&&Mouse.current.rightButton.isPressed;
+#else
+   return Input.GetMouseButton(1);
+#endif
+  }}
+  public static bool BoomerangPressed {get {
+#if ENABLE_INPUT_SYSTEM
+   return Mouse.current!=null&&Mouse.current.rightButton.wasPressedThisFrame;
+#else
+   return Input.GetMouseButtonDown(1);
+#endif
+  }}
   public static bool Sprint {get {
 #if ENABLE_INPUT_SYSTEM
    return Keyboard.current!=null&&Keyboard.current.leftShiftKey.isPressed;

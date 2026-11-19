@@ -229,7 +229,7 @@ namespace Brainrot
             var dash=AbilityCard("Рывок",new Vector2(.022f,.475f),new Vector2(.082f,.605f),"DashCard","DashIcon","","ПРОБЕЛ");
             dashAbility=new AbilityDisplay(CooldownShade(dash.transform),ReadyBadge(dash.transform));
             controlHints=Box("Клавиши под способностями",hud.transform,new Vector2(.022f,.345f),new Vector2(.16f,.445f),Color.clear);
-            Label(controlHints.transform,"ЛКМ · бумеранг",11,TextAnchor.MiddleLeft,new Vector2(0,.67f),new Vector2(1,1));
+            Label(controlHints.transform,"ЛКМ · удар | ПКМ · бумеранг",11,TextAnchor.MiddleLeft,new Vector2(0,.67f),new Vector2(1,1));
             Label(controlHints.transform,"Shift · бег",11,TextAnchor.MiddleLeft,new Vector2(0,.34f),new Vector2(1,.67f));
             aimHint=Label(controlHints.transform,"",11,TextAnchor.MiddleLeft,Vector2.zero,new Vector2(1,.34f));
         }

@@ -58,7 +58,7 @@ namespace Brainrot
             if(owner==null||arc==null)return;
             var game=GameManager.Instance;
             bool visible=game!=null&&game.IsPlaying&&GameBalance.Current.Combat.ShowAttackRange&&SaveSystem.Data.ShowAttackRange;
-            arc.enabled=visible;nearCircle.enabled=visible&&owner.Combat!=null&&(owner.Combat.IsCharging||owner.Combat.HeavyVisualActive&&owner.Combat.IsAttacking)&&GameBalance.Current.Combat.InnerOmniRadius>0;
+            arc.enabled=visible;nearCircle.enabled=visible&&owner.Combat!=null&&(!owner.Combat.BoomerangActive)&&GameBalance.Current.Combat.InnerOmniRadius>0;
             if(!visible)return;
             // The arena is a flat surface at y approximately zero; avoid z-fighting and leg height.
             transform.localPosition=Vector3.up*(.035f-owner.transform.position.y);
@@ -71,7 +71,7 @@ namespace Brainrot
         void Rebuild()
         {
             if(owner==null)return;
-            bool heavy=owner.Combat!=null&&(owner.Combat.IsCharging||owner.Combat.HeavyVisualActive&&owner.Combat.IsAttacking);
+            bool heavy=owner.Combat!=null&&(!owner.Combat.BoomerangActive);
             if(!heavy){
                 arc.positionCount=2;arc.SetPosition(0,Vector3.zero);
                 arc.SetPosition(1,transform.InverseTransformDirection(owner.AimForward)*Mathf.Clamp(GameBalance.Current.Boomerang.Distance,2,14));

@@ -123,7 +123,7 @@ namespace Brainrot {
    // Locked mode keeps aim relative to camera even when moving backwards or sideways.
    if(CameraLocked)transform.rotation=Quaternion.LookRotation(AimForward);
    else if(move.sqrMagnitude>.01f)transform.rotation=Quaternion.Slerp(transform.rotation,Quaternion.LookRotation(move),1-Mathf.Exp(-Mathf.Max(1,settings.TurnSpeed)*Time.deltaTime));
-   if(!IsCaptured)combat.UpdateAttackInput(GameInput.Attack||MobileInput.Attack,GameInput.AttackPressed,GameInput.AttackReleased);
+   if(!IsCaptured){combat.UpdateAttackInput(GameInput.Attack||MobileInput.Attack,GameInput.AttackPressed,GameInput.AttackReleased);combat.UpdateBoomerangInput(GameInput.BoomerangHeld,GameInput.BoomerangPressed); }
    Vector3 actualVelocity=(transform.position-beforeMove)/Mathf.Max(.0001f,Time.deltaTime);actualVelocity.y=0;
    visual.SetLocomotion(transform.InverseTransformDirection(actualVelocity),IsDashing);
    visual.Animate(actualVelocity.magnitude/Mathf.Max(.1f,Stats.MoveSpeed)*3,combat.IsAttacking);Heal(Stats.Regen*Time.deltaTime);foreach(var ability in abilities)ability.Tick(Time.deltaTime);

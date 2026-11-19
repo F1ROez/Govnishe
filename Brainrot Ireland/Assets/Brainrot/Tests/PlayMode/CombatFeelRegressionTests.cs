@@ -112,12 +112,12 @@ namespace Brainrot.Tests
         {
             var combat=game.Player.Combat;combat.UpdateAttackInput(false);
             Assert.IsTrue(combat.ExecuteAttack(false));
-            yield return new WaitForSeconds(Mathf.Max(game.Player.Stats.AttackInterval,profile.Boomerang.OutSeconds+profile.Boomerang.ReturnSeconds)-.10f);
+            yield return new WaitForSeconds(game.Player.Stats.AttackInterval-.10f);
             // Press and release between frames: edge events retain this tap near cooldown completion.
             combat.UpdateAttackInput(false,true,true);
             yield return new WaitForSeconds(.14f);
             combat.UpdateAttackInput(false);Assert.IsTrue(combat.IsAttacking);
-            yield return new WaitForSeconds(Mathf.Max(game.Player.Stats.AttackInterval,profile.Boomerang.OutSeconds+profile.Boomerang.ReturnSeconds)-.10f);
+            yield return new WaitForSeconds(game.Player.Stats.AttackInterval-.10f);
             combat.UpdateAttackInput(false,true,true);combat.CancelPendingSwings();
             yield return new WaitForSeconds(.14f);
             combat.UpdateAttackInput(false);Assert.IsFalse(combat.IsAttacking);

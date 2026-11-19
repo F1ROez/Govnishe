@@ -23,9 +23,16 @@ namespace Brainrot.Tests
             Assert.IsTrue(BatBoomerang.SegmentHits(Vector3.zero,Vector3.forward*7,Vector3.forward*3,.5f));
             Assert.IsFalse(BatBoomerang.SegmentHits(Vector3.zero,Vector3.forward*7,Vector3.forward*3+Vector3.right,.5f));
         }
+        [UnityTest]public IEnumerator NormalAttackDoesNotLaunchAndRightButtonIsSuppressedAcrossPause(){
+            Assert.IsTrue(game.Player.Combat.ExecuteAttack(false));Assert.IsFalse(game.Player.Combat.BoomerangActive);
+            yield return new WaitForSeconds(game.Player.Stats.AttackInterval+.05f);
+            game.Player.Combat.UpdateBoomerangInput(false,false);game.Player.Combat.UpdateBoomerangInput(true,true);
+            Assert.IsTrue(game.Player.Combat.BoomerangActive);game.Pause();Assert.IsFalse(game.Player.Combat.BoomerangActive);
+            game.Resume();game.Player.Combat.UpdateBoomerangInput(true,true);Assert.IsFalse(game.Player.Combat.BoomerangActive);
+        }
         [UnityTest]public IEnumerator AThrowHitsOncePerLegAndHasNoMeleeDoubleContact(){
             var enemy=game.Spawner.Spawn(EnemyKind.Normal,game.Player.transform.position+game.Player.AimForward*3);float before=enemy.Health,damage=game.Player.Stats.Damage;
-            Assert.IsTrue(game.Player.Combat.ExecuteAttack(false));Assert.IsTrue(game.Player.Combat.BoomerangActive);Assert.IsFalse(game.Player.Combat.ExecuteAttack(false));Assert.IsFalse(game.Player.Combat.ExecuteAttack(true));
+            Assert.IsTrue(game.Player.Combat.ExecuteBoomerang());Assert.IsTrue(game.Player.Combat.BoomerangActive);Assert.IsFalse(game.Player.Combat.ExecuteBoomerang());Assert.IsFalse(game.Player.Combat.ExecuteAttack(true));
             yield return new WaitForSeconds(balance.Boomerang.OutSeconds*.9f);
             Assert.AreEqual(before-damage,enemy.Health,.01f,"No hidden normal melee contact may accompany the outward projectile.");
             yield return new WaitForSeconds(balance.Boomerang.ReturnSeconds+.15f);
@@ -33,9 +40,9 @@ namespace Brainrot.Tests
         }
         [UnityTest]public IEnumerator CancellationAndPauseRestoreTheHeldBatAndStopContacts(){
             var enemy=game.Spawner.Spawn(EnemyKind.Normal,game.Player.transform.position+game.Player.AimForward*6);float health=enemy.Health;
-            Assert.IsTrue(game.Player.Combat.ExecuteAttack(false));game.Pause();Assert.IsFalse(game.Player.Combat.BoomerangActive);
+            Assert.IsTrue(game.Player.Combat.ExecuteBoomerang());game.Pause();Assert.IsFalse(game.Player.Combat.BoomerangActive);
             yield return null;Assert.AreEqual(health,enemy.Health);
-            game.Resume();game.Player.Combat.ResetRun();Assert.IsTrue(game.Player.Combat.ExecuteAttack(false));game.Player.ResetRun();
+            game.Resume();game.Player.Combat.ResetRun();Assert.IsTrue(game.Player.Combat.ExecuteBoomerang());game.Player.ResetRun();
             Assert.IsFalse(game.Player.Combat.BoomerangActive);Assert.AreEqual(0,game.Player.Combat.BoomerangRemaining);
             yield return null;
         }
