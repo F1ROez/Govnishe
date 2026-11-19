@@ -6,18 +6,21 @@ namespace Brainrot {
   readonly List<PendingContact> contacts=new List<PendingContact>(16);
   PlayerController player;CharacterVisual visual;AttackRangeVisual rangeVisual;
   float nextAttack,nextHeavyAttack,chargeStarted,bufferUntil;bool charging,inputSuppressed,chargeReadyEffect,bufferedAttack,bufferedHeavy,holdBlocked;
-  float cooldownNoticeUntil;
+  float cooldownNoticeUntil;BatBoomerang boomerang;
+  public bool BoomerangActive=>boomerang!=null&&boomerang.Flying;
+  public float BoomerangRemaining=>boomerang!=null?boomerang.Remaining:0;
   public bool HeavyCooldownNotice=>Time.time<cooldownNoticeUntil;
   public bool IsCharging=>charging&&!holdBlocked&&HeavyReady&&Time.time-chargeStarted>=HoldDelay;
   float HoldDelay=>Mathf.Clamp(GameBalance.Current.Combat.HeavyHoldDelay,0,.35f);
   public float HeavyCooldownRemaining=>Mathf.Max(0,nextHeavyAttack-Time.time);
   public float HeavyCooldownDuration=>Mathf.Max(.1f,GameBalance.Current.Combat.StrongCooldownSeconds);
-  public bool HeavyReady=>HeavyCooldownRemaining<=0;
+  public bool HeavyReady=>HeavyCooldownRemaining<=0&&!BoomerangActive;
   public float ChargeProgress=>IsCharging?Mathf.Clamp01((Time.time-chargeStarted-HoldDelay)/Mathf.Max(.2f,GameBalance.Current.Combat.HeavyChargeSeconds)):0;
   public bool IsAttacking=>visual!=null&&visual.AttackActive;
-  public void Initialize(PlayerController p,CharacterVisual v){player=p;visual=v;}
+  public bool HeavyVisualActive{get;private set;}
+  public void Initialize(PlayerController p,CharacterVisual v){player=p;visual=v;boomerang=gameObject.AddComponent<BatBoomerang>();boomerang.Initialize(p,v);}
   public void SetRangeVisual(AttackRangeVisual value){rangeVisual=value;}
-  public void CancelPendingSwings(){contacts.Clear();bufferedAttack=false;bufferUntil=0;charging=false;holdBlocked=false;cooldownNoticeUntil=0;chargeReadyEffect=false;inputSuppressed=true;GameAudio.EndCharge();player?.ResetCombatCamera();if(visual!=null)visual.ResetAttack();}
+  public void CancelPendingSwings(){HeavyVisualActive=false;boomerang?.Cancel();contacts.Clear();bufferedAttack=false;bufferUntil=0;charging=false;holdBlocked=false;cooldownNoticeUntil=0;chargeReadyEffect=false;inputSuppressed=true;GameAudio.EndCharge();player?.ResetCombatCamera();if(visual!=null)visual.ResetAttack();}
   public void ResetRun(){nextAttack=nextHeavyAttack=0;CancelPendingSwings();}
   public void RestoreHeavyCooldown(float remaining){CancelPendingSwings();nextAttack=Time.time+.2f;nextHeavyAttack=Time.time+Mathf.Clamp(float.IsNaN(remaining)||float.IsInfinity(remaining)?0:remaining,0,HeavyCooldownDuration);}
   public void UpdateAttackInput(bool held,bool pressed=false,bool released=false){
@@ -31,13 +34,13 @@ namespace Brainrot {
    if((held||pressed)&&!charging&&Time.time>=nextAttack-window){
     charging=true;chargeStarted=Time.time;chargeReadyEffect=false;holdBlocked=!HeavyReady;
    }
-   if(charging&&Time.time-chargeStarted>=HoldDelay&&(holdBlocked||!HeavyReady)){holdBlocked=true;cooldownNoticeUntil=Time.time+.8f;}
+   if(charging&&Time.time-chargeStarted>=HoldDelay&&(holdBlocked||!HeavyReady)){holdBlocked=true;if(HeavyCooldownRemaining>0)cooldownNoticeUntil=Time.time+.8f;}
    // Input is sampled immediately; poses wait until the previous swing has recovered.
    if(held&&IsCharging&&Time.time>=nextAttack){if(HeavyReady&&(GameAudio.Instance==null||!GameAudio.Instance.Charging))GameAudio.BeginCharge();visual.SetChargePose(ChargeProgress,HeavyReady);GameAudio.SetCharge(ChargeProgress,HeavyReady);if(HeavyReady&&ChargeProgress>=1&&!chargeReadyEffect){chargeReadyEffect=true;visual.ChargeReady();}}
    if(charging&&(!held||released)){
     bool blocked=Time.time-chargeStarted>=HoldDelay&&(holdBlocked||!HeavyReady);
     bool heavy=ChargeProgress>=1&&HeavyReady;charging=false;GameAudio.EndCharge();
-    if(blocked){cooldownNoticeUntil=Time.time+.8f;if(!visual.AttackActive)visual.SetChargePose(0,false);return;}
+    if(blocked){if(HeavyCooldownRemaining>0)cooldownNoticeUntil=Time.time+.8f;if(!visual.AttackActive)visual.SetChargePose(0,false);return;}
     if(!ExecuteAttack(heavy)){
      if(Time.time<nextAttack&&nextAttack-Time.time<=window){bufferedAttack=true;bufferedHeavy=heavy;bufferUntil=Time.time+window;}
      if(!visual.AttackActive)visual.SetChargePose(0,false);
@@ -47,12 +50,17 @@ namespace Brainrot {
   public void TryAttack(){ExecuteAttack(false);}
   public bool ExecuteAttack(bool heavy){
    var game=GameManager.Instance;if(!isActiveAndEnabled||game==null||!game.IsPlaying||player==null||visual==null||player.IsCaptured||player.Health<=0||Time.time<nextAttack)return false;
-   if(heavy&&!HeavyReady)return false;
+   if(BoomerangActive||heavy&&!HeavyReady)return false;
    // Direct ability/test calls use the same lifecycle as releasing LMB. Keep the visual charge until PlayAttack consumes it.
    charging=false;bufferedAttack=false;GameAudio.EndCharge();
-   nextAttack=Time.time+Mathf.Max(.12f,player.Stats.AttackInterval);
+   nextAttack=Time.time+Mathf.Max(Mathf.Max(.12f,player.Stats.AttackInterval),heavy?0:Mathf.Clamp(GameBalance.Current.Boomerang.OutSeconds,.15f,1)+Mathf.Clamp(GameBalance.Current.Boomerang.ReturnSeconds,.2f,1.5f));
    if(heavy)nextHeavyAttack=Time.time+HeavyCooldownDuration;
-   BeginSwing(heavy?Mathf.Max(1,GameBalance.Current.Combat.StrongDamageMultiplier):1,heavy);return true;
+   HeavyVisualActive=heavy;
+   if(!heavy){
+    if(!boomerang.Launch())return false;
+    visual.PlayAttack(.23f,.06f,false);player.NotifyAttack();GameAudio.Swing(false);return true;
+   }
+   BeginSwing(Mathf.Max(1,GameBalance.Current.Combat.StrongDamageMultiplier),true);return true;
   }
   void BeginSwing(float power,bool heavy=false){
    var tuning=GameBalance.Current.Combat;var weapon=player.Character!=null?player.Character.Weapon:null;

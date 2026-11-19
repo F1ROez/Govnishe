@@ -8,7 +8,7 @@ namespace Brainrot.Editor
         public const string Root="Assets/Brainrot/Art/UI/Resources/";
         static readonly string[] Files={"TropicalUIAtlas.png","TropicalMenuBackdrop.png","TropicalPanels.png","TropicalIcons.png","TropicalBoard.png","ReferenceMainMenu.png","ReferencePause.png","ReferenceSettings.png","ReferenceMenuClean.png","ReferencePauseClean.png","ReferenceSettingsClean.png","WaveTitleClean.png","AlphaPauseFrame.png","AlphaSettingsFrame.png","AlphaButtons.png"};
         const string IslandRoot="Assets/Brainrot/Generated/Resources/";
-        static readonly string[] IslandFiles={"IslandMenuAtlas.png","IslandControlsAtlas.png","IslandMenuBackdrop.png"};
+        static readonly string[] IslandFiles={"IslandMenuAtlas.png","IslandControlsAtlas.png","IslandMenuBackdrop.png","IslandUpgradeIcons.png"};
         internal static bool IsArt(string path){foreach(var file in Files)if(path==Root+file)return true;foreach(var file in IslandFiles)if(path==IslandRoot+file)return true;return false;}
         public static void ConfigureAll(){if(!IslandArtInstaller.EnsureFiles())return;ConfigureFiles(Root,Files);ConfigureFiles(IslandRoot,IslandFiles);}
         static void ConfigureFiles(string root,string[] files){foreach(string file in files){var importer=AssetImporter.GetAtPath(root+file) as TextureImporter;if(importer!=null&&Configure(importer))importer.SaveAndReimport();}}

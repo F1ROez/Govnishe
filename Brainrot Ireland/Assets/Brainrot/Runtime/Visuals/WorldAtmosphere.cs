@@ -60,7 +60,7 @@ namespace Brainrot
         }
         void Update(){
             if(profile!=null&&quality!=SaveSystem.Data.Quality)ApplyQuality();
-            bool paused=quality>0&&GameManager.Instance!=null&&GameManager.Instance.State==GameState.Paused;
+            bool paused=quality>0&&GameManager.Instance!=null&&(GameManager.Instance.State==GameState.Paused||GameManager.Instance.State==GameState.RunShop);
             if(paused==blurred||pauseFocus==null)return;
             blurred=paused;pauseFocus.active=paused;
             if(cameraData!=null)cameraData.requiresDepthTexture=originalDepth||paused;

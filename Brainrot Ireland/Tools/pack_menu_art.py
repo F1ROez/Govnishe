@@ -13,7 +13,7 @@ import uuid
 PROJECT = Path(__file__).resolve().parents[1]
 PAYLOAD = Path('Assets/Brainrot/Generated/Editor/MenuArtPayloads')
 OUTPUT = Path('Assets/Brainrot/Generated/Resources')
-NAMES = ('IslandMenuAtlas', 'IslandControlsAtlas', 'IslandMenuBackdrop')
+NAMES = ('IslandMenuAtlas', 'IslandControlsAtlas', 'IslandMenuBackdrop', 'IslandUpgradeIcons')
 CHUNK_SIZE = 32768
 
 
@@ -23,8 +23,8 @@ def meta(path: Path, folder: bool = False) -> None:
         return
     target.write_text('fileFormatVersion: 2\nguid: ' + uuid.uuid4().hex + '\n' +
                       ('folderAsset: yes\n' if folder else '') +
-                      'DefaultImporter:\n  externalObjects: {}\n  userData: \n'
-                      '  assetBundleName: \n  assetBundleVariant: \n', encoding='utf-8')
+                      'DefaultImporter:\n  externalObjects: {}\n  userData:\n'
+                      '  assetBundleName:\n  assetBundleVariant:\n', encoding='utf-8')
 
 
 def pack(project: Path) -> None:

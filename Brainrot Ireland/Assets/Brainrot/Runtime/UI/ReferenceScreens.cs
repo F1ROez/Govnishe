@@ -69,7 +69,11 @@ namespace Brainrot
         /// <summary>Decorated title is independent of the nine-sliced sand board; its art contains no baked text.</summary>
         public static Transform Panel(Transform viewport,string title,float x,float y,float w,float h,int titleSize=42,float headerTop=-.17f){
             var body=Group(viewport,title+" — панель",x,y,w,h);
-            SlicedArt(body,"IslandSandPanel",0,0,1,1);
+            var shadow=Surface(body,"Тень панели",0,.012f,1,1,new Color(.01f,.055f,.07f,.45f));shadow.sprite=IslandThemeSurface.Round;
+            var rim=Surface(body,"Бирюзовый кант",0,0,1,1,new Color(.015f,.53f,.64f));rim.sprite=IslandThemeSurface.Round;
+            var edge=Surface(body,"Светлая кромка",.009f,.010f,.982f,.98f,new Color(.79f,.98f,.97f));edge.sprite=IslandThemeSurface.Round;
+            var ceramic=Surface(body,"Кремовая панель",.018f,.019f,.964f,.962f,Color.white);ceramic.sprite=IslandThemeSurface.Cream;
+            Surface(body,"Мягкий блик",.045f,.027f,.91f,.007f,new Color(1,.99f,.89f,.65f));
             var header=Art(body,"IslandTitle",-.065f,headerTop,1.13f,.35f);
             var heading=Text(header.transform,title,titleSize,.16f,.33f,.68f,.34f);heading.color=Cream;
             return body;
@@ -84,8 +88,8 @@ namespace Brainrot
             float left=primary&&waves?.16f:.08f,right=primary&&waves?.68f:.84f;
             if(symbol.HasValue){
                 bool play=symbol.Value==IslandSymbol.Play;
-                IslandMenuSymbol.Place(face.transform,symbol.Value,play?.80f:.085f,.18f,play?.10f:.125f,.64f,play?new Color(1,.78f,.05f):Cocoa);
-                left=play?.22f:.24f;right=play?.56f:.52f;
+                IslandMenuSymbol.Place(face.transform,symbol.Value, .085f,.18f,.125f,.64f,play?new Color(1,.78f,.05f):Cocoa);
+                left=.24f;right=.52f;
             }
             var label=SeaText(face.transform,title,size,left,.12f,right,.76f);label.resizeTextMinSize=Mathf.Min(size,14);SetTextStyle(label,primary);
             var button=hit.gameObject.AddComponent<Button>();button.targetGraphic=face;button.transition=Selectable.Transition.None;
@@ -109,32 +113,29 @@ namespace Brainrot
             Text(logo.transform,"ТУН ТУН САХУРА",38,.13f,.465f,.74f,.27f).color=new Color(1,.92f,.62f);
             var record=SlicedArt(root,"IslandSecondary",.695f,.055f,.255f,.075f).transform;
             wallet=SeaText(record,"РЕКОРД · ВОЛНА "+SaveSystem.Data.BestWave,23,.06f,.12f,.88f,.76f);
-            var dock=Group(root,"Панель главного меню",.565f,.215f,.405f,.705f);
-            SlicedArt(dock,"IslandSandPanel",0,0,1,1);
-            var welcome=SlicedArt(dock,"IslandSecondary",.16f,-.06f,.68f,.135f).transform;
-            SeaText(welcome,"ПРИКЛЮЧЕНИЕ ЖДЁТ",25,.06f,.15f,.88f,.70f);
+            var dock=Group(root,"Панель главного меню",.665f,.275f,.285f,.51f);
             var buttons=new[]{
-                SeaButton(dock,"ИГРАТЬ",.035f,.11f,.93f,.21f,play,49,true,IslandSymbol.Play),
-                SeaButton(dock,"СКИНЫ",.12f,.35f,.76f,.125f,shop,31,false,IslandSymbol.Shop),
-                SeaButton(dock,"РЕКОРДЫ",.12f,.48f,.76f,.125f,records,31,false,IslandSymbol.Trophy),
-                SeaButton(dock,"НАСТРОЙКИ",.12f,.61f,.76f,.125f,settings,31,false,IslandSymbol.Settings),
-                SeaButton(dock,"ВЫХОД",.12f,.74f,.76f,.125f,exit,31,false,IslandSymbol.Exit)
+                SeaButton(dock,"ИГРАТЬ",.02f,0,.96f,.22f,play,35,true,IslandSymbol.Play,false),
+                SeaButton(dock,"СКИНЫ",.07f,.255f,.86f,.165f,shop,24,false,IslandSymbol.Shop),
+                SeaButton(dock,"РЕКОРДЫ",.07f,.445f,.86f,.165f,records,24,false,IslandSymbol.Trophy),
+                SeaButton(dock,"НАСТРОЙКИ",.07f,.635f,.86f,.165f,settings,24,false,IslandSymbol.Settings),
+                SeaButton(dock,"ВЫХОД",.07f,.825f,.86f,.165f,exit,24,false,IslandSymbol.Exit)
             };
             var slogan=Art(root,"IslandSlogan",.012f,.866f,.545f,.12f).transform;
             Text(slogan,"ВЫДЕРЖИ ВОЛНУ. ВЕРНИСЬ СИЛЬНЕЕ.",23,.12f,.24f,.76f,.52f);
-            notice=SeaText(dock,"",14,.13f,.903f,.74f,.06f);
+            notice=SeaText(dock,"",14,.035f,1.015f,.93f,.12f);SetTextStyle(notice,true);
             if(EventSystem.current!=null)EventSystem.current.SetSelectedGameObject(buttons[0].gameObject);
             return buttons;
         }
         public static void Pause(Transform viewport,UnityAction resume,UnityAction settings,UnityAction menu){
-            var frame=Panel(viewport,"ПАУЗА",.2775f,.175f,.445f,.715f,48,-.245f);
+            var frame=Panel(viewport,"ПАУЗА",.21f,.17f,.58f,.785f,58,-.205f);
             var gm=GameManager.Instance;
             var status=SlicedArt(frame,"IslandSecondary",.17f,.095f,.66f,.085f).transform;
             SeaText(status,gm!=null?$"Волна {gm.Wave} · Побеждено {gm.Kills}":"ОСТРОВ МОЖЕТ ПОДОЖДАТЬ",22,.035f,.12f,.93f,.76f);
-            var first=SeaButton(frame,"ПРОДОЛЖИТЬ",.045f,.235f,.91f,.19f,resume,36,true);
-            SeaButton(frame,"НАСТРОЙКИ",.115f,.455f,.77f,.145f,settings,30,false,IslandSymbol.Settings);
-            SeaButton(frame,"ЗАВЕРШИТЬ ЗАБЕГ",.115f,.625f,.77f,.145f,menu,25,false,IslandSymbol.Exit);
-            SeaText(frame,"При выходе монеты и улучшения забега пропадут.",14,.105f,.805f,.79f,.095f);
+            var first=SeaButton(frame,"ПРОДОЛЖИТЬ",.065f,.235f,.87f,.21f,resume,45,true,IslandSymbol.Play,false);
+            SeaButton(frame,"НАСТРОЙКИ",.09f,.475f,.82f,.16f,settings,38,false,IslandSymbol.Settings);
+            SeaButton(frame,"ЗАВЕРШИТЬ ЗАБЕГ",.09f,.665f,.82f,.16f,menu,32,false,IslandSymbol.Exit);
+            SeaText(frame,"При выходе монеты и улучшения забега пропадут.",17,.09f,.865f,.82f,.065f);
             if(EventSystem.current!=null)EventSystem.current.SetSelectedGameObject(first.gameObject);
         }
         public static void Settings(Transform viewport,UnityAction back){

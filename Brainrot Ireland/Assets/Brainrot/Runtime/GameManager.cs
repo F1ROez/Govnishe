@@ -41,6 +41,7 @@ namespace Brainrot {
    if(IsPlaying){
     if(!IsIntermission)Elapsed+=Time.deltaTime;Spawner.Tick(Time.deltaTime);Hearts.Tick(Time.deltaTime,Player);Coins.Tick(Time.deltaTime,Player);Goals.Tick(Time.deltaTime);
    }
+   if(IsIntermission)Economy.EnsureOffers(Wave);
    if(Time.unscaledTime>noticeUntil)Notification="";ui.Refresh();
   }
   void SetState(GameState value){
@@ -67,7 +68,7 @@ namespace Brainrot {
   public void ResumeAfterUpgrade(){if(State==GameState.Upgrade)SetState(GameState.Playing);}
   public bool OpenRunShop(){
    if(!IsIntermission||Stall==null||!Stall.CanInteract)return false;
-   SetState(GameState.RunShop);return true;
+   Economy.EnsureOffers(Wave);SetState(GameState.RunShop);return true;
   }
   public void CloseRunShop(){if(State==GameState.RunShop)SetState(GameState.Playing);}
   public bool StartNextWave(){
@@ -75,7 +76,8 @@ namespace Brainrot {
    Player?.CancelAttacks();Notify("ВОЛНА "+Wave+" — ПРИГОТОВЬСЯ!",2.5f);return true;
   }
   public bool TryBuyRunUpgrade(int id){
-   if(State!=GameState.RunShop||!WaveCleared||Player==null||Stall==null||!Stall.CanInteract||!Economy.Buy(id))return false;
+   if(State!=GameState.RunShop||!WaveCleared||Player==null||Stall==null||!Stall.CanInteract)return false;
+   Economy.EnsureOffers(Wave);if(!Economy.TryBuyOffer(id))return false;
    switch(id){
     case 0:Player.Stats.Damage+=5;break;
     case 1:Player.Stats.MaxHealth+=15;Player.Heal(15);break;

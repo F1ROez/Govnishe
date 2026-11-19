@@ -7,6 +7,18 @@ namespace Brainrot
     {
         public Transform Weapon;
         public Transform WeaponTip;
+        Renderer[] heldWeaponRenderers;bool[] heldWeaponEnabled;bool weaponThrown;
+        public void SetWeaponThrown(bool thrown){
+            if(Weapon==null||weaponThrown==thrown)return;
+            if(heldWeaponRenderers==null){heldWeaponRenderers=Weapon.GetComponentsInChildren<Renderer>(true);heldWeaponEnabled=new bool[heldWeaponRenderers.Length];}
+            weaponThrown=thrown;
+            for(int i=0;i<heldWeaponRenderers.Length;i++)if(heldWeaponRenderers[i]!=null){
+                if(thrown){heldWeaponEnabled[i]=heldWeaponRenderers[i].enabled;heldWeaponRenderers[i].enabled=false;}
+                else heldWeaponRenderers[i].enabled=heldWeaponEnabled[i];
+                if(thrown&&heldWeaponRenderers[i] is TrailRenderer trail){trail.emitting=false;trail.Clear();}
+            }
+        }
+
         ImportedSahurVisual imported;
         ImportedEnemyVisual importedEnemy;
         public bool AttackActive => imported!=null?imported.AttackActive:attackRemaining > 0;

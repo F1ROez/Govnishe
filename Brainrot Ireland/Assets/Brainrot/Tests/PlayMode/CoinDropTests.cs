@@ -57,18 +57,19 @@ namespace Brainrot.Tests
             Assert.IsTrue(game.OpenRunShop());
             var shopBounds=new GameObject("Run shop test",typeof(RectTransform));shopBounds.GetComponent<RectTransform>().sizeDelta=new Vector2(1280,720);
             var viewport=ReferenceScreens.Viewport(shopBounds.transform,"Run shop");var shop=ShopScreen.ShowRun(viewport,()=>game.CloseRunShop());
+            int id=game.Economy.OfferIds[0],price=game.Economy.Cost(id);
             UnityEngine.UI.Button buy=null;
-            foreach(var button in shop.GetComponentsInChildren<UnityEngine.UI.Button>())if(button.GetComponentInChildren<UnityEngine.UI.Text>().text=="КУПИТЬ • 50")buy=button;
+            foreach(var button in shop.GetComponentsInChildren<UnityEngine.UI.Button>())if(button.name=="Купить улучшение "+id)buy=button;
             Assert.IsNotNull(buy);Assert.IsTrue(buy.interactable);buy.onClick.Invoke();
-            bool walletShown=false,rankShown=false;
-            foreach(var text in shop.GetComponentsInChildren<UnityEngine.UI.Text>()){
-                if(text.text=="МОНЕТЫ 50")walletShown=true;if(text.text=="1/5")rankShown=true;
-            }
-            Assert.IsTrue(walletShown);Assert.IsTrue(rankShown);UnityEngine.Object.DestroyImmediate(shopBounds);
-            Assert.AreEqual(before.MaxHealth+15,game.Player.Stats.MaxHealth);Assert.AreEqual(before.MaxHealth+15,game.Player.Health);Assert.AreEqual(50,game.RunBalance);
-            SaveSystem.Load();Assert.AreEqual(0,SaveSystem.Data.Coins);Assert.AreEqual(1,MetaProgression.Rank(1));
-            game.CloseRunShop();Assert.IsTrue(game.StartNextWave());Assert.AreEqual(before.MaxHealth+15,game.Player.Stats.MaxHealth);
-            game.StartRun();Assert.AreEqual(before.MaxHealth,game.Player.Stats.MaxHealth);Assert.AreEqual(0,game.RunBalance);Assert.AreEqual(0,MetaProgression.Rank(1));
+            Assert.AreEqual(100-price,game.RunBalance);Assert.AreEqual(1,MetaProgression.Rank(id));Assert.IsTrue(game.Economy.IsOfferSold(id));
+            Assert.AreEqual(before.Damage+(id==0?5:0),game.Player.Stats.Damage,.001f);
+            Assert.AreEqual(before.MaxHealth+(id==1?15:0),game.Player.Stats.MaxHealth,.001f);
+            Assert.AreEqual(before.MoveSpeed+(id==2?.3f:0),game.Player.Stats.MoveSpeed,.001f);
+            Assert.AreEqual(before.DashCooldown-(id==3?.12f:0),game.Player.Stats.DashCooldown,.001f);
+            UnityEngine.Object.DestroyImmediate(shopBounds);
+            SaveSystem.Load();Assert.AreEqual(0,SaveSystem.Data.Coins);Assert.AreEqual(1,MetaProgression.Rank(id));
+            game.CloseRunShop();Assert.IsTrue(game.StartNextWave());Assert.AreEqual(1,MetaProgression.Rank(id));
+            game.StartRun();Assert.AreEqual(before.MaxHealth,game.Player.Stats.MaxHealth);Assert.AreEqual(before.Damage,game.Player.Stats.Damage);Assert.AreEqual(0,game.RunBalance);Assert.AreEqual(0,MetaProgression.Rank(id));
         }
         [UnityTest]public IEnumerator IntermissionDoesNotFarmSurvivalTime(){
             game.Spawner.Waves.RestoreRunState(new WaveRunSnapshot{Number=1,Time=profile.Waves.Duration,Resting=true});

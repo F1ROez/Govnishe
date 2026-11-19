@@ -9,16 +9,38 @@ namespace Brainrot
         readonly int[] ranks=new int[4];
         readonly HashSet<int> claimed=new HashSet<int>();
         readonly HashSet<int> batch=new HashSet<int>();
+        readonly List<int> offers=new List<int>(3);
+        readonly bool[] sold=new bool[4];
+        readonly System.Collections.ObjectModel.ReadOnlyCollection<int> offerView;
+        System.Random offerRandom;
+        public RunEconomy(){offerView=offers.AsReadOnly();}
+        public IReadOnlyList<int> OfferIds=>offerView;
+        public int OfferWave{get;private set;}
         public string RunId{get;private set;}="";
         public bool Active{get;private set;}
         public int Balance{get;private set;}
         public int Earned{get;private set;}
         public bool Begin(string id){
             if(string.IsNullOrEmpty(id)||id.Length>64)return false;
-            RunId=id;Active=true;Balance=Earned=0;Array.Clear(ranks,0,ranks.Length);claimed.Clear();batch.Clear();return true;
+            RunId=id;Active=true;Balance=Earned=0;Array.Clear(ranks,0,ranks.Length);claimed.Clear();batch.Clear();
+            unchecked{int seed=17;foreach(char letter in id)seed=seed*31+letter;offerRandom=new System.Random(seed);}
+            offers.Clear();Array.Clear(sold,0,sold.Length);OfferWave=0;return true;
         }
         /// <summary>The result keeps its earned total; every spendable benefit is discarded.</summary>
-        public void Complete(){Active=false;Balance=0;Array.Clear(ranks,0,ranks.Length);claimed.Clear();batch.Clear();}
+        public void Complete(){Active=false;Balance=0;Array.Clear(ranks,0,ranks.Length);claimed.Clear();batch.Clear();offers.Clear();Array.Clear(sold,0,sold.Length);OfferWave=0;}
+        /// <summary>Sample once per cleared wave. Reopening or purchasing cannot reroll stock.</summary>
+        public void EnsureOffers(int wave){
+            if(!Active||wave<1||wave<=OfferWave)return;
+            OfferWave=wave;offers.Clear();Array.Clear(sold,0,sold.Length);
+            var available=new int[MetaProgression.Catalog.Length];int count=0;
+            for(int id=0;id<available.Length;id++)if(Rank(id)<MetaProgression.Catalog[id].MaxRank)available[count++]=id;
+            for(int i=0;i<Math.Min(3,count);i++){
+                int chosen=offerRandom.Next(i,count),swap=available[i];available[i]=available[chosen];available[chosen]=swap;offers.Add(available[i]);
+            }
+        }
+        public bool IsOfferSold(int id)=>id>=0&&id<sold.Length&&sold[id];
+        public bool CanBuyOffer(int id)=>Active&&offers.Contains(id)&&!IsOfferSold(id)&&Cost(id)>0&&Balance>=Cost(id);
+        public bool TryBuyOffer(int id){if(!CanBuyOffer(id)||!Buy(id))return false;sold[id]=true;return true;}
         public int Rank(int id)=>Active&&id>=0&&id<ranks.Length?ranks[id]:0;
         public int Cost(int id){
             if(!Active||id<0||id>=MetaProgression.Catalog.Length||Rank(id)>=MetaProgression.Catalog[id].MaxRank)return 0;

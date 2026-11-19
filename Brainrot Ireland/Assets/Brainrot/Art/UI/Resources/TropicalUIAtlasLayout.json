@@ -492,6 +492,42 @@
       "width": 590,
       "height": 220,
       "border": 0
+    },
+    {
+      "name": "IslandBatBare",
+      "resource": "IslandUpgradeIcons",
+      "x": 0,
+      "y": 0,
+      "width": 627,
+      "height": 627,
+      "border": 0
+    },
+    {
+      "name": "IslandHealthBare",
+      "resource": "IslandUpgradeIcons",
+      "x": 627,
+      "y": 0,
+      "width": 627,
+      "height": 627,
+      "border": 0
+    },
+    {
+      "name": "IslandShoeBare",
+      "resource": "IslandUpgradeIcons",
+      "x": 0,
+      "y": 627,
+      "width": 627,
+      "height": 627,
+      "border": 0
+    },
+    {
+      "name": "IslandStopwatchBare",
+      "resource": "IslandUpgradeIcons",
+      "x": 627,
+      "y": 627,
+      "width": 627,
+      "height": 627,
+      "border": 0
     }
   ]
 }

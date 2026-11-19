@@ -10,7 +10,7 @@ import json
 import re
 import struct
 
-TEXTURES = ("IslandMenuAtlas", "IslandControlsAtlas", "IslandMenuBackdrop")
+TEXTURES = ("IslandMenuAtlas", "IslandControlsAtlas", "IslandMenuBackdrop", "IslandUpgradeIcons")
 PART_CHARS = 32768
 MAX_PARTS = 128
 MAX_PNG_BYTES = 8 * 1024 * 1024

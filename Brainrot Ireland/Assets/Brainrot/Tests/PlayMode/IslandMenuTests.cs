@@ -75,6 +75,19 @@ namespace Brainrot.Tests
             Assert.IsFalse(SaveSystem.Data.CameraLocked);Assert.IsFalse(SaveSystem.Data.ShowAttackRange);Assert.AreEqual(0,SaveSystem.Data.CameraShakeStrength);
             FindButton("НАЗАД").onClick.Invoke();Assert.AreEqual(1,backs);
         }
+        [Test]public void PauseUsesCreamCeramicAndKeepsThreeIndependentActions(){
+            int resumed=0,settings=0,ended=0;
+            ReferenceScreens.Pause(viewport,()=>resumed++,()=>settings++,()=>ended++);
+            bool ceramic=false,oldSand=false;
+            foreach(var image in root.GetComponentsInChildren<Image>()){
+                ceramic|=image.sprite==IslandThemeSurface.Cream;
+                oldSand|=image.sprite==TropicalUIArt.Get("IslandSandPanel");
+            }
+            Assert.IsTrue(ceramic);Assert.IsFalse(oldSand,"The new reference is a cream panel, not the previous sand board.");
+            Assert.AreEqual(3,root.GetComponentsInChildren<Button>().Length);
+            FindButton("ПРОДОЛЖИТЬ").onClick.Invoke();FindButton("НАСТРОЙКИ").onClick.Invoke();FindButton("ЗАВЕРШИТЬ ЗАБЕГ").onClick.Invoke();
+            Assert.AreEqual(1,resumed);Assert.AreEqual(1,settings);Assert.AreEqual(1,ended);
+        }
         [Test]public void MenuShopContainsCosmeticsOnlyAndNoRunUpgradePurchases(){
             int backs=0;ShopScreen.Show(viewport,()=>backs++);
             Assert.IsNotNull(FindText("СКИНЫ ПОЯВЯТСЯ ПОЗЖЕ"));

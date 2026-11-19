@@ -17,7 +17,7 @@ namespace Brainrot.Editor
         const string PayloadRoot="Assets/Brainrot/Generated/Editor/MenuArtPayloads/";
         const string OutputRoot="Assets/Brainrot/Generated/Resources/";
         const int ChunkSize=32768;
-        static readonly string[] Names={"IslandMenuAtlas","IslandControlsAtlas","IslandMenuBackdrop"};
+        static readonly string[] Names={"IslandMenuAtlas","IslandControlsAtlas","IslandMenuBackdrop","IslandUpgradeIcons"};
         static bool installing;
         [Serializable] sealed class Manifest {public int version;public TextureEntry[] textures;}
         [Serializable] sealed class TextureEntry {public string name,file,sha256;public int length;public string[] chunks;}
