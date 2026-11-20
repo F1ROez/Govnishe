@@ -40,7 +40,8 @@ namespace Brainrot
         public SpawnTuning Spawning = new SpawnTuning();
         public ExplorationTuning Exploration = new ExplorationTuning();
         public ProgressionTuning Progression = new ProgressionTuning();
-        public BossTuning Bosses = new BossTuning();
+        public BossTuning Bosses = new BossTuning(); // Legacy timer bosses remain disabled.
+        public IslandBossTuning IslandBosses = new IslandBossTuning();
         public OceanTuning Ocean = new OceanTuning();
         public EnemyTuning Normal = new EnemyTuning();
         public EnemyTuning Fast = new EnemyTuning { Health=35,Speed=4.1f,Damage=11,CanCharge=true,ChargeMinDistance=4,ChargeMaxDistance=10,ChargeWindup=1.05f,ChargeSpeed=14,ChargeDuration=.5f,ChargeCooldown=7,Experience=10 };
@@ -73,7 +74,7 @@ namespace Brainrot
             heroFeelVersion=1;return true;
         }
         void OnEnable(){EnsureExploration();UpgradeHeroFeel();}
-        public void EnsureExploration(){if(Boomerang==null)Boomerang=new BoomerangTuning();if(Intermission==null)Intermission=new IntermissionTuning();if(Coins==null)Coins=new CoinTuning();if(Hearts==null)Hearts=new HeartDropTuning();if(Feedback==null)Feedback=new CombatFeelTuning();if(Crowd==null)Crowd=new CrowdTuning();if(Camera==null)Camera=new ThirdPersonCameraTuning();if(Camera.MaxPitch<=0){Camera.MinPitch=-20;Camera.MaxPitch=65;}if(Stamina==null)Stamina=new StaminaTuning();if(Exploration==null)Exploration=new ExplorationTuning();if(Waves==null)Waves=new WaveTuning();if(Bodies==null)Bodies=new BodyTuning();if(Octopus==null)Octopus=new OctopusTuning();if(Orcaladon==null)Orcaladon=new OrcaladonTuning();if(OrcaladonEnemy==null)OrcaladonEnemy=new EnemyTuning {Health=100,Speed=2.2f,Damage=30,AttackRange=3.8f,MeleeWindup=.85f,Recovery=.65f,KnockbackResistance=4,HitStagger=.1f,Experience=0};if(SahurAnimation==null)SahurAnimation=new SahurAnimationTuning();}
+        public void EnsureExploration(){if(IslandBosses==null)IslandBosses=new IslandBossTuning();IslandBosses.Ensure();if(Boomerang==null)Boomerang=new BoomerangTuning();if(Intermission==null)Intermission=new IntermissionTuning();if(Coins==null)Coins=new CoinTuning();if(Hearts==null)Hearts=new HeartDropTuning();if(Feedback==null)Feedback=new CombatFeelTuning();if(Crowd==null)Crowd=new CrowdTuning();if(Camera==null)Camera=new ThirdPersonCameraTuning();if(Camera.MaxPitch<=0){Camera.MinPitch=-20;Camera.MaxPitch=65;}if(Stamina==null)Stamina=new StaminaTuning();if(Exploration==null)Exploration=new ExplorationTuning();if(Waves==null)Waves=new WaveTuning();if(Bodies==null)Bodies=new BodyTuning();if(Octopus==null)Octopus=new OctopusTuning();if(Orcaladon==null)Orcaladon=new OrcaladonTuning();if(OrcaladonEnemy==null)OrcaladonEnemy=new EnemyTuning {Health=100,Speed=2.2f,Damage=30,AttackRange=3.8f,MeleeWindup=.85f,Recovery=.65f,KnockbackResistance=4,HitStagger=.1f,Experience=0};if(SahurAnimation==null)SahurAnimation=new SahurAnimationTuning();}
         public EnemyTuning Enemy(EnemyKind kind) {
             switch (kind) { case EnemyKind.Orcaladon:return OrcaladonEnemy;case EnemyKind.BlueberrinniOctopusini:return BlueOctopus;case EnemyKind.LiriliLarila:return Lirili;case EnemyKind.BrrBrrPatapim:return Patapim;case EnemyKind.CappuccinoAssassino:return Cappuccino;case EnemyKind.BombardiroCrocodilo:return Crocodilo;case EnemyKind.Fast:return Fast;case EnemyKind.Tank:return Tank;case EnemyKind.MiniBoss:return MiniBoss;case EnemyKind.King:return King;default:return Normal; }
         }

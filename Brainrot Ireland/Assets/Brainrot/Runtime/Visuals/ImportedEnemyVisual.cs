@@ -22,7 +22,7 @@ namespace Brainrot
             visibility=GetComponentsInChildren<Renderer>(true);
             foreach(var renderer in visibility)if(renderer is SkinnedMeshRenderer skin)skin.updateWhenOffscreen=false;
         }
-        void Start(){CalibrateModel();}
+        void Start(){if(calibratedHeight<=0)CalibrateModel();}
         void CacheRest(){
             if(MotionRoot!=null){restMotion=MotionRoot.localPosition;restRotation=MotionRoot.localRotation;}
             if(LegBones==null)return;
@@ -84,6 +84,8 @@ namespace Brainrot
         public void ResetVisual(){speed=shownSpeed=phase=0;trackedPosition=false;ResetBite();if(Orcaladon!=null)Orcaladon.ResetPose();if(legRest!=null)for(int i=0;i<legRest.Length;i++)if(LegBones[i]!=null)LegBones[i].localRotation=legRest[i];if(Animator!=null){if(!Animator.enabled)Animator.enabled=true;movingKnown=false;ApplyMoving();}}
         void LateUpdate(){
             ApplyConfiguredHeight();
+            // BossVisualDriver owns these bones while an encounter is active.
+            if(enemy!=null&&enemy.IsBoss)return;
             bool physical=enemy!=null&&(!enemy.Alive||(enemy.PhysicsBody!=null&&enemy.PhysicsBody.IsPhysical));
             if(Animator!=null&&Animator.enabled==physical){Animator.enabled=!physical;movingKnown=false;if(!physical)ApplyMoving();}
             if(physical){trackedPosition=false;return;}

@@ -40,7 +40,8 @@ namespace Brainrot
             ReferenceScreens.Surface(content.transform,"Морское стекло",0,0,1,1,new Color(.012f,.12f,.16f,.87f));
             var heading=ReferenceScreens.Text(content.transform,"ЛАВКА ОСТРОВА",36,.16f,.065f,.60f,.09f);heading.alignment=TextAnchor.MiddleLeft;heading.fontStyle=FontStyle.Bold;
             var walletFace=ReferenceScreens.Surface(content.transform,"Баланс",.79f,.065f,.15f,.085f,new Color(.09f,.23f,.26f));
-            wallet=ReferenceScreens.Text(walletFace.transform,"",25,.05f,.10f,.90f,.80f);
+            ReferenceScreens.Art(walletFace.transform,"IslandCoin",.065f,.10f,.25f,.80f).preserveAspect=true;
+            wallet=ReferenceScreens.Text(walletFace.transform,"",25,.35f,.10f,.60f,.80f);
             if(!RunContext){
                 ReferenceScreens.Text(content.transform,"ЛАВКА ОТКРЫВАЕТСЯ МЕЖДУ ВОЛНАМИ",30,.15f,.37f,.70f,.13f);
                 ReferenceScreens.Text(content.transform,"Подойди к прилавку после зачистки и нажми E.",23,.20f,.52f,.60f,.10f);
@@ -67,7 +68,8 @@ namespace Brainrot
                     feedbackUntil=Time.unscaledTime+2.6f;Build(id);
                 },30,true,null,false);
                 buy.gameObject.name="Купить улучшение "+id;
-                var priceLabel=buy.GetComponentInChildren<Text>();priceLabel.text=sold?"ПРОДАНО":price+" монет";
+                var priceLabel=buy.GetComponentInChildren<Text>();priceLabel.text=sold?"ПРОДАНО":price.ToString();
+                if(!sold){ReferenceScreens.Rect(priceLabel.rectTransform,.35f,.12f,.58f,.76f);ReferenceScreens.Art(buy.targetGraphic.transform,"IslandCoin",.11f,.16f,.22f,.68f).preserveAspect=true;}
                 int selection=index;glass.raycastTarget=true;
                 var cardEvents=card.gameObject.AddComponent<EventTrigger>();var hover=new EventTrigger.Entry{eventID=EventTriggerType.PointerEnter};hover.callback.AddListener(_=>SelectOffer(selection,false));cardEvents.triggers.Add(hover);
                 var events=buy.gameObject.AddComponent<EventTrigger>();

@@ -14,7 +14,10 @@ namespace Brainrot
         public bool Alive { get; private set; }
         public float Health { get; private set; }
         public float MaxHealth { get; private set; }
-        public bool IsBoss => false;
+        public BossEncounter BossEncounter {get;private set;}
+        public bool IsBoss => BossEncounter!=null&&BossEncounter.IsActive;
+        public CharacterVisual Visual=>visual;
+        float bossScale=1;
         public EnemyKind Kind { get; private set; }
         public EnemyAction Action { get; private set; }
         public IslandZone HomeZone { get; private set; }
@@ -36,7 +39,7 @@ namespace Brainrot
         Vector3 knockVelocity, committedDirection, wanderTarget;
         float Radius => Kind == EnemyKind.Orcaladon ? Mathf.Max(.1f,GameBalance.Current.Orcaladon.CollisionRadius) : Kind == EnemyKind.LiriliLarila ? 1.15f : Kind == EnemyKind.BrrBrrPatapim ? 1.05f : Kind == EnemyKind.BombardiroCrocodilo ? .95f : Kind == EnemyKind.CappuccinoAssassino ? .55f : .7f;
         public float CrowdRadius=>Mathf.Clamp(Radius*Mathf.Max(.1f,GameBalance.Current.EnemyModelScale)*Mathf.Max(.1f,tuning!=null?tuning.ModelScale:1),.2f,3);
-        public bool CrowdParticipant=>Alive&&gameObject.activeInHierarchy&&(PhysicsBody==null||!PhysicsBody.IsPhysical)&&
+        public bool CrowdParticipant=>!IsBoss&&Alive&&gameObject.activeInHierarchy&&(PhysicsBody==null||!PhysicsBody.IsPhysical)&&
             (octopus==null||octopus.Phase==OctopusPhase.Approach||octopus.Phase==OctopusPhase.Aiming);
         public bool CrowdMovable=>CrowdParticipant&&(octopus==null||octopus.Phase==OctopusPhase.Approach)&&
             (orcaladon==null||orcaladon.Phase==OrcaladonPhase.Approach||orcaladon.Phase==OrcaladonPhase.Recovery)&&
@@ -53,6 +56,7 @@ namespace Brainrot
 
         public void Initialize(EnemySpawner owner, EnemyKind kind, float difficulty, Vector3 position)
         {
+            BossEncounter?.ResetEncounter();bossScale=1;
             this.owner = owner; Kind = kind;
             if(PhysicsBody==null)PhysicsBody=gameObject.AddComponent<EnemyPhysicsBody>();PhysicsBody.ResetBody();
             if(capsule==null)capsule=GetComponent<CapsuleCollider>();
@@ -83,6 +87,14 @@ namespace Brainrot
             if(kind==EnemyKind.BlueberrinniOctopusini){if(octopus==null)octopus=gameObject.AddComponent<OctopusAttack>();octopus.Initialize(this,owner);}
             if(kind==EnemyKind.Orcaladon){if(orcaladon==null)orcaladon=gameObject.AddComponent<OrcaladonAttack>();orcaladon.Initialize(this,visual);}
         }
+        public void ConfigureBoss(IslandBossKind kind,int wave){
+            var profile=GameBalance.Current.IslandBosses.For(kind);
+            bossScale=Mathf.Clamp(profile.Size,1,4);MaxHealth=Health=profile.HealthAt(wave);speed=Mathf.Max(.1f,profile.Speed);damage=profile.DamageAt(wave);
+            octopus?.Interrupt();orcaladon?.ResetAttack();telegraph?.Hide();knockVelocity=Vector3.zero;
+            ApplyVisualScale();UpdateCapsuleShape();
+            if(BossEncounter==null)BossEncounter=gameObject.AddComponent<BossEncounter>();
+            BossEncounter.Initialize(this,kind,wave);Action=EnemyAction.Chasing;IsAlerted=true;
+        }
         static Color Skin(EnemyKind kind)
         {
             switch (kind)
@@ -100,15 +112,15 @@ namespace Brainrot
         }
         void UpdateCapsuleShape(){
             if(capsule==null)return;
-            float radius=Kind==EnemyKind.Orcaladon?Mathf.Max(.1f,GameBalance.Current.Orcaladon.CollisionRadius):.55f;
-            float height=Kind==EnemyKind.Orcaladon?Mathf.Max(Mathf.Max(.5f,GameBalance.Current.Orcaladon.ModelHeight),radius*2):2;
+            float radius=(Kind==EnemyKind.Orcaladon?Mathf.Max(.1f,GameBalance.Current.Orcaladon.CollisionRadius):.55f)*bossScale;
+            float height=Kind==EnemyKind.Orcaladon?Mathf.Max(Mathf.Max(.5f,GameBalance.Current.Orcaladon.ModelHeight)*bossScale,radius*2):2*bossScale;
             if(!Mathf.Approximately(capsule.radius,radius))capsule.radius=radius;
             if(!Mathf.Approximately(capsule.height,height))capsule.height=height;
             var center=Vector3.up*height*.5f;if(capsule.center!=center)capsule.center=center;
         }
         void ApplyVisualScale(){
             if(visual==null||tuning==null)return;
-            float scale=Size(Kind)*Mathf.Max(.1f,GameBalance.Current.EnemyModelScale)*Mathf.Max(.1f,tuning.ModelScale);
+            float scale=Size(Kind)*Mathf.Max(.1f,GameBalance.Current.EnemyModelScale)*Mathf.Max(.1f,tuning.ModelScale)*bossScale;
             if(Kind==EnemyKind.Orcaladon&&importedVisual==null&&fallbackHeight>.0001f){
                 scale*=Mathf.Max(.5f,GameBalance.Current.Orcaladon.ModelHeight)/fallbackHeight;
                 var floor=Vector3.up*(-fallbackFloor*scale);if(visual.transform.localPosition!=floor)visual.transform.localPosition=floor;
@@ -139,6 +151,7 @@ namespace Brainrot
         {
             var game = GameManager.Instance;
             if (!Alive || game == null || !game.IsPlaying || game.Player == null || game.Player.Health <= 0 || dt <= 0) return;
+            if(IsBoss){BossEncounter.Tick(dt);return;}
             if(PhysicsBody!=null&&PhysicsBody.IsPhysical)return;
             if(restoredGrace>0){restoredGrace=Mathf.Max(0,restoredGrace-dt);visual.Animate(0,false);return;}
             if(Kind==EnemyKind.BlueberrinniOctopusini){octopus.Tick(dt);visual.Animate(octopus.Phase==OctopusPhase.Approach||octopus.Phase==OctopusPhase.Retreat?speed:0,false);return;}
@@ -342,10 +355,11 @@ namespace Brainrot
         public void TakeDamage(float amount, Vector3 knockback)
         {
             if (!Alive || amount <= 0) return;
-            if(octopus!=null&&(knockback.sqrMagnitude>.01f||amount>=Health))octopus.Interrupt();
+            if(!IsBoss&&octopus!=null&&(knockback.sqrMagnitude>.01f||amount>=Health))octopus.Interrupt();
             Health = Mathf.Max(0, Health - amount);knockback.y = 0;
             var feedback = GameBalance.Current.Combat;
             visual.FlashHit(Mathf.Max(0, feedback.HitFlashDuration), Mathf.Clamp01(feedback.HitFlashStrength));
+            if(IsBoss&&Health>0){BossEncounter.HitReaction();return;} // Boss counterattack windows, not repeatable heavy-hit stun locks.
             if(Kind==EnemyKind.Orcaladon&&Health>0){
                 if(knockback.sqrMagnitude>.01f){knockVelocity=knockback.normalized*Mathf.Max(0,GameBalance.Current.Orcaladon.HeavyPushSpeed);orcaladon.Interrupt();}
                 return;
@@ -364,7 +378,7 @@ namespace Brainrot
                 stateClock = Mathf.Max(.02f, tuning.HitStagger);attackClock = Mathf.Max(attackClock,.35f);
             }
             if (Health > 0){if(knockback.sqrMagnitude>.01f)Tumble(knockback);return;}
-            Alive = false;IsAlerted = false;telegraph.Hide();
+            Alive = false;IsAlerted = false;telegraph.Hide();BossEncounter?.OnBossDeath();
             if(game!=null&&game.IsPlaying)game.Hearts?.Drop(Kind,transform.position);
             if(orcaladon!=null)orcaladon.ResetAttack();
             HitEffects.Burst(transform.position + Vector3.up, Skin(Kind), 8);
@@ -373,9 +387,9 @@ namespace Brainrot
             Vector3 launch=knockback.sqrMagnitude>.01f?knockback:(transform.position-GameManager.Instance.Player.transform.position).normalized*3;
             PhysicsBody.Launch(launch,true);owner.Killed(this);
         }
-        public void Tumble(Vector3 velocity){if(!Alive)return;if(Kind==EnemyKind.Orcaladon){if(velocity.sqrMagnitude>.0001f)knockVelocity=velocity.normalized*Mathf.Max(0,GameBalance.Current.Orcaladon.HeavyPushSpeed);orcaladon?.Interrupt();return;}if(octopus!=null)octopus.Interrupt();visual.ResetBite();telegraph.Hide();Action=EnemyAction.Staggered;PhysicsBody.Launch(velocity,false);}
+        public void Tumble(Vector3 velocity){if(!Alive||IsBoss)return;if(Kind==EnemyKind.Orcaladon){if(velocity.sqrMagnitude>.0001f)knockVelocity=velocity.normalized*Mathf.Max(0,GameBalance.Current.Orcaladon.HeavyPushSpeed);orcaladon?.Interrupt();return;}if(octopus!=null)octopus.Interrupt();visual.ResetBite();telegraph.Hide();Action=EnemyAction.Staggered;PhysicsBody.Launch(velocity,false);}
         public void OnRecovered(){if(!Alive)return;Action=EnemyAction.Chasing;attackClock=.5f;visual.ResetFeedback();}
-        void OnDisable() { IsAlerted = false;if (telegraph != null) telegraph.Hide();if (orcaladon != null) orcaladon.ResetAttack();if (visual != null) visual.ResetFeedback(); }
+        void OnDisable() { BossEncounter?.ResetEncounter();IsAlerted = false;if (telegraph != null) telegraph.Hide();if (orcaladon != null) orcaladon.ResetAttack();if (visual != null) visual.ResetFeedback(); }
     }
 
     /// <summary>Shared material and pooled geometry: high-contrast borders without opaque ground discs.</summary>

@@ -17,6 +17,10 @@ namespace Brainrot {
    float duration=Mathf.Max(10,t.Duration);time=Mathf.Min(duration,time+dt);Progress=Mathf.Clamp01(time/duration);Remaining=Mathf.Max(0,duration-time);
    if(time>=duration&&!pendingSpawns){Resting=true;WaitingForClear=alive>0;restTime=0;Remaining=0;}
   }
+  /// <summary>A boss victory resolves its wave immediately; the manual next-wave gate remains.</summary>
+  public void CompleteEncounter(){
+   time=Mathf.Max(10,GameBalance.Current.Waves.Duration);Progress=1;Resting=true;WaitingForClear=false;restTime=Remaining=0;
+  }
   public bool StartNextWave(){
    if(!Resting||WaitingForClear)return false;
    Number++;time=restTime=Progress=0;Resting=false;Remaining=Mathf.Max(10,GameBalance.Current.Waves.Duration);return true;

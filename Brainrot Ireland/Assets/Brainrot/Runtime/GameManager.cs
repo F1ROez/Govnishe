@@ -46,7 +46,7 @@ namespace Brainrot {
   }
   void SetState(GameState value){
    if(value==GameState.Playing&&(!focused||backgrounded))value=GameState.Paused;
-   if(value!=GameState.Playing){if(Player!=null)Player.CancelAttacks();GameAudio.StopGameplayEffects();}State=value;
+   if(value!=GameState.Playing){if(Player!=null)Player.CancelAttacks();Spawner?.CurrentBoss?.BossEncounter?.Suspend();GameAudio.StopGameplayEffects();}State=value;
    if(value==GameState.Playing)GameMusic.SetGameplay();else if(value==GameState.Menu)GameMusic.SetMenu();else GameMusic.SetPaused(true);
    if(!focused||backgrounded)GameMusic.SetPaused(true);
    if(value==GameState.Paused||value==GameState.Dead||value==GameState.RunShop)UIInputRouter.EnsureForScene(gameObject.scene);

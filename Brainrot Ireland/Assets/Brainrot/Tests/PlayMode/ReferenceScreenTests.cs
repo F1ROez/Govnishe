@@ -26,13 +26,13 @@ namespace Brainrot.Tests
                 var bounds=(RectTransform)button.transform;var before=bounds.rect;
                 var motion=button.GetComponent<CartoonButtonMotion>();motion.OnPointerEnter(null);
                 for(int i=0;i<60;i++)motion.Tick(1/60f);
-                Assert.Greater(button.targetGraphic.transform.localScale.x,1.05f);
+                Assert.Greater(motion.VisualTarget.localScale.x,1.05f);
                 Assert.AreEqual(Vector3.one,button.transform.localScale);Assert.AreEqual(before,bounds.rect);
                 Assert.IsTrue(button.GetComponentInChildren<Text>().transform.IsChildOf(button.targetGraphic.transform));
                 motion.OnPointerExit(null);for(int i=0;i<60;i++)motion.Tick(1/60f);
-                Assert.AreEqual(1,button.targetGraphic.transform.localScale.x,.001f);
+                Assert.AreEqual(1,motion.VisualTarget.localScale.x,.001f);
                 button.interactable=false;motion.OnPointerEnter(null);for(int i=0;i<60;i++)motion.Tick(1/60f);
-                Assert.AreEqual(1,button.targetGraphic.transform.localScale.x,.001f);
+                Assert.AreEqual(1,motion.VisualTarget.localScale.x,.001f);
             }finally{Object.DestroyImmediate(parent);}
         }
         [Test]public void PauseButtonsKeepSeparateActionsAndDoNotOverlap(){

@@ -70,7 +70,7 @@ namespace Brainrot
         }
         public static Image Image(string name,Transform parent,Vector2 min,Vector2 max,Color color,Sprite sprite=null){
             var go=new GameObject(name,typeof(RectTransform),typeof(Image));go.transform.SetParent(parent,false);var rect=go.GetComponent<RectTransform>();rect.anchorMin=min;rect.anchorMax=max;rect.offsetMin=rect.offsetMax=Vector2.zero;
-            var image=go.GetComponent<Image>();image.sprite=sprite!=null?sprite:Rounded;image.type=sprite==null?UnityEngine.UI.Image.Type.Sliced:UnityEngine.UI.Image.Type.Simple;image.color=color;image.raycastTarget=false;return image;
+            var image=go.GetComponent<Image>();image.sprite=sprite!=null?sprite:IslandThemeSurface.Round;image.type=sprite==null?UnityEngine.UI.Image.Type.Sliced:UnityEngine.UI.Image.Type.Simple;image.color=color;image.raycastTarget=false;return image;
         }
         public static void Typography(Text text,bool heading=false){text.font=Font;text.fontStyle=heading?FontStyle.Bold:FontStyle.Normal;text.color=Cream;text.resizeTextForBestFit=true;text.resizeTextMinSize=Mathf.Min(text.fontSize,Mathf.Max(8,text.fontSize-4));text.resizeTextMaxSize=text.fontSize;text.verticalOverflow=VerticalWrapMode.Truncate;var outline=text.gameObject.AddComponent<Outline>();outline.effectColor=new Color(.19f,.095f,.035f,.95f);outline.effectDistance=new Vector2(1.5f,-1.5f);var shadow=text.gameObject.AddComponent<Shadow>();shadow.effectColor=new Color(.09f,.07f,.04f,.6f);shadow.effectDistance=new Vector2(0,-3);}
         public static void StyleButton(Button button,bool primary=false){

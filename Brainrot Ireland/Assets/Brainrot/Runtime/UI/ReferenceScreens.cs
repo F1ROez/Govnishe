@@ -7,10 +7,10 @@ namespace Brainrot
     /// <summary>Live minimalist controls on a consistent 16:9 artboard.</summary>
     public static class ReferenceScreens
     {
-        public static readonly Color Cocoa=new Color(.09f,.16f,.18f);
-        public static readonly Color Accent=new Color(.06f,.57f,.59f);
-        public static readonly Color Paper=new Color(.96f,.95f,.91f);
-        static readonly Color Cream=new Color(.97f,.98f,.96f);
+        public static readonly Color Cocoa=new Color(.20f,.12f,.065f);
+        public static readonly Color Accent=new Color(.035f,.55f,.57f);
+        public static readonly Color Paper=new Color(1,.965f,.865f);
+        static readonly Color Cream=new Color(1,.98f,.90f);
         public static RectTransform Viewport(Transform parent,string name){
             var go=new GameObject(name,typeof(RectTransform),typeof(ReferenceViewport));go.transform.SetParent(parent,false);
             var rect=(RectTransform)go.transform;rect.anchorMin=rect.anchorMax=rect.pivot=new Vector2(.5f,.5f);rect.sizeDelta=new Vector2(1280,720);
@@ -46,7 +46,7 @@ namespace Brainrot
             return SeaButton(parent,title,x,y,w,h,action,size,true);
         }
         public static Image Surface(Transform parent,string name,float x,float y,float w,float h,Color color){
-            var image=CartoonUI.Image(name,parent,Vector2.zero,Vector2.one,color);Rect(image.rectTransform,x,y,w,h);return image;
+            var image=CartoonUI.Image(name,parent,Vector2.zero,Vector2.one,color);Rect(image.rectTransform,x,y,w,h);image.sprite=IslandThemeSurface.Round;image.type=Image.Type.Sliced;return image;
         }
         public static Text SeaText(Transform parent,string value,int size,float x,float y,float w,float h){
             var text=Text(parent,value,size,x,y,w,h);SetTextStyle(text,false);return text;
@@ -62,36 +62,43 @@ namespace Brainrot
         public static Transform Panel(Transform viewport,string title,float x,float y,float w,float h,int titleSize=42,float headerTop=-.17f){
             var body=Group(viewport,title+" — панель",x,y,w,h);
             body.gameObject.AddComponent<IslandPanelEntrance>();
-            Surface(body,"Тень панели",0,.012f,1,1,new Color(.015f,.04f,.05f,.22f));
-            Surface(body,"Панель",0,0,1,1,Paper);
+            Surface(body,"Тень панели",0,.012f,1,1,new Color(.015f,.04f,.05f,.27f));
+            Surface(body,"Морская кромка",0,0,1,1,new Color(.10f,.44f,.46f));
+            var paper=Surface(body,"Панель",.004f,.004f,.992f,.992f,Paper);paper.sprite=IslandThemeSurface.Cream;
+            Surface(body,"Тёплая линия заголовка",.07f,.105f,.86f,.004f,new Color(.64f,.39f,.16f,.35f));
             var heading=SeaText(body,title,Mathf.Min(titleSize,32),.07f,.018f,.86f,.09f);heading.fontStyle=FontStyle.Bold;heading.alignment=TextAnchor.MiddleLeft;
             return body;
         }
         public static Button SeaButton(Transform parent,string title,float x,float y,float w,float h,UnityAction action,int size=22,bool primary=false,IslandSymbol? symbol=null,bool waves=true){
             var hit=Surface(parent,title,x,y,w,h,Color.clear);hit.raycastTarget=true;
-            var face=Surface(hit.transform,"Поверхность кнопки",0,0,1,1,primary?Accent:new Color(.88f,.91f,.89f));
+            var shadow=Surface(hit.transform,"Тень кнопки",0,.04f,1,1,new Color(.12f,.075f,.03f,.22f));
+            var rim=Surface(hit.transform,"Песочный кант",0,0,1,1,primary?new Color(.89f,.66f,.28f):new Color(.72f,.60f,.39f));
+            var face=Surface(rim.transform,"Поверхность кнопки",.004f,.025f,.992f,.95f,primary?Accent:new Color(.98f,.88f,.67f));
             var label=SeaText(face.transform,title,size,symbol.HasValue?.20f:.06f,.12f,symbol.HasValue?.60f:.88f,.76f);label.resizeTextMinSize=12;SetTextStyle(label,primary);
             if(symbol.HasValue)IslandMenuSymbol.Place(face.transform,symbol.Value,.065f,.28f,.09f,.44f,primary?Cream:Cocoa);
             var button=hit.gameObject.AddComponent<Button>();button.targetGraphic=face;button.transition=Selectable.Transition.None;
-            var motion=hit.gameObject.AddComponent<CartoonButtonMotion>();motion.VisualTarget=face.transform;motion.BaseColor=face.color;
+            var motion=hit.gameObject.AddComponent<CartoonButtonMotion>();motion.VisualTarget=rim.transform;motion.BaseColor=face.color;
             button.onClick.AddListener(GameMusic.PlayButtonClick);button.onClick.AddListener(action);CartoonUI.EnsureTouchTarget(button);return button;
         }
         public static void SetButtonStyle(Button button,bool primary,bool waves=false){
-            button.targetGraphic.color=primary?Accent:new Color(.88f,.91f,.89f);
+            button.targetGraphic.color=primary?Accent:new Color(.98f,.88f,.67f);
             var motion=button.GetComponent<CartoonButtonMotion>();if(motion!=null)motion.BaseColor=button.targetGraphic.color;
             var label=button.GetComponentInChildren<Text>();if(label!=null)SetTextStyle(label,primary);
         }
         public static Text Wallet(Transform parent,float x,float y,float w,float h,bool prefix=false){
             var body=SlicedArt(parent,"IslandSecondary",x,y,w,h).transform;
 
-            int coins=GameManager.Instance!=null?GameManager.Instance.RunBalance:0;return SeaText(body,prefix?"МОНЕТЫ "+coins:coins+" МОНЕТ",24,.235f,.12f,.71f,.76f);
+            var icon=Art(body,"IslandCoin",.055f,.12f,.16f,.76f);icon.preserveAspect=true;
+            int coins=GameManager.Instance!=null?GameManager.Instance.RunBalance:0;return SeaText(body,prefix?"МОНЕТЫ "+coins:coins.ToString(),24,.235f,.12f,.71f,.76f);
         }
         public static Button[] MainMenu(Transform root,UnityAction play,UnityAction shop,UnityAction records,UnityAction settings,UnityAction exit,out Text wallet,out Text notice,bool background=false){
             if(background)Art(root,"IslandMenuScene",0,0,1,1);
             Surface(root,"Затемнение фона",0,0,1,1,new Color(.015f,.06f,.08f,.34f));
-            var identity=Text(root,"ОСТРОВ\nТУН ТУН САХУРА",48,.055f,.08f,.48f,.24f);identity.alignment=TextAnchor.MiddleLeft;identity.fontStyle=FontStyle.Bold;
+            BuildLogo(root);
             Text(root,"Выдержи волну. Вернись сильнее.",21,.055f,.81f,.48f,.08f).alignment=TextAnchor.MiddleLeft;
             var dock=Surface(root,"Меню",.595f,.11f,.35f,.78f,Paper).transform;
+            dock.GetComponent<Image>().sprite=IslandThemeSurface.Cream;
+            Surface(dock,"Морской акцент",.07f,.112f,.86f,.004f,Accent);
             wallet=SeaText(dock,"ЛУЧШАЯ ВОЛНА · "+SaveSystem.Data.BestWave,16,.07f,.045f,.86f,.055f);
             var buttons=new[]{
                 SeaButton(dock,"ИГРАТЬ",.065f,.14f,.87f,.18f,play,34,true,IslandSymbol.Play),
@@ -102,6 +109,17 @@ namespace Brainrot
             };
             notice=SeaText(dock,"",13,.07f,.927f,.86f,.05f);
             if(EventSystem.current!=null)EventSystem.current.SetSelectedGameObject(buttons[0].gameObject);return buttons;
+        }
+        public static void BuildLogo(Transform root){
+            var group=Group(root,"Логотип игры",.045f,.055f,.505f,.255f);
+            Surface(group,"Тень логотипа",.01f,.045f,.98f,.94f,new Color(.035f,.08f,.06f,.36f));
+            Surface(group,"Песочная окантовка",0,0,1,.94f,new Color(.94f,.70f,.30f));
+            var timber=Surface(group,"Древесный знак",.009f,.016f,.982f,.91f,Color.white);timber.sprite=IslandThemeSurface.Wood;
+            var top=Text(timber.transform,"ОСТРОВ",26,.08f,.055f,.84f,.25f);top.fontStyle=FontStyle.Bold;top.color=new Color(.75f,.96f,.91f);
+            var title=Text(timber.transform,"ТУН ТУН САХУРА",42,.045f,.30f,.91f,.48f);title.fontStyle=FontStyle.Bold;title.color=new Color(1,.96f,.77f);
+            var outline=title.GetComponent<Outline>();outline.enabled=true;outline.effectDistance=new Vector2(1.3f,-1.3f);outline.effectColor=new Color(.15f,.07f,.025f,.9f);
+            Surface(timber.transform,"Бирюзовая волна знака",.20f,.83f,.60f,.025f,new Color(.12f,.78f,.79f));
+            IslandMenuSymbol.Place(timber.transform,IslandSymbol.Play,.075f,.785f,.045f,.13f,new Color(.99f,.79f,.32f));
         }
         public static void Pause(Transform viewport,UnityAction resume,UnityAction settings,UnityAction menu){
             var frame=Panel(viewport,"ПАУЗА",.21f,.17f,.58f,.785f,58,-.205f);

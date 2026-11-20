@@ -309,6 +309,8 @@ namespace Brainrot
             var go=new GameObject(name,typeof(MeshFilter),typeof(MeshRenderer));go.transform.SetParent(parent,false);
             go.GetComponent<MeshFilter>().sharedMesh=mesh;go.GetComponent<MeshRenderer>().sharedMaterial=mat;
         }
+        /// <summary>Refresh after a boss adds a generated skin; shared materials remain untouched.</summary>
+        public void RefreshFeedbackRenderers(){ResetFeedback();CacheFeedbackRenderers();}
         void CacheFeedbackRenderers()
         {
             var renderers=GetComponentsInChildren<Renderer>(true);

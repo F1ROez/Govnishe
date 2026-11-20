@@ -11,13 +11,29 @@ namespace Brainrot {
   public PlayerStats Stats=new PlayerStats(); public float Health{get;private set;}
   public int DamageTakenCount{get;private set;}
   public StaminaPool Stamina{get;}=new StaminaPool();
-  OctopusAttack captor;bool captureHeld;
-  public bool IsCaptured=>captor!=null;
+  OctopusAttack captor;BossEncounter bossCaptor;bool captureHeld;float bossSlow=1;
+  public bool IsCaptured=>captor!=null||bossCaptor!=null;
+  public bool IsBossCapturedBy(BossEncounter source)=>bossCaptor==source;
+  public bool CanReceiveBossAttack=>Health>0&&!IsDashing&&Time.time>=invulnerableUntil;
+  public float BossMovementMultiplier=>bossSlow;
+  public void ResetBossSlow(){bossSlow=1;}
+  public void SetBossSlow(float multiplier){bossSlow=Mathf.Min(bossSlow,Mathf.Clamp(multiplier,.35f,1));}
+  public void BossCameraImpulse(float strength){trauma=Mathf.Max(trauma,Mathf.Clamp(strength,0,.15f));}
+  public bool BeginBossCapture(BossEncounter source){
+   if(source==null||IsCaptured||!CanReceiveBossAttack||GameManager.Instance==null||!GameManager.Instance.IsPlaying)return false;
+   bossCaptor=source;EscapeProgress=0;captureHeld=GameInput.Attack||MobileInput.Attack;CancelAttacks();return true;
+  }
+  public void PlaceBossCapture(BossEncounter source,Vector3 position){if(bossCaptor!=source||motor==null)return;motor.enabled=false;transform.position=position;motor.enabled=true;}
+  public void EndBossCapture(BossEncounter source,bool escaped){
+   if(bossCaptor!=source)return;bossCaptor=null;EscapeProgress=0;captureHeld=false;
+   var point=IslandMap.ClampToLand(transform.position);point.y=.15f;motor.enabled=false;transform.position=point;motor.enabled=true;
+   if(escaped)invulnerableUntil=Mathf.Max(invulnerableUntil,Time.time+1);CancelAttacks();
+  }
   public float EscapeProgress{get;private set;}
   public bool IsCapturedBy(OctopusAttack source)=>captor==source;
   public bool BeginCapture(OctopusAttack source){if(IsCaptured||IsDashing||Health<=0)return false;captor=source;EscapeProgress=0;captureHeld=GameInput.Attack||MobileInput.Attack;CancelAttacks();return true;}
   public void EndCapture(OctopusAttack source){if(captor==source){captor=null;EscapeProgress=0;CancelAttacks();}}
-  public void EscapeTap(){if(!IsCaptured)return;EscapeProgress=Mathf.Clamp01(EscapeProgress+1f/Mathf.Max(1,GameBalance.Current.Octopus.EscapeClicks));if(EscapeProgress>=.999f)captor.Escape();}
+  public void EscapeTap(){if(!IsCaptured)return;EscapeProgress=Mathf.Clamp01(EscapeProgress+1f/Mathf.Max(1,GameBalance.Current.Octopus.EscapeClicks));if(EscapeProgress>=.999f){if(bossCaptor!=null)bossCaptor.EscapeCapture();else captor.Escape();}}
   public CombatSystem Combat=>combat;
   public Camera ViewCamera=>cam;
   public PlayerTuning ActiveTuning=>Character!=null&&Character.UseCustomStats&&Character.StartingStats!=null?Character.StartingStats:GameBalance.Current.Player;
@@ -45,7 +61,7 @@ namespace Brainrot {
    ResetRun();
   }
   public void ResetRun(bool applyMeta=true){
-   EndDash();dashCameraBlend=0;captor=null;EscapeProgress=0;captureHeld=false;DamageTakenCount=0;var settings=ActiveTuning;Stats=PlayerStats.From(settings);
+   EndDash();dashCameraBlend=0;bossCaptor=null;bossSlow=1;captor=null;EscapeProgress=0;captureHeld=false;DamageTakenCount=0;var settings=ActiveTuning;Stats=PlayerStats.From(settings);
    var weapon=Character!=null?Character.Weapon:null;if(weapon!=null){Stats.Damage*=Mathf.Max(.1f,weapon.DamageMultiplier);Stats.Range*=Mathf.Max(.1f,weapon.RangeMultiplier);Stats.AttackInterval*=Mathf.Max(.1f,weapon.AttackIntervalMultiplier);}
    if(applyMeta)MetaProgression.Apply(Stats);
    Health=Stats.MaxHealth;Stamina.Reset(GameBalance.Current.Stamina);
@@ -75,7 +91,7 @@ namespace Brainrot {
   // All callers provide a world-space movement vector; a stationary dash does not consume cooldown.
   public bool TryDash(Vector3 movement){
    movement.y=0;
-   if(GameManager.Instance==null||!GameManager.Instance.IsPlaying||Health<=0||Time.time<nextDash||movement.sqrMagnitude<.001f)return false;
+   if(GameManager.Instance==null||!GameManager.Instance.IsPlaying||Health<=0||bossCaptor!=null||Time.time<nextDash||movement.sqrMagnitude<.001f)return false;
    var settings=ActiveTuning;DashDirection=movement.normalized;dashUntil=Time.time+Mathf.Max(.05f,settings.DashDuration);nextDash=Time.time+Mathf.Max(.1f,Stats.DashCooldown);dashStarted=Time.time;externalVelocity=Vector3.zero;RefreshDashCollisions();
    GameAudio.PlayDash();HitEffects.Burst(transform.position+Vector3.up,Color.cyan);return true;
   }
@@ -106,13 +122,14 @@ namespace Brainrot {
    if(GameInput.CameraToggle)ToggleCameraLock();
    Vector2 look=Application.isMobilePlatform?MobileInput.Look:GameInput.Look;MobileInput.Look=Vector2.zero;
    yaw=Mathf.Repeat(yaw+look.x*2.3f*SaveSystem.Data.Sensitivity,360);pitch=GameBalance.Current.Camera.ClampPitch(pitch-look.y*1.8f*SaveSystem.Data.Sensitivity);
+   if(bossCaptor!=null){MobileInput.ThrowPressed=false;MobileInput.Dash=false;visual.SetLocomotion(Vector3.zero,false);visual.Animate(0,false);return;}
    Vector2 input=Application.isMobilePlatform?MobileInput.Move:GameInput.Move;input=Vector2.ClampMagnitude(input,1);
    Vector3 move=Quaternion.Euler(0,yaw,0)*new Vector3(input.x,0,input.y);bool sprint=GameInput.Sprint||MobileInput.Sprint;
    var settings=ActiveTuning;
    if(GameInput.Dash||MobileInput.Dash)TryDash(move);MobileInput.Dash=false;
    sprint=Stamina.Tick(sprint,move.sqrMagnitude>.01f,IsDashing,Time.deltaTime,GameBalance.Current.Stamina);
    float dashProgress=Mathf.Clamp01((Time.time-dashStarted)/Mathf.Max(.05f,settings.DashDuration));
-   Vector3 velocity=IsDashing?DashDirection*Mathf.Max(1,settings.DashSpeed)*Mathf.Lerp(1.2f,.8f,Mathf.SmoothStep(0,1,dashProgress)):move*Stats.MoveSpeed*(sprint?Mathf.Max(1,settings.SprintMultiplier):1);
+   Vector3 velocity=IsDashing?DashDirection*Mathf.Max(1,settings.DashSpeed)*Mathf.Lerp(1.2f,.8f,Mathf.SmoothStep(0,1,dashProgress)):move*Stats.MoveSpeed*bossSlow*(sprint?Mathf.Max(1,settings.SprintMultiplier):1);
    // Integrate the decaying shove exactly: low frame rates must not enlarge boss knockback.
    float pushDecay=Mathf.Exp(-6*Time.deltaTime);Vector3 pushStep=externalVelocity*((1-pushDecay)/6);externalVelocity*=pushDecay;
    if(externalVelocity.sqrMagnitude<.001f)externalVelocity=Vector3.zero;
@@ -164,7 +181,7 @@ namespace Brainrot {
   public void ResetCombatCamera(){chargeCameraBlend=trauma=0;combatCamera.Reset();if(cam!=null)cam.fieldOfView=BaseFieldOfView;}
   public void ConfirmBatHit(bool heavy,int hits){if(hits<=0)return;combatCamera.ConfirmHit(transform.forward,heavy,GameBalance.Current.Feedback);}
   public void NotifyAttack(){foreach(var ability in abilities)ability.OnAttack();}
-  void OnDisable(){EndDash();dashCameraBlend=0;}
+  void OnDisable(){if(bossCaptor!=null)EndBossCapture(bossCaptor,true);ResetBossSlow();EndDash();dashCameraBlend=0;}
   void OnDestroy(){RestoreDashCollisions();cameraCollision?.Dispose();foreach(var ability in abilities)ability.Dispose();abilities.Clear();if(cam!=null)Destroy(cam.gameObject);}
  }
 }

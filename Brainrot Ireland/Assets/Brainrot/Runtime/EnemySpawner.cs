@@ -7,6 +7,10 @@ namespace Brainrot {
   public readonly List<EnemyController> Corpses=new List<EnemyController>(24);
   readonly Dictionary<EnemyKind,ObjectPool<EnemyController>> pools=new Dictionary<EnemyKind,ObjectPool<EnemyController>>();
   public WaveDirector Waves {get;}=new WaveDirector();
+  BossSystem bosses;
+  public BossSystem Bosses=>bosses!=null?bosses:(bosses=gameObject.AddComponent<BossSystem>());
+  public EnemyController CurrentBoss=>bosses!=null?bosses.CurrentBoss:null;
+  public bool IsBossWave=>BossSystem.IsBossWave(Waves.Number);
   readonly Queue<EnemyKind> introductions=new Queue<EnemyKind>(2);
   bool octopusIntroduced,orcaladonIntroduced;
   float spawnClock;int announcedWave;
@@ -33,6 +37,7 @@ namespace Brainrot {
   void EnsureWaveBudget(){
    if(budgetWave==Waves.Number&&plannedCount>0)return;
    budgetWave=Waves.Number;
+   if(IsBossWave){plannedCount=1;spawnedCount=Active.Count;resolvedCount=0;introductions.Clear();return;}
    int introductionsDue=(!octopusIntroduced&&budgetWave>=Mathf.Max(1,GameBalance.Current.Octopus.FirstWave)?1:0)+(!orcaladonIntroduced&&budgetWave>=Mathf.Max(1,GameBalance.Current.Orcaladon.FirstWave)?1:0);
    plannedCount=Mathf.Max(Active.Count+introductionsDue,PlannedPopulation(GameBalance.Current.Waves,budgetWave));
    spawnedCount=Active.Count;resolvedCount=0;
@@ -77,8 +82,19 @@ namespace Brainrot {
    if(!pools.TryGetValue(kind,out var pool)){pool=new ObjectPool<EnemyController>(()=>{var go=new GameObject(kind==EnemyKind.Orcaladon?"Оркаладон":kind==EnemyKind.BlueberrinniOctopusini?"Блуберрини Октопусини":"Тралалеро Тралала");go.transform.SetParent(transform,false);return go.AddComponent<EnemyController>();},MaxEnemies);pools.Add(kind,pool);}return pool;
   }
   public EnemyController Spawn(EnemyKind kind,Vector3 position,float difficulty=1){
+   if(IsBossWave)return null;
    if((kind!=EnemyKind.Normal&&kind!=EnemyKind.BlueberrinniOctopusini&&kind!=EnemyKind.Orcaladon)||Active.Count>=CurrentAliveLimit)return null;
    EnsureWaveBudget();var enemy=Pool(kind).Get();position.y=0;enemy.Initialize(this,kind,1,position);Active.Add(enemy);spawnedCount++;plannedCount=Mathf.Max(plannedCount,spawnedCount);return enemy;
+  }
+  EnemyController SpawnBoss(){
+   if(!IsBossWave||spawnedCount>0||Active.Count>0||Waves.Resting)return null;
+   var system=Bosses;system.PrepareWave(Waves.Number);var bossKind=system.SelectedKind;
+   var kind=bossKind==IslandBossKind.Octopus?EnemyKind.BlueberrinniOctopusini:bossKind==IslandBossKind.Orcaladon?EnemyKind.Orcaladon:EnemyKind.Normal;
+   var player=GameManager.Instance!=null?GameManager.Instance.Player:null;
+   var position=player!=null&&player.transform.position.sqrMagnitude>16?-player.transform.position:NextOceanPosition();
+   position.y=0;position=position.sqrMagnitude>.001f?position.normalized*13:Vector3.forward*13;
+   var enemy=Pool(kind).Get();enemy.Initialize(this,kind,1,position);enemy.ConfigureBoss(bossKind,Waves.Number);
+   Active.Add(enemy);spawnedCount=plannedCount=1;system.Register(enemy);return enemy;
   }
   public static Vector3 OceanSpawnPoint(float angle){
    if(!Finite(angle))angle=0;float radius=Mathf.Max(28,IslandMap.CoastRadius(angle)+6);
@@ -86,15 +102,18 @@ namespace Brainrot {
   }
   public void Tick(float dt){
    var game=GameManager.Instance;if(game==null||!game.IsPlaying||dt<=0)return;
-   EnsureWaveBudget();Waves.Advance(dt,Active.Count,spawnedCount<plannedCount||introductions.Count>0);EnsureWaveBudget();
+   EnsureWaveBudget();
+   if(!IsBossWave)Waves.Advance(dt,Active.Count,spawnedCount<plannedCount||introductions.Count>0);
+   EnsureWaveBudget();
    if(announcedWave!=Waves.Number){
-    announcedWave=Waves.Number;spawnClock=Mathf.Max(0,GameBalance.Current.Waves.InitialDelay);if(announcedWave>=4)game.Notify(WaveChallenges.ForWave(announcedWave).Title+"\n"+WaveChallenges.ForWave(announcedWave).Description,4);
+    announcedWave=Waves.Number;Bosses.PrepareWave(announcedWave);spawnClock=Mathf.Max(0,GameBalance.Current.Waves.InitialDelay);if(announcedWave>=4&&!IsBossWave)game.Notify(WaveChallenges.ForWave(announcedWave).Title+"\n"+WaveChallenges.ForWave(announcedWave).Description,4);
     // An introduction is queued until it actually obtains a pool slot. Random spawns cannot overtake it.
     // With equal custom unlock waves both newcomers appear before ordinary random arrivals.
     int octopusWave=Mathf.Max(1,GameBalance.Current.Octopus.FirstWave),orcaWave=Mathf.Max(1,GameBalance.Current.Orcaladon.FirstWave);
-    if(orcaWave<octopusWave){QueueOrcaladon();QueueOctopus();}else{QueueOctopus();QueueOrcaladon();}
+    if(!IsBossWave){if(orcaWave<octopusWave){QueueOrcaladon();QueueOctopus();}else{QueueOctopus();QueueOrcaladon();}}
    }
-   if(!Waves.Resting&&(spawnedCount<plannedCount||introductions.Count>0)){
+   if(IsBossWave&&!Waves.Resting&&spawnedCount==0)SpawnBoss();
+   if(!IsBossWave&&!Waves.Resting&&(spawnedCount<plannedCount||introductions.Count>0)){
     if(introductions.Count>0){
      var kind=introductions.Peek();var introduced=Spawn(kind,NextOceanPosition());
      if(introduced!=null){introductions.Dequeue();if(kind==EnemyKind.BlueberrinniOctopusini)octopusIntroduced=true;else orcaladonIntroduced=true;spawnClock=NextInterval();game.Notify(kind==EnemyKind.Orcaladon?"ОРКАЛАДОН — БЕРЕГИТЕСЬ РАЗГОНА И УДАРА ПО ЗЕМЛЕ!":"БЛУБЕРРИНИ ОКТОПУСИНИ — УКЛОНЯЙТЕСЬ ОТ ПРЫЖКА!",4);}
@@ -120,7 +139,9 @@ namespace Brainrot {
   public static float Interval(WaveTuning tuning,float intensity)=>Mathf.Lerp(Mathf.Max(.15f,tuning.SlowInterval),Mathf.Max(.15f,tuning.PeakInterval),Mathf.Clamp01(intensity));
   public int CountInZone(IslandZone zone)=>zone==IslandZone.Beach?Active.Count:0;
   internal void Killed(EnemyController enemy){
-   if(!Active.Remove(enemy))return;resolvedCount=Mathf.Min(spawnedCount,resolvedCount+1);Corpses.Add(enemy);var t=GameBalance.Current.Bodies;
+   if(!Active.Remove(enemy))return;resolvedCount=Mathf.Min(spawnedCount,resolvedCount+1);
+   if(bosses!=null&&bosses.CurrentBoss==enemy){bosses.Defeated(enemy);if(Active.Count==0)Waves.CompleteEncounter();}
+   Corpses.Add(enemy);var t=GameBalance.Current.Bodies;
    int limit=Mathf.Clamp(Application.isMobilePlatform?t.MaxCorpsesMobile:t.MaxCorpsesPC,1,40);
    while(Corpses.Count>limit)ReleaseCorpse(Corpses[0]);
   }
@@ -133,8 +154,12 @@ namespace Brainrot {
    EnsureWaveBudget();return new SpawnerRunSnapshot{BudgetWave=budgetWave,PlannedCount=plannedCount,SpawnedCount=spawnedCount,ResolvedCount=resolvedCount,SpawnClock=spawnClock,AnnouncedWave=announcedWave,OctopusIntroduced=octopusIntroduced,OrcaladonIntroduced=orcaladonIntroduced,Enemies=saved};
   }
   public void RestoreRunState(SpawnerRunSnapshot saved){
-   ClearEnemies();introductions.Clear();
+   ClearEnemies();if(bosses!=null)bosses.ResetRun();introductions.Clear();
    if(saved==null){budgetWave=plannedCount=spawnedCount=resolvedCount=0;announcedWave=0;spawnClock=0;octopusIntroduced=orcaladonIntroduced=false;return;}
+   if(IsBossWave){
+    // Legacy snapshots cannot resurrect an ordinary crowd on a new boss wave. Actual attempts are never saved.
+    Bosses.PrepareWave(Waves.Number);budgetWave=Waves.Number;plannedCount=1;spawnedCount=resolvedCount=Waves.Resting?1:0;announcedWave=0;return;
+   }
    announcedWave=Mathf.Clamp(saved.AnnouncedWave,0,Waves.Number);spawnClock=Finite(saved.SpawnClock)?Mathf.Clamp(saved.SpawnClock,0,600):0;
    octopusIntroduced=saved.OctopusIntroduced;orcaladonIntroduced=saved.OrcaladonIntroduced;
    // Restore all saved live enemies even if the current wave envelope has a lower spawn cap.
@@ -166,7 +191,7 @@ namespace Brainrot {
    meleeWarningCount=0;
   }
   public void ResetRun(){
-   ClearEnemies();Waves.Reset();budgetWave=plannedCount=spawnedCount=resolvedCount=0;announcedWave=0;spawnClock=0;introductions.Clear();octopusIntroduced=orcaladonIntroduced=false;EnsureWaveBudget();
+   ClearEnemies();if(bosses!=null)bosses.ResetRun();Waves.Reset();budgetWave=plannedCount=spawnedCount=resolvedCount=0;announcedWave=0;spawnClock=0;introductions.Clear();octopusIntroduced=orcaladonIntroduced=false;EnsureWaveBudget();
   }
  }
 }

@@ -19,7 +19,7 @@ namespace Brainrot.Editor
         {
             if (profile == null) profile = GameBuilder.EnsureBalance();
             EditorGUILayout.LabelField("Брейнрот Ирландия — настройки острова", new GUIStyle(EditorStyles.boldLabel) { wordWrap = true });
-            EditorGUILayout.HelpBox("Маленький остров, акулы, осьминоги и Оркаладон. Волны имеют тихое начало и конец, пик в середине. Короткое нажатие ЛКМ — обычный удар, удержание и отпускание — сильный. Монеты и улучшения действуют только в забеге; между волнами — лавка по E, новая волна по удержанию F. XP отключён.", MessageType.Info);
+            EditorGUILayout.HelpBox("Маленький остров, акулы, осьминоги и Оркаладон. Волны имеют тихое начало и конец, пик в середине. Короткое нажатие ЛКМ — обычный удар, удержание и отпускание — сильный. Монеты и улучшения действуют только в забеге; между волнами — лавка по E, новая волна по удержанию F. Каждая пятая волна — отдельный босс; XP и старые таймерные боссы отключены.", MessageType.Info);
             using (new EditorGUILayout.HorizontalScope())
             {
                 if (GUILayout.Button("Показать профиль")) { Selection.activeObject = profile; EditorGUIUtility.PingObject(profile); }
@@ -37,7 +37,7 @@ namespace Brainrot.Editor
             EditorGUILayout.Space();
             EditorGUILayout.LabelField("Волна: "+profile.Waves.Duration+" с; следующая начинается после удержания F", EditorStyles.wordWrappedLabel);
             EditorGUILayout.LabelField("Спавн: "+profile.Waves.SlowInterval+" с по краям → "+profile.Waves.PeakInterval+" с на пике", EditorStyles.wordWrappedLabel);
-            EditorGUILayout.HelpBox("Разделы: игрок, камера, эффекты удара, волны, физика тел, враги и океан. Правки сохраняются в профиле, Ctrl+Z отменяет изменения.",MessageType.None);
+            EditorGUILayout.HelpBox("Разделы: игрок, камера, эффекты удара, волны, физика тел, враги, боссы пятой волны и океан. Правки сохраняются в профиле, Ctrl+Z отменяет изменения.",MessageType.None);
             EditorGUILayout.Space();
             EditorGUILayout.LabelField("Тестирование прогресса",EditorStyles.boldLabel);
             testCoins=EditorGUILayout.IntField("Монеты текущего забега",testCoins);
