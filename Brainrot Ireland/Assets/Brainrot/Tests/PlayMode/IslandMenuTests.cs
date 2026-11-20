@@ -64,13 +64,13 @@ namespace Brainrot.Tests
         [Test]public void SettingsSwitchesQualityAndBackPerformTheirOwnActions(){
             SaveSystem.Data.CameraLocked=true;SaveSystem.Data.ShowAttackRange=true;SaveSystem.Data.CameraShakeStrength=1;
             int backs=0;ReferenceScreens.Settings(viewport,()=>backs++);
-            FindButton("ФИКСАЦИЯ КАМЕРЫ: ВКЛ").onClick.Invoke();FindButton("КОНТУР УДАРА: ВКЛ").onClick.Invoke();FindButton("ТРЯСКА КАМЕРЫ: ВКЛ").onClick.Invoke();
-            Assert.IsNotNull(FindButton("ФИКСАЦИЯ КАМЕРЫ: ВЫКЛ"));Assert.IsNotNull(FindButton("КОНТУР УДАРА: ВЫКЛ"));Assert.IsNotNull(FindButton("ТРЯСКА КАМЕРЫ: ВЫКЛ"));
+            FindButton("ФИКСАЦИЯ КАМЕРЫ").onClick.Invoke();FindButton("КОНТУР УДАРА").onClick.Invoke();FindButton("ТРЯСКА КАМЕРЫ").onClick.Invoke();
+            Assert.IsNotNull(FindButton("ФИКСАЦИЯ КАМЕРЫ"));Assert.IsNotNull(FindButton("КОНТУР УДАРА"));Assert.IsNotNull(FindButton("ТРЯСКА КАМЕРЫ"));
             Assert.IsFalse(SaveSystem.Data.CameraLocked);Assert.IsTrue(SaveSystem.Data.HasCameraPreference);
             Assert.IsFalse(SaveSystem.Data.ShowAttackRange);Assert.AreEqual(0,SaveSystem.Data.CameraShakeStrength);
             FindButton("ВЫСОКОЕ").onClick.Invoke();Assert.AreEqual(2,SaveSystem.Data.Quality);
-            Assert.AreEqual("IslandTeal",((Image)FindButton("ВЫСОКОЕ").targetGraphic).sprite.name);
-            Assert.AreEqual("IslandSecondary",((Image)FindButton("СРЕДНЕЕ").targetGraphic).sprite.name);
+            Assert.AreEqual(ReferenceScreens.Accent,FindButton("ВЫСОКОЕ").targetGraphic.color);
+            Assert.AreNotEqual(ReferenceScreens.Accent,FindButton("СРЕДНЕЕ").targetGraphic.color);
             FindButton("НИЗКОЕ").onClick.Invoke();SaveSystem.Load();Assert.AreEqual(0,SaveSystem.Data.Quality);
             Assert.IsFalse(SaveSystem.Data.CameraLocked);Assert.IsFalse(SaveSystem.Data.ShowAttackRange);Assert.AreEqual(0,SaveSystem.Data.CameraShakeStrength);
             FindButton("НАЗАД").onClick.Invoke();Assert.AreEqual(1,backs);

@@ -16,7 +16,8 @@ namespace Brainrot
             new ShopUpgrade(0,"КРЕПКАЯ БИТА","+5 урона до конца забега за ранг",30),
             new ShopUpgrade(1,"ЗАПАС ПРОЧНОСТИ","+15 здоровья до конца забега за ранг",50),
             new ShopUpgrade(2,"ЛЁГКИЕ НОГИ","+0,3 скорости до конца забега за ранг",45),
-            new ShopUpgrade(3,"БЫСТРЫЙ РЫВОК","−0,12 с перезарядки до конца забега",60)
+            new ShopUpgrade(3,"БЫСТРЫЙ РЫВОК","−0,12 с перезарядки до конца забега",60),
+            new ShopUpgrade(4,"СКВОЗНОЙ БРОСОК","Бумеранг проходит сквозь врагов до конца забега",40,1)
         };
         static RunEconomy Current=>GameManager.Instance!=null?GameManager.Instance.Economy:null;
         public static int Rank(int id)=>Current!=null?Current.Rank(id):0;

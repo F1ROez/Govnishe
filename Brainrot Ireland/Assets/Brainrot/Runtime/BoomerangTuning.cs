@@ -4,6 +4,7 @@ namespace Brainrot
 {
     [Serializable]public sealed class BoomerangTuning
     {
+        [Range(.3f,30),Tooltip("Перезарядка броска биты после нажатия ПКМ, с.")]public float CooldownSeconds=3;
         [Range(2,14),Tooltip("Дальность броска биты, м.")]public float Distance=7;
         [Range(.15f,1),Tooltip("Время полёта от героя, с.")]public float OutSeconds=.32f;
         [Range(.2f,1.5f),Tooltip("Время возвращения к движущемуся герою, с.")]public float ReturnSeconds=.42f;

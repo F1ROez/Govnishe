@@ -30,13 +30,43 @@ namespace Brainrot.Tests
             Assert.IsTrue(game.Player.Combat.BoomerangActive);game.Pause();Assert.IsFalse(game.Player.Combat.BoomerangActive);
             game.Resume();game.Player.Combat.UpdateBoomerangInput(true,true);Assert.IsFalse(game.Player.Combat.BoomerangActive);
         }
-        [UnityTest]public IEnumerator AThrowHitsOncePerLegAndHasNoMeleeDoubleContact(){
+        [UnityTest]public IEnumerator PiercingUpgradeHitsOncePerLegAndHasNoMeleeDoubleContact(){
+            game.Economy.SetBalanceForTesting(40);Assert.IsTrue(game.Economy.Buy(4));
             var enemy=game.Spawner.Spawn(EnemyKind.Normal,game.Player.transform.position+game.Player.AimForward*3);float before=enemy.Health,damage=game.Player.Stats.Damage;
             Assert.IsTrue(game.Player.Combat.ExecuteBoomerang());Assert.IsTrue(game.Player.Combat.BoomerangActive);Assert.IsFalse(game.Player.Combat.ExecuteBoomerang());Assert.IsFalse(game.Player.Combat.ExecuteAttack(true));
-            yield return new WaitForSeconds(balance.Boomerang.OutSeconds*.9f);
+            yield return new WaitForSeconds(.14f+balance.Boomerang.OutSeconds*.9f);
             Assert.AreEqual(before-damage,enemy.Health,.01f,"No hidden normal melee contact may accompany the outward projectile.");
             yield return new WaitForSeconds(balance.Boomerang.ReturnSeconds+.15f);
             Assert.AreEqual(before-2*damage,enemy.Health,.01f);Assert.IsFalse(game.Player.Combat.BoomerangActive);Assert.IsFalse(enemy.PhysicsBody.IsPhysical);
+        }
+        [UnityTest]public IEnumerator DefaultThrowBouncesAtNearestTargetAndDoesNotDamageBehindIt(){
+            var direction=game.Player.AimForward;var origin=game.Player.transform.position;
+            // Deliberately put the farther body last: active-list traversal must not choose it first.
+            var nearest=game.Spawner.Spawn(EnemyKind.Normal,origin+direction*2.2f);
+            var farther=game.Spawner.Spawn(EnemyKind.Normal,origin+direction*4.6f);
+            float nearHealth=nearest.Health,farHealth=farther.Health;
+            Assert.IsTrue(game.Player.Combat.ExecuteBoomerang());
+            yield return new WaitForSeconds(.14f+balance.Boomerang.OutSeconds+balance.Boomerang.ReturnSeconds+.25f);
+            Assert.AreEqual(nearHealth-game.Player.Stats.Damage,nearest.Health,.01f);
+            Assert.AreEqual(farHealth,farther.Health,.01f,"The basic bat must not hit through the first body.");
+            Assert.IsFalse(game.Player.Combat.BoomerangActive);
+        }
+        [UnityTest]public IEnumerator CooldownStartsWithAcceptedThrowAndSurvivesPauseUntilNewRun(){
+            Assert.IsTrue(game.Player.Combat.ExecuteBoomerang());
+            Assert.Greater(game.Player.Combat.BoomerangCooldownRemaining,2.8f);
+            game.Pause();Assert.IsFalse(game.Player.Combat.BoomerangActive);
+            float remaining=game.Player.Combat.BoomerangCooldownRemaining;
+            yield return new WaitForSecondsRealtime(.05f);
+            Assert.AreEqual(remaining,game.Player.Combat.BoomerangCooldownRemaining,.001f);
+            game.Resume();Assert.IsFalse(game.Player.Combat.ExecuteBoomerang());
+            game.Player.Combat.ResetRun();Assert.AreEqual(0,game.Player.Combat.BoomerangCooldownRemaining);
+            Assert.IsTrue(game.Player.Combat.ExecuteBoomerang());
+        }
+        [Test]public void SweptEntryUsesTheBodyBoundary(){
+            Assert.IsTrue(BatBoomerang.SegmentEntry(Vector3.zero,Vector3.forward*10,Vector3.forward*5,1,out float entry));
+            Assert.AreEqual(.4f,entry,.0001f);
+            Assert.IsTrue(BatBoomerang.SegmentEntry(Vector3.zero,Vector3.forward*10,Vector3.forward*2,1,out float near));
+            Assert.Less(near,entry);
         }
         [UnityTest]public IEnumerator CancellationAndPauseRestoreTheHeldBatAndStopContacts(){
             var enemy=game.Spawner.Spawn(EnemyKind.Normal,game.Player.transform.position+game.Player.AimForward*6);float health=enemy.Health;

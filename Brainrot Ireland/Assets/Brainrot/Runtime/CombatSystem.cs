@@ -6,9 +6,12 @@ namespace Brainrot {
   readonly List<PendingContact> contacts=new List<PendingContact>(16);
   PlayerController player;CharacterVisual visual;AttackRangeVisual rangeVisual;
   float nextAttack,nextHeavyAttack,chargeStarted,bufferUntil;bool charging,inputSuppressed,chargeReadyEffect,bufferedAttack,bufferedHeavy,holdBlocked;
-  float cooldownNoticeUntil;BatBoomerang boomerang;bool boomerangSuppressed=true;
-  public bool BoomerangActive=>boomerang!=null&&boomerang.Flying;
-  public float BoomerangRemaining=>boomerang!=null?boomerang.Remaining:0;
+  float cooldownNoticeUntil,nextBoomerang,throwReleaseAt;BatBoomerang boomerang;bool boomerangSuppressed=true,throwPending;
+  const float ThrowDuration=.42f,ThrowReleaseDelay=.14f;
+  public bool BoomerangActive=>throwPending||boomerang!=null&&boomerang.Flying;
+  public float BoomerangCooldownRemaining=>Mathf.Max(0,nextBoomerang-Time.time);
+  public float BoomerangCooldownDuration=>Mathf.Clamp(GameBalance.Current.Boomerang.CooldownSeconds,.3f,30);
+  public float BoomerangRemaining=>throwPending?Mathf.Max(0,throwReleaseAt-Time.time)+Mathf.Clamp(GameBalance.Current.Boomerang.OutSeconds,.15f,1)+Mathf.Clamp(GameBalance.Current.Boomerang.ReturnSeconds,.2f,1.5f):boomerang!=null?boomerang.Remaining:0;
   public bool HeavyCooldownNotice=>Time.time<cooldownNoticeUntil;
   public bool IsCharging=>charging&&!holdBlocked&&HeavyReady&&Time.time-chargeStarted>=HoldDelay;
   float HoldDelay=>Mathf.Clamp(GameBalance.Current.Combat.HeavyHoldDelay,0,.35f);
@@ -20,8 +23,8 @@ namespace Brainrot {
   public bool HeavyVisualActive{get;private set;}
   public void Initialize(PlayerController p,CharacterVisual v){player=p;visual=v;boomerang=gameObject.AddComponent<BatBoomerang>();boomerang.Initialize(p,v);}
   public void SetRangeVisual(AttackRangeVisual value){rangeVisual=value;}
-  public void CancelPendingSwings(){boomerangSuppressed=true;HeavyVisualActive=false;boomerang?.Cancel();contacts.Clear();bufferedAttack=false;bufferUntil=0;charging=false;holdBlocked=false;cooldownNoticeUntil=0;chargeReadyEffect=false;inputSuppressed=true;GameAudio.EndCharge();player?.ResetCombatCamera();if(visual!=null)visual.ResetAttack();}
-  public void ResetRun(){nextAttack=nextHeavyAttack=0;CancelPendingSwings();}
+  public void CancelPendingSwings(){throwPending=false;boomerangSuppressed=true;HeavyVisualActive=false;boomerang?.Cancel();contacts.Clear();bufferedAttack=false;bufferUntil=0;charging=false;holdBlocked=false;cooldownNoticeUntil=0;chargeReadyEffect=false;inputSuppressed=true;GameAudio.EndCharge();player?.ResetCombatCamera();if(visual!=null)visual.ResetAttack();}
+  public void ResetRun(){nextAttack=nextHeavyAttack=nextBoomerang=0;CancelPendingSwings();}
   public void RestoreHeavyCooldown(float remaining){CancelPendingSwings();nextAttack=Time.time+.2f;nextHeavyAttack=Time.time+Mathf.Clamp(float.IsNaN(remaining)||float.IsInfinity(remaining)?0:remaining,0,HeavyCooldownDuration);}
   public void UpdateAttackInput(bool held,bool pressed=false,bool released=false){
    var game=GameManager.Instance;if(!isActiveAndEnabled||game==null||!game.IsPlaying||player==null||visual==null||player.IsCaptured||player.Health<=0)return;
@@ -64,10 +67,9 @@ namespace Brainrot {
   }
   public bool ExecuteBoomerang(){
    var game=GameManager.Instance;
-   if(!isActiveAndEnabled||game==null||!game.IsPlaying||player==null||visual==null||player.IsCaptured||player.Health<=0||charging||IsAttacking||Time.time<nextAttack||BoomerangActive)return false;
-   if(!boomerang.Launch())return false;
-   nextAttack=Time.time+Mathf.Max(Mathf.Max(.12f,player.Stats.AttackInterval),Mathf.Clamp(GameBalance.Current.Boomerang.OutSeconds,.15f,1)+Mathf.Clamp(GameBalance.Current.Boomerang.ReturnSeconds,.2f,1.5f));
-   HeavyVisualActive=false;visual.PlayAttack(.23f,.06f,false);player.NotifyAttack();GameAudio.Swing(false);return true;
+   if(!isActiveAndEnabled||game==null||!game.IsPlaying||player==null||visual==null||player.IsCaptured||player.Health<=0||charging||IsAttacking||Time.time<nextAttack||BoomerangActive||BoomerangCooldownRemaining>0)return false;
+   throwPending=true;throwReleaseAt=Time.time+ThrowReleaseDelay;nextBoomerang=Time.time+BoomerangCooldownDuration;
+   nextAttack=Time.time+ThrowDuration;HeavyVisualActive=false;visual.PlayThrow(ThrowDuration,ThrowReleaseDelay);player.NotifyAttack();return true;
   }
 
   void BeginSwing(float power,bool heavy=false){
@@ -79,6 +81,7 @@ namespace Brainrot {
   }
   void Update(){
    var game=GameManager.Instance;if(game==null||!game.IsPlaying)return;
+   if(throwPending&&Time.time>=throwReleaseAt){throwPending=false;if(boomerang.Launch())GameAudio.Swing(false);}
    for(int i=0;i<contacts.Count&&game.IsPlaying;){if(Time.time>=contacts[i].Time){float power=contacts[i].Power;bool heavy=contacts[i].Heavy;contacts.RemoveAt(i);Strike(power,heavy);}else i++;}
   }
   void OnDisable(){CancelPendingSwings();}

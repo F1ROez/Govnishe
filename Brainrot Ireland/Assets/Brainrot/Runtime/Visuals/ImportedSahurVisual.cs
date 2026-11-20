@@ -22,9 +22,10 @@ namespace Brainrot
         public bool AttackActive => remaining > 0;
         public bool ChargePoseActive=>charging;
         public bool HeavyAttackActive=>AttackActive&&heavyAttack;
+        public bool ThrowActive=>AttackActive&&throwing;
         float remaining, duration=.32f,contactSeconds=.09f,attackStartedTime;
         float chargeProgress,impactPause,pausedAttackTime;
-        bool charging,heavyAttack,fromCharge;
+        bool charging,heavyAttack,fromCharge,throwing;
         SahurCombatPose procedural;
         Vector3 localVelocity,shownVelocity;
         bool dashing;
@@ -123,6 +124,10 @@ namespace Brainrot
             ResetAttackState(false);heavyAttack=heavy;fromCharge=charged&&heavy;impactPause=pausedAttackTime=0;duration=Mathf.Max(.15f,seconds);contactSeconds=Mathf.Clamp(contactTime,0,duration*.95f);remaining=duration;attackStartedTime=Time.time;
             EnsurePoseCache();
         }
+        public void PlayThrow(float seconds=.42f,float releaseDelay=.14f){
+            ResetAttackState(false);throwing=true;duration=Mathf.Max(.2f,seconds);contactSeconds=Mathf.Clamp(releaseDelay,.05f,duration*.65f);remaining=duration;attackStartedTime=Time.time;
+            EnsurePoseCache();
+        }
         /// <summary>Keep the animation's strike pose aligned with CombatSystem's existing contact time.</summary>
         public static float MapAttackTime(float elapsed,float playbackDuration,float contactTime,float sourceDuration,float sourceContactNormalized){
             if(playbackDuration<=0||sourceDuration<=0)return 0;
@@ -185,19 +190,26 @@ namespace Brainrot
             if(UsesProceduralAttack){
                 if(procedural==null)procedural=new SahurCombatPose(this);
                 PoseReadyWeapon();
-                if(swing){procedural.Swing(elapsed,duration,contactSeconds,heavyAttack,fromCharge);ApplyReach();}
+                if(swing){if(throwing)procedural.Throw(elapsed,duration,contactSeconds);else procedural.Swing(elapsed,duration,contactSeconds,heavyAttack,fromCharge);ApplyReach();}
                 else if(charging)procedural.Charge(chargeProgress);
-                if(Trail!=null)Trail.emitting=swing&&impactPause<=0&&progress>.02f&&progress<.88f;
+                if(Trail!=null)Trail.emitting=swing&&!throwing&&impactPause<=0&&progress>.02f&&progress<.88f;
                 if(swing&&remaining<=0){procedural.Restore();PoseReadyWeapon();if(Trail!=null)Trail.emitting=false;}
                 return;
             }
-            if(UsesRetargetedAttack){
+            if(UsesRetargetedAttack&&!throwing){
                 if(swing)SampleRetargetedPose(elapsed);else PoseReadyWeapon();
                 if(Trail!=null)Trail.emitting=swing&&impactPause<=0&&progress>.03f&&progress<.86f;
                 if(swing&&remaining<=0){RestoreSampledPose();PoseReadyWeapon();if(Trail!=null)Trail.emitting=false;}
                 return;
             }
             if(Weapon==null||Grip==null)return;
+            if(throwing&&swing){
+                float drive=Mathf.SmoothStep(0,1,Mathf.Clamp01(elapsed/Mathf.Max(.05f,contactSeconds)));
+                float recovery=Mathf.SmoothStep(0,1,(duration-elapsed)/.12f);
+                if(RightUpperArm!=null)RightUpperArm.localRotation=Quaternion.AngleAxis(Mathf.Lerp(28,-95,drive)*recovery,RightUpperArm.parent.InverseTransformDirection(transform.right))*upperRest;
+                if(RightForearm!=null)RightForearm.localRotation=Quaternion.AngleAxis(Mathf.Lerp(-88,-15,drive)*recovery,RightForearm.parent.InverseTransformDirection(transform.right))*foreRest;
+                PoseReadyWeapon();if(Trail!=null)Trail.emitting=false;if(remaining<=0)RestoreArms();return;
+            }
             float yaw=0;
             if(swing){
                 float contact=Mathf.Min(contactSeconds,duration*.65f);
@@ -214,7 +226,7 @@ namespace Brainrot
         void RestoreArms(){if(RightUpperArm!=null)RightUpperArm.localRotation=upperRest;if(RightForearm!=null)RightForearm.localRotation=foreRest;}
         public void ResetAttack(){ResetAttackState(true);}
         void ResetAttackState(bool resetMovement){if(resetMovement){shownVelocity=localVelocity=Vector3.zero;locomotionSpeed=dashLean=0;locomotionWeight=1;dashing=false;if(Animator!=null&&Animator.runtimeAnimatorController!=null)Animator.SetFloat(Speed,0);}
-            bool retargeted=UsesRetargetedAttack;RestoreSampledPose();procedural?.Restore();RestoreLocomotion();remaining=impactPause=pausedAttackTime=0;charging=heavyAttack=fromCharge=false;chargeProgress=0;if(!retargeted&&!UsesProceduralAttack)RestoreArms();if(Weapon!=null)Weapon.localScale=Vector3.one;if(Trail!=null){Trail.emitting=false;Trail.Clear();}}
+            bool retargeted=UsesRetargetedAttack;RestoreSampledPose();procedural?.Restore();RestoreLocomotion();remaining=impactPause=pausedAttackTime=0;charging=heavyAttack=fromCharge=throwing=false;chargeProgress=0;if(!retargeted&&!UsesProceduralAttack)RestoreArms();if(Weapon!=null)Weapon.localScale=Vector3.one;if(Trail!=null){Trail.emitting=false;Trail.Clear();}}
         void OnDisable(){ResetAttack();shownVelocity=localVelocity=Vector3.zero;locomotionSpeed=dashLean=0;locomotionWeight=1;dashing=false;}
     }
 }

@@ -6,11 +6,11 @@ namespace Brainrot
     /// <summary>Attempt-owned coins, receipts and upgrade ranks. No disk access or cross-attempt bonuses.</summary>
     public sealed class RunEconomy
     {
-        readonly int[] ranks=new int[4];
+        readonly int[] ranks=new int[MetaProgression.Catalog.Length];
         readonly HashSet<int> claimed=new HashSet<int>();
         readonly HashSet<int> batch=new HashSet<int>();
         readonly List<int> offers=new List<int>(3);
-        readonly bool[] sold=new bool[4];
+        readonly bool[] sold=new bool[MetaProgression.Catalog.Length];
         readonly System.Collections.ObjectModel.ReadOnlyCollection<int> offerView;
         System.Random offerRandom;
         public RunEconomy(){offerView=offers.AsReadOnly();}

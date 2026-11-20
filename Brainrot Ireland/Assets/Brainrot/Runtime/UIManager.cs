@@ -25,7 +25,7 @@ namespace Brainrot
         bool lastHitCritical,hitVisible;
         Image healthFill, xpFill,screenShade;
         Image escapeFill;GameObject capturePanel;
-        AbilityDisplay heavyAbility,dashAbility;
+        AbilityDisplay heavyAbility,dashAbility,throwAbility;
         GameState shownState = (GameState)(-1);
         int shownLevel = -1;
         int shownCoins=-1,shownRunCoins=-1;float coinFlashUntil;Text coinLabel,coinRunLabel;
@@ -34,7 +34,7 @@ namespace Brainrot
         int shownChargeMode=-1,shownChargePercent=-1,shownCameraMode=-1;
         string shownStage;
         readonly Color ink = CartoonUI.Ink;
-        readonly Color gold = CartoonUI.Gold;
+        readonly Color gold = new Color(.38f,.91f,.84f);
         readonly Color cyan = CartoonUI.Aqua;
 
         public void Initialize()
@@ -50,12 +50,12 @@ namespace Brainrot
             scale.referenceResolution = new Vector2(1280, 720); scale.matchWidthOrHeight = .5f;
             UIInputRouter.EnsureForScene(gameObject.scene);
             hud = Box("HUD", root.transform, Vector2.zero, Vector2.one, Color.clear);
-            var plate=TropicalUIArt.Place("Здоровье и выносливость",hud.transform,new Vector2(.018f,.84f),new Vector2(.292f,.985f),"VitalsFrame").gameObject;
-            healthFill=Bar(plate.transform,new Vector2(.265f,.55f),new Vector2(.952f,.87f),new Color(1,.105f,.16f));
-            xpFill=Bar(plate.transform,new Vector2(.265f,.19f),new Vector2(.952f,.49f),new Color(0,.83f,1));
-            healthText=Label(plate.transform,"ЗДОРОВЬЕ",16,TextAnchor.MiddleCenter,new Vector2(.28f,.55f),new Vector2(.94f,.87f));
-            xpText=Label(plate.transform,"ВЫНОСЛИВОСТЬ",13,TextAnchor.MiddleCenter,new Vector2(.28f,.19f),new Vector2(.94f,.49f));
-            TropicalUIArt.Place("Портрет Сахура",plate.transform,new Vector2(.012f,.01f),new Vector2(.275f,.99f),"Portrait",true);
+            var plate=Box("Здоровье и выносливость",hud.transform,new Vector2(.018f,.855f),new Vector2(.05f,.985f),new Color(.035f,.14f,.17f,.92f));
+            healthFill=Bar(plate.transform,new Vector2(.05f,.55f),new Vector2(.952f,.87f),new Color(1,.105f,.16f));
+            xpFill=Bar(plate.transform,new Vector2(.05f,.19f),new Vector2(.952f,.49f),new Color(0,.83f,1));
+            healthText=Label(plate.transform,"ЗДОРОВЬЕ",16,TextAnchor.MiddleCenter,new Vector2(.07f,.55f),new Vector2(.94f,.87f));
+            xpText=Label(plate.transform,"ВЫНОСЛИВОСТЬ",13,TextAnchor.MiddleCenter,new Vector2(.07f,.19f),new Vector2(.94f,.49f));
+
             var wave=Box("Компактная волна",hud.transform,new Vector2(.407f,.925f),new Vector2(.593f,.985f),new Color(.025f,.19f,.23f,.94f));
             waveTitle=Label(wave.transform,"ВОЛНА 1",14,TextAnchor.MiddleCenter,new Vector2(.07f,.58f),new Vector2(.93f,.98f));
             stageText=Label(wave.transform,"",10,TextAnchor.MiddleRight,new Vector2(.52f,-.10f),new Vector2(.94f,.25f));stageText.gameObject.SetActive(false);
@@ -66,16 +66,15 @@ namespace Brainrot
             waveMeter=QuestHUD.Meter(wave.transform,"Ход волны",new Vector2(.06f,.35f),new Vector2(.94f,.44f),new Color(.32f,.73f,.68f));
             waveMeter.GetComponent<Image>().color=new Color(.3f,.49f,.51f);
             waveProgressText=Label(wave.transform,"",9,TextAnchor.MiddleLeft,new Vector2(.06f,-.50f),new Vector2(.55f,-.15f));
-            var wallet=TropicalUIArt.Place("Монеты",hud.transform,new Vector2(.805f,.91f),new Vector2(.881f,.975f),"IslandSecondary").gameObject;
-            var coin=TropicalUIArt.Place("Золотая монета",wallet.transform,new Vector2(.10f,.18f),new Vector2(.39f,.82f),"IslandCoin",true);
-            coinLabel=Label(wallet.transform,"",23,TextAnchor.MiddleCenter,new Vector2(.40f,.12f),new Vector2(.92f,.90f));coinLabel.color=ReferenceScreens.Cocoa;
+            var wallet=Box("Монеты",hud.transform,new Vector2(.805f,.91f),new Vector2(.881f,.975f),new Color(.035f,.14f,.17f,.92f));
+            coinLabel=Label(wallet.transform,"",20,TextAnchor.MiddleCenter,new Vector2(.05f,.12f),new Vector2(.95f,.90f));
             coinRunLabel=Label(wallet.transform,"",10,TextAnchor.MiddleCenter,new Vector2(0,-.35f),new Vector2(1,-.02f));coinRunLabel.gameObject.SetActive(false);
 
             var waveBanner=Box("Событие волны",hud.transform,new Vector2(.355f,.765f),new Vector2(.645f,.85f),Color.clear);
             waveNotice=waveBanner.AddComponent<HudWaveNotice>();waveNotice.Build();
             notification=Label(hud.transform,"",20,TextAnchor.MiddleCenter,new Vector2(.20f,.60f),new Vector2(.80f,.66f));notification.color=gold;
             BuildQuestBoard();BuildIntermissionHud();
-            tutorialPanel=TropicalUIArt.Place("Короткое обучение",hud.transform,new Vector2(.24f,.12f),new Vector2(.80f,.195f),"StatsStrip").gameObject;
+            tutorialPanel=Box("Короткое обучение",hud.transform,new Vector2(.24f,.12f),new Vector2(.80f,.195f),ReferenceScreens.Paper);
             tutorialLabel=Label(tutorialPanel.transform,"",14,TextAnchor.MiddleCenter,new Vector2(.04f,.15f),new Vector2(.79f,.85f));tutorialLabel.color=new Color(.06f,.18f,.25f);tutorialLabel.GetComponent<Outline>().effectColor=new Color(1,1,.85f,.8f);
             var skip=Button(tutorialPanel.transform,"СКРЫТЬ",new Vector2(.82f,.20f),new Vector2(.98f,.80f),()=>GameManager.Instance.Goals.SkipTutorial());skip.GetComponentInChildren<Text>().fontSize=11;
             Label(hud.transform,"+",18,TextAnchor.MiddleCenter,new Vector2(.49f,.49f),new Vector2(.51f,.53f)).color=new Color(1,1,1,.5f);
@@ -84,7 +83,7 @@ namespace Brainrot
             hitLabel=Label(hud.transform,"",17,TextAnchor.MiddleCenter,new Vector2(.4f,.41f),new Vector2(.6f,.46f));
 
             BuildAbilityIcons();
-            capturePanel=TropicalUIArt.Place("Захват осьминога",hud.transform,new Vector2(.25f,.17f),new Vector2(.75f,.29f),"VitalsFrame").gameObject;
+            capturePanel=Box("Захват осьминога",hud.transform,new Vector2(.25f,.17f),new Vector2(.75f,.29f),new Color(.035f,.14f,.17f,.92f));
             Label(capturePanel.transform,"БЫСТРО НАЖИМАЙ ЛКМ, ЧТОБЫ ВЫБРАТЬСЯ!",20,TextAnchor.MiddleCenter,new Vector2(0,.4f),Vector2.one);
             escapeFill=Bar(capturePanel.transform,new Vector2(.06f,.13f),new Vector2(.94f,.35f),cyan);
             overlay=Box("Screens",root.transform,Vector2.zero,Vector2.one,new Color(.025f,.025f,.025f,.45f));screenShade=overlay.GetComponent<Image>();
@@ -162,7 +161,7 @@ namespace Brainrot
             if(hint!=shownTutorial){shownTutorial=hint;tutorialLabel.text=hint;}
             bool guidance=gm.IsPlaying&&(player==null||!player.IsCaptured);
             SetActive(tutorialPanel,guidance&&!string.IsNullOrEmpty(hint));SetActive(questBoard,guidance&&!gm.IsIntermission);
-            if(player!=null){heavyAbility.Update(Mathf.Max(player.Combat.HeavyCooldownRemaining,player.Combat.BoomerangRemaining),player.Combat.HeavyCooldownRemaining>0?player.Combat.HeavyCooldownDuration:Mathf.Max(.35f,GameBalance.Current.Boomerang.OutSeconds+GameBalance.Current.Boomerang.ReturnSeconds));dashAbility.Update(player.DashCooldownRemaining,player.DashCooldownDuration);}
+            if(player!=null){heavyAbility.Update(player.Combat.HeavyCooldownRemaining,player.Combat.HeavyCooldownDuration);throwAbility.Update(player.Combat.BoomerangCooldownRemaining,player.Combat.BoomerangCooldownDuration);dashAbility.Update(player.DashCooldownRemaining,player.DashCooldownDuration);}
             var combat=player!=null?player.Combat:null;
             int chargeMode=combat==null?0:combat.BoomerangActive?4:combat.HeavyCooldownNotice?1:!combat.IsCharging?0:combat.ChargeProgress>=1?3:2;
             int percent=chargeMode==2?Mathf.RoundToInt(combat.ChargeProgress*100):0;
@@ -215,7 +214,7 @@ namespace Brainrot
 
         void BuildQuestBoard(){
             questBoard=Box("Испытания",hud.transform,new Vector2(.805f,.50f),new Vector2(.985f,.86f),Color.clear);
-            var heading=TropicalUIArt.Place("Заголовок испытаний",questBoard.transform,new Vector2(.07f,.885f),new Vector2(.93f,1),"StageRibbon");
+            var heading=Box("Заголовок испытаний",questBoard.transform,new Vector2(.07f,.885f),new Vector2(.93f,1),new Color(.035f,.14f,.17f,.92f));
             Label(heading.transform,"ИСПЫТАНИЯ",14,TextAnchor.MiddleCenter,new Vector2(.12f,.08f),new Vector2(.88f,.92f));
             for(int i=0;i<questCards.Length;i++){
                 float top=.865f-i*.293f;
@@ -224,28 +223,37 @@ namespace Brainrot
             }
         }
         void BuildAbilityIcons(){
-            var strong=AbilityCard("Сильный удар",new Vector2(.022f,.65f),new Vector2(.082f,.78f),"HeavyCard","HeavyIcon","","ЛКМ · держать");
+            var strong=AbilityCard("Сильный удар",new Vector2(.022f,.68f),new Vector2(.13f,.78f),"","","УДАР","ЛКМ · держать");
             heavyAbility=new AbilityDisplay(CooldownShade(strong.transform),ReadyBadge(strong.transform));
-            var dash=AbilityCard("Рывок",new Vector2(.022f,.475f),new Vector2(.082f,.605f),"DashCard","DashIcon","","ПРОБЕЛ");
+            var dash=AbilityCard("Рывок",new Vector2(.022f,.54f),new Vector2(.13f,.64f),"","","РЫВОК","ПРОБЕЛ");
             dashAbility=new AbilityDisplay(CooldownShade(dash.transform),ReadyBadge(dash.transform));
-            controlHints=Box("Клавиши под способностями",hud.transform,new Vector2(.022f,.345f),new Vector2(.16f,.445f),Color.clear);
-            Label(controlHints.transform,"ЛКМ · удар | ПКМ · бумеранг",11,TextAnchor.MiddleLeft,new Vector2(0,.67f),new Vector2(1,1));
-            Label(controlHints.transform,"Shift · бег",11,TextAnchor.MiddleLeft,new Vector2(0,.34f),new Vector2(1,.67f));
-            aimHint=Label(controlHints.transform,"",11,TextAnchor.MiddleLeft,Vector2.zero,new Vector2(1,.34f));
+            var thrown=AbilityCard("Бросок биты",new Vector2(.022f,.40f),new Vector2(.13f,.50f),"","","БРОСОК","ПКМ");
+            throwAbility=new AbilityDisplay(CooldownShade(thrown.transform),ReadyBadge(thrown.transform));
+            controlHints=Box("Клавиши под способностями",hud.transform,new Vector2(.022f,.295f),new Vector2(.17f,.35f),Color.clear);
+            Label(controlHints.transform,"Shift · бег",11,TextAnchor.MiddleLeft,new Vector2(0,.5f),Vector2.one);
+            aimHint=Label(controlHints.transform,"",11,TextAnchor.MiddleLeft,Vector2.zero,new Vector2(1,.5f));
         }
-
         GameObject AbilityCard(string name,Vector2 min,Vector2 max,string frame,string icon,string title,string key){
-            var card=TropicalUIArt.Place(name,hud.transform,min,max,frame).gameObject;
-            Label(card.transform,title,12,TextAnchor.MiddleCenter,new Vector2(.10f,.70f),new Vector2(.90f,.95f));
-            if(!Application.isMobilePlatform){
-                var hint=Box("Клавиша способности",card.transform,new Vector2(.03f,-.14f),new Vector2(.97f,.025f),new Color(.035f,.16f,.20f,.88f));
-                Label(hint.transform,key,10,TextAnchor.MiddleCenter,new Vector2(.04f,.05f),new Vector2(.96f,.95f));
+            var card=Box(name,hud.transform,min,max,new Color(.035f,.14f,.17f,.92f));
+            Label(card.transform,title,14,TextAnchor.MiddleLeft,new Vector2(.10f,.48f),new Vector2(.70f,.90f));
+            var glyph=ReferenceScreens.Group(card.transform,"Пиктограмма",.73f,.13f,.22f,.50f);
+            if(name=="Рывок"){
+                for(int i=0;i<2;i++)for(int j=0;j<2;j++){
+                    var line=ReferenceScreens.Surface(glyph,"Шеврон",.16f+i*.37f,.20f+j*.33f,.42f,.08f,ReferenceScreens.Accent);
+                    line.rectTransform.localRotation=Quaternion.Euler(0,0,j==0?-45:45);
+                }
+            }else{
+                var bat=ReferenceScreens.Art(glyph,"IslandBatBare",.12f,.10f,.76f,.80f);bat.preserveAspect=true;
+                if(name=="Бросок биты")for(int i=0;i<9;i++){
+                    float angle=(i*25+30)*Mathf.Deg2Rad;
+                    var segment=ReferenceScreens.Surface(glyph,"Дуга возврата",.45f+Mathf.Cos(angle)*.43f,.46f+Mathf.Sin(angle)*.43f,.18f,.035f,ReferenceScreens.Accent);
+                    segment.rectTransform.localRotation=Quaternion.Euler(0,0,-i*25-120);
+                }
             }
-
-            return card;
+            Label(card.transform,key,10,TextAnchor.MiddleLeft,new Vector2(.10f,.02f),new Vector2(.90f,.28f));return card;
         }
-        Text ReadyBadge(Transform parent){var badge=TropicalUIArt.Place("Готовность",parent,new Vector2(.10f,.075f),new Vector2(.90f,.255f),"ReadyBadge");return Label(badge.transform,"ГОТОВ",13,TextAnchor.MiddleCenter,new Vector2(.04f,.08f),new Vector2(.96f,.94f));}
-        Image CooldownShade(Transform parent){var image=Box("Перезарядка",parent,new Vector2(.12f,.255f),new Vector2(.88f,.72f),new Color(.10f,.10f,.10f,.62f)).GetComponent<Image>();image.type=Image.Type.Filled;image.fillMethod=Image.FillMethod.Radial360;image.fillOrigin=2;image.fillClockwise=true;image.raycastTarget=false;return image;}
+        Text ReadyBadge(Transform parent){var badge=Box("Готовность",parent,new Vector2(.10f,.28f),new Vector2(.90f,.49f),Color.clear);return Label(badge.transform,"ГОТОВ",10,TextAnchor.MiddleLeft,Vector2.zero,Vector2.one);}
+        Image CooldownShade(Transform parent){var image=Box("Перезарядка",parent,new Vector2(0,0),new Vector2(1,.035f),ReferenceScreens.Accent).GetComponent<Image>();image.type=Image.Type.Filled;image.fillMethod=Image.FillMethod.Horizontal;image.raycastTarget=false;return image;}
         sealed class AbilityDisplay
         {
             readonly Image shade,badge;readonly Text label;
@@ -256,21 +264,23 @@ namespace Brainrot
                 int seconds=remaining>0?Mathf.CeilToInt(remaining):0;
                 bool active=remaining>0,first=shownSeconds==int.MinValue;
                 if(seconds!=shownSeconds){shownSeconds=seconds;label.text=seconds>0?seconds+" с":"ГОТОВ";}
-                if(first||active!=cooling){cooling=active;label.color=active?new Color(1,.9f,.6f):Color.white;badge.color=active?new Color(.76f,.80f,.75f):Color.white;}
+                if(first||active!=cooling){cooling=active;label.color=active?new Color(.65f,.72f,.73f):new Color(.35f,.88f,.81f);badge.color=Color.clear;}
             }
         }
         Image RoundButton(string name,Vector2 min,Vector2 max,string icon,UnityEngine.Events.UnityAction action){
             if(Application.isMobilePlatform){float right=name=="Пауза" ? .987f : .895f;min=new Vector2(right-.075f,.86f);max=new Vector2(right,.99f);}
             var hitbox=Box(name,hud.transform,min,max,Color.clear);hitbox.GetComponent<Image>().raycastTarget=true;
-            var face=TropicalUIArt.Place(name+" — оформление",hitbox.transform,Vector2.zero,Vector2.one,icon);face.preserveAspect=true;var button=hitbox.AddComponent<Button>();button.targetGraphic=face;button.transition=Selectable.Transition.None;button.onClick.AddListener(GameMusic.PlayButtonClick);button.onClick.AddListener(action);hitbox.AddComponent<CartoonButtonMotion>().VisualTarget=face.transform;CartoonUI.EnsureTouchTarget(button);
-            // Atlas sound/pause sprites already include their circular rim; avoid a second nested button.
+            var face=Box(name+" — оформление",hitbox.transform,Vector2.zero,Vector2.one,new Color(.035f,.14f,.17f,.92f)).GetComponent<Image>();
+            Label(face.transform,name=="Пауза"?"II":"♪",22,TextAnchor.MiddleCenter,Vector2.zero,Vector2.one);
+            var button=hitbox.AddComponent<Button>();button.targetGraphic=face;button.transition=Selectable.Transition.None;button.onClick.AddListener(GameMusic.PlayButtonClick);button.onClick.AddListener(action);
+            var motion=hitbox.AddComponent<CartoonButtonMotion>();motion.VisualTarget=face.transform;motion.BaseColor=face.color;CartoonUI.EnsureTouchTarget(button);
             return face;
         }
 
         void ClearScreen()
         {
             foreach(Transform child in overlay.transform) {child.gameObject.SetActive(false);Destroy(child.gameObject);}
-            TropicalUIArt.Place("Резная рамка экрана",overlay.transform,new Vector2(.25f,.065f),new Vector2(.75f,.795f),"WoodPanel");
+
         }
         void BuildScreen()
         {
@@ -316,11 +326,7 @@ namespace Brainrot
             }
         }
         void Title(string title) {
-            var heading=TropicalUIArt.Place("Заголовок экрана",overlay.transform,new Vector2(.22f,title=="ПАУЗА"?.61f:.67f),new Vector2(.78f,title=="ПАУЗА"?.87f:.90f),"HeaderPlaque");
-            Label(heading.transform,title,42,TextAnchor.MiddleCenter,new Vector2(.25f,.20f),new Vector2(.75f,.60f)).color=CartoonUI.Cream;
-            TropicalUIArt.Place("Листва слева",overlay.transform,new Vector2(.225f,.035f),new Vector2(.34f,.19f),"LeafAccent",true);
-            var leaf=TropicalUIArt.Place("Листва справа",overlay.transform,new Vector2(.66f,.035f),new Vector2(.775f,.19f),"LeafAccent",true);leaf.rectTransform.localScale=new Vector3(-1,1,1);
-            TropicalUIArt.Place("Гибискус",overlay.transform,new Vector2(.455f,.025f),new Vector2(.545f,.14f),"FlowerAccent",true);
+            Label(overlay.transform,title,36,TextAnchor.MiddleCenter,new Vector2(.20f,.78f),new Vector2(.80f,.89f));
         }
         void MenuButton(string title,float y,UnityEngine.Events.UnityAction action) {Button(overlay.transform,title,new Vector2(.345f,y),new Vector2(.655f,y+.095f),action);}
         void ShowRecords()
@@ -415,7 +421,7 @@ namespace Brainrot
         Text Label(Transform parent,string text,int size,TextAnchor alignment,Vector2 min,Vector2 max)
         {
             var obj=new GameObject("Label",typeof(RectTransform),typeof(Text));obj.transform.SetParent(parent,false);var rect=obj.GetComponent<RectTransform>();rect.anchorMin=min;rect.anchorMax=max;rect.offsetMin=rect.offsetMax=Vector2.zero;
-            var label=obj.GetComponent<Text>();label.font=font;label.text=text;label.fontSize=size;label.alignment=alignment;label.color=Color.white;label.raycastTarget=false;label.supportRichText=true;label.horizontalOverflow=HorizontalWrapMode.Wrap;CartoonUI.Typography(label,size>=22);return label;
+            var label=obj.GetComponent<Text>();label.font=font;label.text=text;label.fontSize=size;label.alignment=alignment;label.color=Color.white;label.raycastTarget=false;label.supportRichText=true;label.horizontalOverflow=HorizontalWrapMode.Wrap;CartoonUI.Typography(label,false);foreach(var effect in label.GetComponents<Shadow>())effect.enabled=false;return label;
         }
         Button Button(Transform parent,string title,Vector2 min,Vector2 max,UnityEngine.Events.UnityAction action)
         {
@@ -423,11 +429,11 @@ namespace Brainrot
         }
         Image Bar(Transform parent,Vector2 min,Vector2 max,Color color)
         {
-            var rim=Box("Контур полоски",parent,min,max,new Color(.64f,.97f,1));
+            var rim=Box("Контур полоски",parent,min,max,new Color(.12f,.26f,.28f));
             var back=Box("Bar",rim.transform,new Vector2(.006f,.07f),new Vector2(.994f,.93f),new Color(.015f,.13f,.29f));
             var fill=Box("Fill",back.transform,new Vector2(.006f,.08f),new Vector2(.994f,.92f),color).GetComponent<Image>();fill.type=Image.Type.Sliced;fill.raycastTarget=false;
-            CartoonUI.Image("Блик полоски",fill.transform,new Vector2(.018f,.61f),new Vector2(.982f,.91f),new Color(1,1,1,.36f));
-            CartoonUI.Image("Отражение полоски",fill.transform,new Vector2(.025f,.11f),new Vector2(.975f,.19f),new Color(1,1,1,.18f));
+            CartoonUI.Image("Блик полоски",fill.transform,new Vector2(.018f,.61f),new Vector2(.982f,.91f),Color.clear);
+            CartoonUI.Image("Отражение полоски",fill.transform,new Vector2(.025f,.11f),new Vector2(.975f,.19f),Color.clear);
             fill.gameObject.AddComponent<CartoonBarFill>();return fill;
         }
         void OnDestroy(){

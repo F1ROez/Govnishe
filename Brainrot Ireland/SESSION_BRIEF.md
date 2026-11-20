@@ -19,3 +19,12 @@
 - V12: Docs/PERFORMANCE_V12.md. Orca18 437tri/18 216verts изпроизводнойEditorgeometry, sourceGLBнеизменён. Новыйstampавтообновляетprefab. URPмирscale.70/.85/1, MSAA1постAAсохранён, тени512/1024/2048каскады1/2/2. ВизуальныеNPCculledoffscreen, CPUcache/обходыUIисправлены. Статика114C#/32Python; FPSнеизмерен.
 
 - V14: Docs/BOOMERANG_UI_V14.md. КороткийЛКМбумеранг,полныйholdheavyсохранёнпослевозврата,onehitperleg,cancelsrestoresweapon. RunEconomy.OfferIds/EnsureOffers/IsOfferSold/CanBuyOffer/TryBuyOffer:3randomnonmaxperwave,onepurchaseperslot,frozenreopen. UIglass3cards/creamtealpanels/compactHUD. Теперь4PNGвMenuArtPayloads(добавленIslandUpgradeIcons),пайплайнNames/TEXTURESсогласован. Никакихновыхкаталоговыхбаффов. GitHubuploadмаленькимипорциями<=90KB,небольшойPNGbase64. Статика125C#/32Python;UnityNOT_RUN.
+
+
+## V15 — 20 ноября 2026
+
+Все активные меню и HUD переведены на минималистичный кремово-бирюзовый стиль: главное меню, настройки, пауза, рекорды, лавка, скины и подтверждения. Крупные кнопки главного меню, анимации наведения/нажатия, отдельная карточка ПКМ.
+
+ЛКМ — обычный удар; удержание ЛКМ — сильный; ПКМ — бумеранг. Бросок имеет отдельную костную анимацию с моментом выпуска и собственный cooldown 3 с (GameBalance.Boomerang.CooldownSeconds). По умолчанию при ближайшем контакте с врагом бита разворачивается и возвращается без дополнительного урона. Сквозной бросок стоит 40 монет, один ранг, участвует в случайной лавке и сбрасывается в новом забеге.
+
+Проверка: статический разбор C#, Python tooling и git diff. Unity отсутствует: семантическая компиляция, PlayMode, вид меню и движения модели требуют проверки в редакторе владельца. Подготовлены регрессии броска, cooldown, ближайшего попадания, сквозного ранга и позы.

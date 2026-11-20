@@ -83,6 +83,7 @@ namespace Brainrot {
     case 1:Player.Stats.MaxHealth+=15;Player.Heal(15);break;
     case 2:Player.Stats.MoveSpeed+=.3f;break;
     case 3:Player.Stats.DashCooldown=Mathf.Max(.25f,Player.Stats.DashCooldown-.12f);break;
+    case 4:break; // Projectile reads the current attempt rank when launched.
    }
    Notify("УЛУЧШЕНИЕ КУПЛЕНО — ДО КОНЦА ЗАБЕГА",2);return true;
   }

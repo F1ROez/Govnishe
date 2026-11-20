@@ -25,7 +25,7 @@ namespace Brainrot
         TrailRenderer batTrail;
         float attackRemaining, attackDuration = .32f,attackContact=.09f;
         float chargePose;
-        bool chargeActive,heavySwing;
+        bool chargeActive,heavySwing,throwing;
         float impactPause;
         Vector3 weaponRestPosition;
         Quaternion weaponRestRotation;
@@ -367,9 +367,16 @@ namespace Brainrot
         {
             if(imported!=null){if(imported.Trail!=null)imported.Trail.widthMultiplier=heavy?1.35f:1;imported.PlayAttack(duration,contactTime,heavy);return;}
             if(Weapon==null)return;
-            heavySwing=heavy;chargeActive=false;chargePose=0;impactPause=0;if(batTrail!=null)batTrail.widthMultiplier=heavy?1.35f:1;
+            throwing=false;heavySwing=heavy;chargeActive=false;chargePose=0;impactPause=0;if(batTrail!=null)batTrail.widthMultiplier=heavy?1.35f:1;
             attackDuration=Mathf.Max(.15f,duration);attackContact=Mathf.Clamp(contactTime,0,attackDuration*.95f);attackRemaining=attackDuration;
             if(batTrail!=null){batTrail.emitting=false;batTrail.Clear();}
+            TickAttack(0);
+        }
+        public void PlayThrow(float duration=.42f,float releaseDelay=.14f)
+        {
+            if(imported!=null){imported.PlayThrow(duration,releaseDelay);return;}
+            if(Weapon==null)return;
+            ResetAttack();throwing=true;attackDuration=Mathf.Max(.2f,duration);attackContact=Mathf.Clamp(releaseDelay,.05f,attackDuration*.65f);attackRemaining=attackDuration;
             TickAttack(0);
         }
         void TickAttack(float dt)
@@ -388,6 +395,22 @@ namespace Brainrot
             if(elapsed<contact)yaw=Mathf.Lerp(-95,0,Mathf.SmoothStep(0,1,elapsed/contact));
             else yaw=Mathf.Lerp(0,110,Mathf.SmoothStep(0,1,(elapsed-contact)/Mathf.Max(.01f,attackDuration-contact)));
             float progress=elapsed/attackDuration;
+            if(throwing){
+                float windEnd=attackContact*.55f;
+                float wind=Mathf.SmoothStep(0,1,Mathf.Clamp01(elapsed/Mathf.Max(.01f,windEnd)));
+                float drive=Mathf.Pow(Mathf.Clamp01((elapsed-windEnd)/Mathf.Max(.01f,attackContact-windEnd)),1.7f);
+                float after=Mathf.SmoothStep(0,1,(elapsed-attackContact)/Mathf.Max(.01f,attackDuration-attackContact));
+                float weight=Mathf.SmoothStep(0,1,elapsed/.045f)*Mathf.SmoothStep(0,1,(attackDuration-elapsed)/.12f);
+                var windPosition=new Vector3(.45f,1.55f,-.24f);var releasePosition=new Vector3(.24f,1.40f,.66f);var followPosition=new Vector3(.13f,1.12f,.46f);
+                Vector3 goal=elapsed<windEnd?Vector3.Lerp(weaponRestPosition,windPosition,wind):elapsed<=attackContact?Vector3.Lerp(windPosition,releasePosition,drive):Vector3.Lerp(releasePosition,followPosition,after);
+                Weapon.localPosition=Vector3.Lerp(weaponRestPosition,goal,weight);Weapon.localRotation=Quaternion.Slerp(weaponRestRotation,Quaternion.Euler(Mathf.Lerp(-15,76,drive),0,0),weight);
+                if(rightArm!=null)rightArm.localRotation=Quaternion.Euler(Mathf.Lerp(20*wind,-94,drive)*weight,10*wind*weight,-15);
+                if(leftArm!=null)leftArm.localRotation=Quaternion.Euler(Mathf.Lerp(-15,18,drive)*weight,0,-22);
+                if(body!=null)body.localRotation=Quaternion.Euler(Mathf.Lerp(-3*wind,8,drive)*weight,Mathf.Lerp(24*wind,-10,drive)*weight,0);
+                if(batTrail!=null)batTrail.emitting=false;
+                if(attackRemaining<=0){throwing=false;Weapon.localPosition=weaponRestPosition;Weapon.localRotation=weaponRestRotation;}
+                return;
+            }
             if(heavySwing){
                 float before=contact>.00001f?Mathf.SmoothStep(0,1,elapsed/contact):1,after=elapsed<=contact?0:Mathf.SmoothStep(0,1,(elapsed-contact)/Mathf.Max(.01f,attackDuration-contact));
                 var impact=new Vector3(.03f,1.18f,.4f);
@@ -433,7 +456,8 @@ namespace Brainrot
         public void ResetAttack()
         {
             if(imported!=null){imported.ResetAttack();return;}
-            attackRemaining=impactPause=0;chargeActive=heavySwing=false;chargePose=0;
+            if(throwing&&body!=null)body.localRotation=Quaternion.identity;
+            attackRemaining=impactPause=0;chargeActive=heavySwing=throwing=false;chargePose=0;
             if(Weapon!=null){Weapon.localPosition=weaponRestPosition;Weapon.localRotation=weaponRestRotation;Weapon.localScale=Vector3.one;}
             if(rightArm!=null)rightArm.localRotation=Quaternion.Euler(0,0,-10);
             if(leftArm!=null)leftArm.localRotation=Quaternion.Euler(0,0,-10);
@@ -460,7 +484,7 @@ namespace Brainrot
             if(biteRemaining<=0)body.localPosition=bodyPosition+Vector3.up*(Mathf.Abs(Mathf.Sin(phase))*.075f*intensity);
             if(biteRemaining<=0)body.localRotation=Quaternion.Euler(0,0,Mathf.Sin(phase)*3*intensity);
             attackBlend=Mathf.MoveTowards(attackBlend,attacking?1:0,Time.deltaTime*14);
-            if(leftArm!=null&&!chargeActive&&!(AttackActive&&heavySwing))leftArm.localRotation=Quaternion.Euler(-swing*.6f,0,-10);
+            if(leftArm!=null&&!chargeActive&&!(AttackActive&&(heavySwing||throwing)))leftArm.localRotation=Quaternion.Euler(-swing*.6f,0,-10);
             if(rightArm!=null&&!AttackActive&&!chargeActive)rightArm.localRotation=Quaternion.Euler(Mathf.Lerp(swing*.6f,-60,Weapon==null?attackBlend:0),0,-10);
             if(Weapon!=null&&!AttackActive&&!chargeActive){Weapon.localPosition=weaponRestPosition;Weapon.localRotation=weaponRestRotation;Weapon.localScale=Vector3.one;}
 

@@ -7,8 +7,10 @@ namespace Brainrot
     /// <summary>Live controls over separate illustrated sprites. Coordinates use the reference's 16:9 artboard.</summary>
     public static class ReferenceScreens
     {
-        public static readonly Color Cocoa=new Color(.27f,.115f,.028f);
-        static readonly Color Cream=new Color(1,.97f,.83f);
+        public static readonly Color Cocoa=new Color(.09f,.16f,.18f);
+        public static readonly Color Accent=new Color(.06f,.57f,.59f);
+        public static readonly Color Paper=new Color(.96f,.95f,.91f);
+        static readonly Color Cream=new Color(.97f,.98f,.96f);
         public static RectTransform Viewport(Transform parent,string name){
             var go=new GameObject(name,typeof(RectTransform),typeof(ReferenceViewport));go.transform.SetParent(parent,false);
             var rect=(RectTransform)go.transform;rect.anchorMin=rect.anchorMax=rect.pivot=new Vector2(.5f,.5f);rect.sizeDelta=new Vector2(1280,720);
@@ -24,7 +26,8 @@ namespace Brainrot
             var image=TropicalUIArt.Place(key,parent,Vector2.zero,Vector2.one,key);Rect(image.rectTransform,x,y,w,h);image.type=Image.Type.Simple;return image;
         }
         public static Image SlicedArt(Transform parent,string key,float x,float y,float w,float h){
-            var image=Art(parent,key,x,y,w,h);ConfigureSlice(image);return image;
+            Color color=key=="IslandSliderTrack"?new Color(.17f,.26f,.28f):key=="IslandSliderFill"||key=="IslandTeal"||key=="IslandPrimary"?Accent:new Color(.89f,.91f,.88f);
+            return Surface(parent,key,x,y,w,h,color);
         }
         static void ConfigureSlice(Image image){
             if(image.sprite==null||image.sprite.border.sqrMagnitude<=0){image.type=Image.Type.Simple;return;}
@@ -36,17 +39,11 @@ namespace Brainrot
         public static Text Text(Transform parent,string value,int size,float x,float y,float w,float h){
             var go=new GameObject(value,typeof(RectTransform),typeof(Text));go.transform.SetParent(parent,false);Rect((RectTransform)go.transform,x,y,w,h);
             var label=go.GetComponent<Text>();label.text=value;label.fontSize=size;label.alignment=TextAnchor.MiddleCenter;label.raycastTarget=false;
-            CartoonUI.Typography(label,true);label.horizontalOverflow=HorizontalWrapMode.Wrap;label.resizeTextMinSize=Mathf.Max(9,size-4);
-            label.GetComponent<Outline>().effectDistance=new Vector2(2,-2);
-            DropShadow(label).effectColor=new Color(.17f,.075f,.02f,.8f);DropShadow(label).effectDistance=new Vector2(0,-2.5f);return label;
+            CartoonUI.Typography(label,false);label.color=Cream;label.horizontalOverflow=HorizontalWrapMode.Wrap;label.resizeTextMinSize=12;
+            label.GetComponent<Outline>().enabled=false;DropShadow(label).enabled=false;return label;
         }
         public static Button Hotspot(Transform parent,string title,float x,float y,float w,float h,UnityAction action,int size=28){
-            var image=Surface(parent,title,x,y,w,h,Color.clear);image.raycastTarget=true;
-            var button=image.gameObject.AddComponent<Button>();button.transition=Selectable.Transition.None;
-            var visual=Art(image.transform,"GoldButton",0,0,1,1);button.targetGraphic=visual;
-            Text(visual.transform,title,size,.06f,.15f,.88f,.70f);
-            image.gameObject.AddComponent<CartoonButtonMotion>().VisualTarget=visual.transform;
-            button.onClick.AddListener(GameMusic.PlayButtonClick);button.onClick.AddListener(action);CartoonUI.EnsureTouchTarget(button);return button;
+            return SeaButton(parent,title,x,y,w,h,action,size,true);
         }
         public static Image Surface(Transform parent,string name,float x,float y,float w,float h,Color color){
             var image=CartoonUI.Image(name,parent,Vector2.zero,Vector2.one,color);Rect(image.rectTransform,x,y,w,h);return image;
@@ -60,72 +57,50 @@ namespace Brainrot
             return text.gameObject.AddComponent<Shadow>();
         }
         static void SetTextStyle(Text text,bool primary){
-            text.color=primary?Cream:Cocoa;
-            var outline=text.GetComponent<Outline>();outline.effectColor=primary?new Color(.20f,.085f,.018f,1):new Color(1,.97f,.80f,.48f);
-            outline.effectDistance=primary?new Vector2(2.1f,-2.1f):new Vector2(.7f,-.7f);
-            var shadow=DropShadow(text);shadow.effectColor=primary?new Color(.10f,.075f,.02f,.7f):new Color(.58f,.25f,.025f,.20f);
-            shadow.effectDistance=new Vector2(0,primary?-3.2f:-1);
+            text.color=primary?Cream:Cocoa;text.GetComponent<Outline>().enabled=false;DropShadow(text).enabled=false;
         }
-        /// <summary>Decorated title is independent of the nine-sliced sand board; its art contains no baked text.</summary>
         public static Transform Panel(Transform viewport,string title,float x,float y,float w,float h,int titleSize=42,float headerTop=-.17f){
             var body=Group(viewport,title+" — панель",x,y,w,h);
-            var shadow=Surface(body,"Тень панели",0,.012f,1,1,new Color(.01f,.055f,.07f,.45f));shadow.sprite=IslandThemeSurface.Round;
-            var rim=Surface(body,"Бирюзовый кант",0,0,1,1,new Color(.015f,.53f,.64f));rim.sprite=IslandThemeSurface.Round;
-            var edge=Surface(body,"Светлая кромка",.009f,.010f,.982f,.98f,new Color(.79f,.98f,.97f));edge.sprite=IslandThemeSurface.Round;
-            var ceramic=Surface(body,"Кремовая панель",.018f,.019f,.964f,.962f,Color.white);ceramic.sprite=IslandThemeSurface.Cream;
-            Surface(body,"Мягкий блик",.045f,.027f,.91f,.007f,new Color(1,.99f,.89f,.65f));
-            var header=Art(body,"IslandTitle",-.065f,headerTop,1.13f,.35f);
-            var heading=Text(header.transform,title,titleSize,.16f,.33f,.68f,.34f);heading.color=Cream;
+            Surface(body,"Тень панели",0,.012f,1,1,new Color(.015f,.04f,.05f,.22f));
+            Surface(body,"Панель",0,0,1,1,Paper);
+            var heading=SeaText(body,title,Mathf.Min(titleSize,32),.07f,.018f,.86f,.09f);heading.fontStyle=FontStyle.Bold;heading.alignment=TextAnchor.MiddleLeft;
             return body;
         }
-        /// <summary>Button face, text, icon and glow move together; its transparent hit rectangle never scales.</summary>
         public static Button SeaButton(Transform parent,string title,float x,float y,float w,float h,UnityAction action,int size=22,bool primary=false,IslandSymbol? symbol=null,bool waves=true){
             var hit=Surface(parent,title,x,y,w,h,Color.clear);hit.raycastTarget=true;
-            var visual=Group(hit.transform,"Анимация кнопки",0,0,1,1);
-            var glowGo=new GameObject("Мягкое сияние",typeof(RectTransform),typeof(IslandButtonGlow));glowGo.transform.SetParent(visual,false);Rect((RectTransform)glowGo.transform,-.055f,-.20f,1.11f,1.40f);
-            var glow=glowGo.GetComponent<IslandButtonGlow>();glow.color=new Color(1,.85f,.27f,primary?.32f:.15f);glow.raycastTarget=false;
-            var face=SlicedArt(visual,primary?(waves?"IslandPrimary":"IslandTeal"):"IslandSecondary",0,0,1,1);
-            float left=primary&&waves?.16f:.08f,right=primary&&waves?.68f:.84f;
-            if(symbol.HasValue){
-                bool play=symbol.Value==IslandSymbol.Play;
-                IslandMenuSymbol.Place(face.transform,symbol.Value, .085f,.18f,.125f,.64f,play?new Color(1,.78f,.05f):Cocoa);
-                left=.24f;right=.52f;
-            }
-            var label=SeaText(face.transform,title,size,left,.12f,right,.76f);label.resizeTextMinSize=Mathf.Min(size,14);SetTextStyle(label,primary);
+            var face=Surface(hit.transform,"Поверхность кнопки",0,0,1,1,primary?Accent:new Color(.88f,.91f,.89f));
+            var label=SeaText(face.transform,title,size,symbol.HasValue?.20f:.06f,.12f,symbol.HasValue?.60f:.88f,.76f);label.resizeTextMinSize=12;SetTextStyle(label,primary);
+            if(symbol.HasValue)IslandMenuSymbol.Place(face.transform,symbol.Value,.065f,.28f,.09f,.44f,primary?Cream:Cocoa);
             var button=hit.gameObject.AddComponent<Button>();button.targetGraphic=face;button.transition=Selectable.Transition.None;
-            var motion=hit.gameObject.AddComponent<CartoonButtonMotion>();motion.VisualTarget=visual;motion.BaseColor=Color.white;motion.HoverGlow=glow;
+            var motion=hit.gameObject.AddComponent<CartoonButtonMotion>();motion.VisualTarget=face.transform;motion.BaseColor=face.color;
             button.onClick.AddListener(GameMusic.PlayButtonClick);button.onClick.AddListener(action);CartoonUI.EnsureTouchTarget(button);return button;
         }
         public static void SetButtonStyle(Button button,bool primary,bool waves=false){
-            var face=button.targetGraphic as Image;if(face!=null){face.sprite=TropicalUIArt.Get(primary?(waves?"IslandPrimary":"IslandTeal"):"IslandSecondary");ConfigureSlice(face);}
+            button.targetGraphic.color=primary?Accent:new Color(.88f,.91f,.89f);
+            var motion=button.GetComponent<CartoonButtonMotion>();if(motion!=null)motion.BaseColor=button.targetGraphic.color;
             var label=button.GetComponentInChildren<Text>();if(label!=null)SetTextStyle(label,primary);
-            var motion=button.GetComponent<CartoonButtonMotion>();if(motion!=null)motion.BaseColor=Color.white;
         }
         public static Text Wallet(Transform parent,float x,float y,float w,float h,bool prefix=false){
             var body=SlicedArt(parent,"IslandSecondary",x,y,w,h).transform;
-            var coin=Art(body,"IslandCoin",-.04f,-.27f,.29f,1.54f);coin.preserveAspect=true;
+
             int coins=GameManager.Instance!=null?GameManager.Instance.RunBalance:0;return SeaText(body,prefix?"МОНЕТЫ "+coins:coins+" МОНЕТ",24,.235f,.12f,.71f,.76f);
         }
         public static Button[] MainMenu(Transform root,UnityAction play,UnityAction shop,UnityAction records,UnityAction settings,UnityAction exit,out Text wallet,out Text notice,bool background=false){
             if(background)Art(root,"IslandMenuScene",0,0,1,1);
-            var logo=Art(root,"IslandTitle",.008f,-.055f,.46f,.29f);
-            Text(logo.transform,"ОСТРОВ",28,.21f,.265f,.58f,.20f);
-            Text(logo.transform,"ТУН ТУН САХУРА",38,.13f,.465f,.74f,.27f).color=new Color(1,.92f,.62f);
-            var record=SlicedArt(root,"IslandSecondary",.695f,.055f,.255f,.075f).transform;
-            wallet=SeaText(record,"РЕКОРД · ВОЛНА "+SaveSystem.Data.BestWave,23,.06f,.12f,.88f,.76f);
-            var dock=Group(root,"Панель главного меню",.665f,.275f,.285f,.51f);
+            Surface(root,"Затемнение фона",0,0,1,1,new Color(.015f,.06f,.08f,.34f));
+            var identity=Text(root,"ОСТРОВ\nТУН ТУН САХУРА",48,.055f,.08f,.48f,.24f);identity.alignment=TextAnchor.MiddleLeft;identity.fontStyle=FontStyle.Bold;
+            Text(root,"Выдержи волну. Вернись сильнее.",21,.055f,.81f,.48f,.08f).alignment=TextAnchor.MiddleLeft;
+            var dock=Surface(root,"Меню",.595f,.11f,.35f,.78f,Paper).transform;
+            wallet=SeaText(dock,"ЛУЧШАЯ ВОЛНА · "+SaveSystem.Data.BestWave,16,.07f,.045f,.86f,.055f);
             var buttons=new[]{
-                SeaButton(dock,"ИГРАТЬ",.02f,0,.96f,.22f,play,35,true,IslandSymbol.Play,false),
-                SeaButton(dock,"СКИНЫ",.07f,.255f,.86f,.165f,shop,24,false,IslandSymbol.Shop),
-                SeaButton(dock,"РЕКОРДЫ",.07f,.445f,.86f,.165f,records,24,false,IslandSymbol.Trophy),
-                SeaButton(dock,"НАСТРОЙКИ",.07f,.635f,.86f,.165f,settings,24,false,IslandSymbol.Settings),
-                SeaButton(dock,"ВЫХОД",.07f,.825f,.86f,.165f,exit,24,false,IslandSymbol.Exit)
+                SeaButton(dock,"ИГРАТЬ",.065f,.14f,.87f,.18f,play,34,true,IslandSymbol.Play),
+                SeaButton(dock,"СКИНЫ",.065f,.365f,.87f,.12f,shop,25,false,IslandSymbol.Shop),
+                SeaButton(dock,"РЕКОРДЫ",.065f,.505f,.87f,.12f,records,25,false,IslandSymbol.Trophy),
+                SeaButton(dock,"НАСТРОЙКИ",.065f,.645f,.87f,.12f,settings,25,false,IslandSymbol.Settings),
+                SeaButton(dock,"ВЫХОД",.065f,.785f,.87f,.12f,exit,25,false,IslandSymbol.Exit)
             };
-            var slogan=Art(root,"IslandSlogan",.012f,.866f,.545f,.12f).transform;
-            Text(slogan,"ВЫДЕРЖИ ВОЛНУ. ВЕРНИСЬ СИЛЬНЕЕ.",23,.12f,.24f,.76f,.52f);
-            notice=SeaText(dock,"",14,.035f,1.015f,.93f,.12f);SetTextStyle(notice,true);
-            if(EventSystem.current!=null)EventSystem.current.SetSelectedGameObject(buttons[0].gameObject);
-            return buttons;
+            notice=SeaText(dock,"",13,.07f,.927f,.86f,.05f);
+            if(EventSystem.current!=null)EventSystem.current.SetSelectedGameObject(buttons[0].gameObject);return buttons;
         }
         public static void Pause(Transform viewport,UnityAction resume,UnityAction settings,UnityAction menu){
             var frame=Panel(viewport,"ПАУЗА",.21f,.17f,.58f,.785f,58,-.205f);
@@ -149,8 +124,8 @@ namespace Brainrot
             ToggleRow(frame,"КОНТУР УДАРА",IslandSymbol.Target,.49f,SaveSystem.Data.ShowAttackRange,v=>{SaveSystem.Data.ShowAttackRange=v;SaveSystem.Save();});
             ToggleRow(frame,"ТРЯСКА КАМЕРЫ",IslandSymbol.Shake,.59f,SaveSystem.Data.CameraShakeStrength>.01f,v=>{SaveSystem.Data.CameraShakeStrength=v?1:0;SaveSystem.Save();});
             SeaText(frame,"КАЧЕСТВО ГРАФИКИ",23,.20f,.705f,.60f,.045f);
-            Art(frame,"IslandWaveLeft",.12f,.70f,.10f,.055f).preserveAspect=true;
-            Art(frame,"IslandWaveRight",.78f,.70f,.10f,.055f).preserveAspect=true;
+
+
             var buttons=new Button[3];string[] titles={"НИЗКОЕ","СРЕДНЕЕ","ВЫСОКОЕ"};
             for(int i=0;i<3;i++){
                 int level=i;
@@ -178,16 +153,13 @@ namespace Brainrot
         }
         static Button ToggleRow(Transform frame,string title,IslandSymbol icon,float top,bool initial,UnityAction<bool> change){
             bool value=initial;
-            var button=SeaButton(frame,title,.07f,top,.86f,.09f,()=>{},23,false,null,false);
-            var face=button.targetGraphic.transform;var label=button.GetComponentInChildren<Text>();Rect(label.rectTransform,.18f,.13f,.57f,.74f);label.alignment=TextAnchor.MiddleLeft;label.text=title+": "+(value?"ВКЛ":"ВЫКЛ");
-            IslandMenuSymbol.Place(face,icon,.045f,.16f,.09f,.68f,Cocoa);
-            var toggle=Art(face,value?"IslandSwitchOn":"IslandSwitchOff",.755f,.07f,.215f,.86f);
-            var state=Text(toggle.transform,value?"ВКЛ":"ВЫКЛ",19,value?.10f:.38f,.22f,.49f,.50f);
-            state.color=Cream;
-            button.onClick.AddListener(()=>{
-                value=!value;change(value);label.text=title+": "+(value?"ВКЛ":"ВЫКЛ");toggle.sprite=TropicalUIArt.Get(value?"IslandSwitchOn":"IslandSwitchOff");state.text=value?"ВКЛ":"ВЫКЛ";Rect(state.rectTransform,value?.10f:.38f,.22f,.49f,.50f);
-            });
-            return button;
+            var button=SeaButton(frame,title,.07f,top,.86f,.09f,()=>{},21,false,null,false);
+            var face=button.targetGraphic.transform;var label=button.GetComponentInChildren<Text>();Rect(label.rectTransform,.15f,.13f,.58f,.74f);label.alignment=TextAnchor.MiddleLeft;
+            IslandMenuSymbol.Place(face,icon,.045f,.22f,.065f,.56f,Cocoa);
+            var state=Surface(face,"Переключатель",.81f,.24f,.13f,.52f,value?Accent:new Color(.60f,.67f,.65f));
+            var knob=CartoonUI.Image("Ручка переключателя",state.transform,Vector2.zero,Vector2.one,Cream,CartoonUI.Disc);
+            Rect(knob.rectTransform,value?.57f:.06f,.10f,.37f,.80f);
+            button.onClick.AddListener(()=>{value=!value;change(value);state.color=value?Accent:new Color(.60f,.67f,.65f);Rect(knob.rectTransform,value?.57f:.06f,.10f,.37f,.80f);});return button;
         }
         static void Slider(Transform frame,string title,float top,float min,float max,float value,UnityAction<float> change){
             var label=SeaText(frame,title,24,.09f,top,.69f,.048f);label.alignment=TextAnchor.MiddleLeft;
@@ -201,7 +173,7 @@ namespace Brainrot
             var fillArea=Group(hit.transform,"Область заполнения",.014f,.26f,.972f,.43f);
             var fill=SlicedArt(fillArea,"IslandSliderFill",0,0,1,1);
             var handleArea=Group(hit.transform,"Область ручки",.014f,0,.972f,1);
-            var handle=Art(handleArea,"IslandShellKnob",0,0,0,1);handle.rectTransform.anchorMin=new Vector2(0,.5f);handle.rectTransform.anchorMax=new Vector2(0,.5f);handle.rectTransform.sizeDelta=new Vector2(43,43);handle.rectTransform.anchoredPosition=Vector2.zero;handle.raycastTarget=false;
+            var handle=Surface(handleArea,"Ручка ползунка",0,0,0,1,Cream);handle.sprite=CartoonUI.Disc;handle.rectTransform.anchorMin=new Vector2(0,.5f);handle.rectTransform.anchorMax=new Vector2(0,.5f);handle.rectTransform.sizeDelta=new Vector2(28,28);handle.rectTransform.anchoredPosition=Vector2.zero;handle.raycastTarget=false;
             var slider=hit.gameObject.AddComponent<UnityEngine.UI.Slider>();slider.minValue=min;slider.maxValue=max;
             slider.fillRect=fill.rectTransform;slider.handleRect=handle.rectTransform;slider.targetGraphic=handle;slider.SetValueWithoutNotify(value);
             var persistence=hit.gameObject.AddComponent<IslandSliderPersistence>();
@@ -210,15 +182,10 @@ namespace Brainrot
         }
         public static void Records(Transform viewport,UnityAction back){
             var frame=Panel(viewport,"РЕКОРДЫ",.225f,.16f,.55f,.81f,46);
-            var trophy=Art(frame,"IslandTrophy",.37f,-.17f,.26f,.18f);trophy.preserveAspect=true;
-            // The trophy sits behind the title rather than covering its live lettering.
-            trophy.transform.SetSiblingIndex(1);
             var time=SlicedArt(frame,"IslandSecondary",.12f,.145f,.76f,.225f).transform;
             SeaText(time,"ЛУЧШЕЕ ВРЕМЯ",28,.12f,.12f,.76f,.24f);
             var data=SaveSystem.Data;
             SeaText(time,$"{Mathf.FloorToInt(data.BestTime/60):00}:{Mathf.FloorToInt(data.BestTime%60):00}",62,.20f,.31f,.60f,.61f);
-            IslandMenuSymbol.Place(time,IslandSymbol.Laurel,.035f,.27f,.18f,.58f,new Color(.94f,.57f,.035f));
-            var laurel=IslandMenuSymbol.Place(time,IslandSymbol.Laurel,.785f,.27f,.18f,.58f,new Color(.94f,.57f,.035f));laurel.transform.localScale=new Vector3(-1,1,1);
             var kills=SlicedArt(frame,"IslandSecondary",.15f,.405f,.70f,.105f).transform;
             SeaText(kills,"ПОБЕЖДЕНО: "+data.BestKills,31,.035f,.14f,.93f,.72f);
             var wave=SlicedArt(frame,"IslandSecondary",.15f,.535f,.70f,.105f).transform;

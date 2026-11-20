@@ -47,6 +47,41 @@ namespace Brainrot
             float follow=1-Mathf.Pow(1-after,3);
             Pose(heavy,drive,follow,weight,GameBalance.Current.SahurAnimation);
         }
+        /// <summary>Overhand release, separate from either bat swing. All changes are restored before Animator evaluates.</summary>
+        public void Throw(float elapsed,float duration,float releaseDelay){
+            if(!Valid)return;
+            Capture();
+            var actor=owner.transform;Vector3 up=actor.up,right=actor.right,forward=actor.forward;
+            if(leftUpper!=null){var anatomical=Vector3.ProjectOnPlane(rightUpper.position-leftUpper.position,up);if(anatomical.sqrMagnitude>.000001f)right=anatomical.normalized;}
+            float arm=Vector3.Distance(rightUpper.position,rightFore.position)+Vector3.Distance(rightFore.position,rightHand.position);
+            if(arm<.00001f){Restore();return;}
+            duration=Mathf.Max(.2f,duration);releaseDelay=Mathf.Clamp(releaseDelay,.05f,duration*.65f);
+            float windEnd=releaseDelay*.55f;
+            float wind=Mathf.SmoothStep(0,1,Mathf.Clamp01(elapsed/windEnd));
+            float drive=Mathf.Pow(Mathf.Clamp01((elapsed-windEnd)/Mathf.Max(.01f,releaseDelay-windEnd)),1.7f);
+            float follow=1-Mathf.Pow(1-Mathf.Clamp01((elapsed-releaseDelay)/Mathf.Max(.01f,duration-releaseDelay)),2);
+            float weight=Mathf.SmoothStep(0,1,elapsed/.045f)*Mathf.SmoothStep(0,1,(duration-elapsed)/Mathf.Min(.13f,duration*.30f));
+            Quaternion wrist=rightHand.rotation,leftWrist=leftHand!=null?leftHand.rotation:Quaternion.identity,headWorld=head!=null?head.rotation:Quaternion.identity;
+            if(chest!=null){float twist=Mathf.Lerp(24*wind,-12,drive)+follow*5;float lean=Mathf.Lerp(-5*wind,10,drive)-follow*4;chest.rotation=Quaternion.AngleAxis(twist,up)*Quaternion.AngleAxis(lean,right)*chest.rotation;}
+            if(head!=null)head.rotation=Quaternion.Slerp(head.rotation,headWorld,.75f);
+            Vector3 shoulder=rightUpper.position;
+            Vector3 windGoal=shoulder+right*(arm*.25f)+up*(arm*.28f)-forward*(arm*.50f);
+            Vector3 releaseGoal=shoulder+forward*(arm*.88f)+right*(arm*.06f)+up*(arm*.13f);
+            Vector3 followGoal=shoulder+forward*(arm*.62f)-up*(arm*.39f)-right*(arm*.10f);
+            Vector3 goal=elapsed<windEnd?Vector3.Lerp(rightHand.position,windGoal,wind):elapsed<=releaseDelay?Vector3.Lerp(windGoal,releaseGoal,drive):Vector3.Lerp(releaseGoal,followGoal,follow);
+            Vector3 axis=Vector3.Slerp((up-forward*.20f).normalized,(forward+up*.20f).normalized,drive);
+            axis=Vector3.Slerp(axis,(forward-up*.45f).normalized,follow);
+            SolveArm(rightUpper,rightFore,rightHand,goal,right+up*.4f-forward*.15f,Quaternion.FromToRotation(up,axis)*wrist);
+            if(leftUpper!=null&&leftFore!=null&&leftHand!=null){
+                var balance=leftUpper.position-right*(arm*.30f)-up*(arm*.43f)+forward*(arm*Mathf.Lerp(.20f,-.22f,drive));
+                SolveArm(leftUpper,leftFore,leftHand,balance,-right-forward*.2f-up*.4f,leftWrist);
+            }
+            owner.Weapon.position=rightHand.position+forward*(arm*.035f);owner.Weapon.rotation=BatRotation(axis,forward,up);
+            for(int i=0;i<bones.Length;i++){
+                bones[i].localPosition=Vector3.Lerp(positions[i],bones[i].localPosition,weight);
+                bones[i].localRotation=Quaternion.Slerp(rotations[i],bones[i].localRotation,weight);
+            }
+        }
         void Pose(bool twoHands,float before,float after,float weight,SahurAnimationTuning tuning){
             Capture();
             var actor=owner.transform;Vector3 up=actor.up,right=actor.right,forward=actor.forward;
