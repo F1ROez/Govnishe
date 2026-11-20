@@ -40,7 +40,7 @@ def package_windows(build: pathlib.Path, destination: pathlib.Path) -> dict:
             dont_ship=any('donotship' in part.casefold().replace('_','') or 'dontship' in part.casefold().replace('_','') or 'backupthisfolder' in part.casefold().replace('_','') for part in relative.parts)
             if path.is_file() and path.name != 'alpha-build-report.json' and not dont_ship and path.suffix.lower() not in {'.pdb','.mdb'}: archive.write(path, relative.as_posix())
         archive.write(ROOT / 'Assets/Brainrot/Art/Fonts/OFL.txt', 'LICENSES/IslandRounded-OFL.txt')
-        archive.writestr('README_ALPHA.txt', 'Brainrot Ireland — Windows test alpha\nExtract the complete ZIP and start BrainrotIreland.exe.\nWASD movement; mouse camera; LMB strike, hold/release heavy strike; Shift sprint; Space dash; V camera lock; Escape pause.\nThis package passed only the automated stages recorded in the external summary.json. Manual gameplay/hardware acceptance and asset rights must be reviewed before public release.\n')
+        archive.writestr('README_ALPHA.txt', 'Brainrot Ireland — Windows test alpha\nExtract the complete ZIP and start BrainrotIreland.exe.\nWASD movement; mouse camera; LMB strike, hold/release heavy strike; RMB boomerang; Shift sprint; Space dash; V camera lock; Escape pause.\nBetween waves: E near the stall opens the shop; hold F to start the next wave. Coins and upgrades last only for the current run.\nThis package passed only the automated stages recorded in the external summary.json. Manual gameplay/hardware acceptance and asset rights must be reviewed before public release.\n')
     with destination.open('rb') as stream:digest=stream_sha256(stream)
     return {'zip': str(destination), 'bytes': destination.stat().st_size, 'sha256': digest}
 

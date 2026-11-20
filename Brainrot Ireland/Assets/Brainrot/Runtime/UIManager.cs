@@ -50,7 +50,7 @@ namespace Brainrot
             scale.referenceResolution = new Vector2(1280, 720); scale.matchWidthOrHeight = .5f;
             UIInputRouter.EnsureForScene(gameObject.scene);
             hud = Box("HUD", root.transform, Vector2.zero, Vector2.one, Color.clear);
-            var plate=Box("Здоровье и выносливость",hud.transform,new Vector2(.018f,.855f),new Vector2(.05f,.985f),new Color(.035f,.14f,.17f,.92f));
+            var plate=Box("Здоровье и выносливость",hud.transform,new Vector2(.018f,.855f),new Vector2(.29f,.985f),new Color(.035f,.14f,.17f,.92f));
             healthFill=Bar(plate.transform,new Vector2(.05f,.55f),new Vector2(.952f,.87f),new Color(1,.105f,.16f));
             xpFill=Bar(plate.transform,new Vector2(.05f,.19f),new Vector2(.952f,.49f),new Color(0,.83f,1));
             healthText=Label(plate.transform,"ЗДОРОВЬЕ",16,TextAnchor.MiddleCenter,new Vector2(.07f,.55f),new Vector2(.94f,.87f));
@@ -377,6 +377,7 @@ namespace Brainrot
             var attack=Button(mobile.transform,"УДАР",new Vector2(.82f,.11f),new Vector2(.97f,.29f),()=>{});attack.gameObject.AddComponent<MobileHoldButton>().Action=0;
             var sprint=Button(mobile.transform,"БЕГ",new Vector2(.27f,.12f),new Vector2(.38f,.23f),()=>{});sprint.gameObject.AddComponent<MobileHoldButton>().Action=1;
             Button(mobile.transform,"РЫВОК",new Vector2(.68f,.12f),new Vector2(.8f,.23f),()=>MobileInput.Dash=true);
+            var throwButton=Button(mobile.transform,"БРОСОК",new Vector2(.68f,.26f),new Vector2(.8f,.37f),()=>{});throwButton.gameObject.AddComponent<MobileHoldButton>().Action=2;
             
         }
         static string ZoneHint(IslandZone zone)

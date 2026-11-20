@@ -143,7 +143,8 @@ namespace Brainrot
             float targetX=down?.985f:raised?1.06f:1,targetY=down?.945f:raised?1.06f:1;
             float targetLift=down?-3.5f:raised?1.5f:0;
             // Substeps keep a responsive, lightly damped spring stable after a dropped frame.
-            int count=Mathf.Max(1,Mathf.CeilToInt(dt*120));float step=dt/count;
+            bool moving=scaleX!=targetX||scaleY!=targetY||lift!=targetLift||velocityX!=0||velocityY!=0||liftVelocity!=0;
+            int count=moving?Mathf.Max(1,Mathf.CeilToInt(dt*120)):0;float step=count>0?dt/count:0;
             for(int i=0;i<count;i++){
                 Spring(ref scaleX,ref velocityX,targetX,down?1000:480,down?48:32,step);
                 Spring(ref scaleY,ref velocityY,targetY,down?1000:480,down?48:32,step);

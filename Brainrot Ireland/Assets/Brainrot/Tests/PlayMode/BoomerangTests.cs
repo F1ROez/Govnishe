@@ -62,6 +62,15 @@ namespace Brainrot.Tests
             game.Player.Combat.ResetRun();Assert.AreEqual(0,game.Player.Combat.BoomerangCooldownRemaining);
             Assert.IsTrue(game.Player.Combat.ExecuteBoomerang());
         }
+        [UnityTest]public IEnumerator AReturnedBatAllowsMeleeWhileOnlyTheThrowIsCooling(){
+            balance.Boomerang.CooldownSeconds=3;
+            Assert.IsTrue(game.Player.Combat.ExecuteBoomerang());
+            yield return new WaitForSeconds(.14f+balance.Boomerang.OutSeconds+balance.Boomerang.ReturnSeconds+.2f);
+            Assert.IsFalse(game.Player.Combat.BoomerangActive);
+            Assert.Greater(game.Player.Combat.BoomerangCooldownRemaining,0);
+            Assert.IsFalse(game.Player.Combat.ExecuteBoomerang());
+            Assert.IsTrue(game.Player.Combat.ExecuteAttack(false),"The throw cooldown must not disable ordinary melee after the catch.");
+        }
         [Test]public void SweptEntryUsesTheBodyBoundary(){
             Assert.IsTrue(BatBoomerang.SegmentEntry(Vector3.zero,Vector3.forward*10,Vector3.forward*5,1,out float entry));
             Assert.AreEqual(.4f,entry,.0001f);

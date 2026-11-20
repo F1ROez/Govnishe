@@ -84,12 +84,17 @@ namespace Brainrot
             list.Add(new CombineInstance{mesh=mesh,transform=Matrix4x4.TRS(point,rotation,scale)});
         }
         void Combine(){
+            int sourceMeshCount=meshes.Count;
             foreach(var pair in pieces){
                 var mesh=Own(new Mesh{name="Лавка — объединённая геометрия"});mesh.CombineMeshes(pair.Value.ToArray(),true,true);mesh.RecalculateBounds();
                 var go=new GameObject(pair.Key.name,typeof(MeshFilter),typeof(MeshRenderer));go.transform.SetParent(visual,false);go.GetComponent<MeshFilter>().sharedMesh=mesh;
                 var renderer=go.GetComponent<MeshRenderer>();renderer.sharedMaterial=pair.Key;renderer.shadowCastingMode=ShadowCastingMode.On;
             }
             pieces.Clear();
+            // CombineMeshes copies vertices. Retaining the construction primitives and nine
+            // canvas strips afterwards duplicated mesh memory for the lifetime of every run.
+            for(int i=0;i<sourceMeshCount;i++)if(meshes[i]!=null)Destroy(meshes[i]);
+            meshes.RemoveRange(0,sourceMeshCount);box=cylinder=sphere=null;
         }
         static Mesh Box(){
             Vector3[] corners={new Vector3(-.5f,-.5f,-.5f),new Vector3(.5f,-.5f,-.5f),new Vector3(.5f,.5f,-.5f),new Vector3(-.5f,.5f,-.5f),new Vector3(-.5f,-.5f,.5f),new Vector3(.5f,-.5f,.5f),new Vector3(.5f,.5f,.5f),new Vector3(-.5f,.5f,.5f)};

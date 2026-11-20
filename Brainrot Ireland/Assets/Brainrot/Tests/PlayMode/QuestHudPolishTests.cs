@@ -41,9 +41,9 @@ namespace Brainrot.Tests
                 var card=parent.AddComponent<HudQuestCard>();card.Build();
                 var value=new ChallengeCardData {Id=1,Title="50 ПОБЕЖДЁННЫХ",Detail="ПОБЕДИ 50 ПРОТИВНИКОВ",Current=17,Target=50,Icon="HeavyIcon"};
                 card.Present(value);int childCount=parent.GetComponentsInChildren<Transform>(true).Length;
-                Assert.AreEqual("17 / 50",parent.transform.Find("Золотой кант/Морская эмаль/Счётчик").GetComponent<Text>().text);
+                Assert.AreEqual("17 / 50",parent.transform.Find("Панель испытания/Морская эмаль/Счётчик").GetComponent<Text>().text);
                 value.Current=50;value.Complete=true;card.Present(value);
-                Assert.IsTrue(card.Complete);Assert.AreEqual("ГОТОВО",parent.transform.Find("Золотой кант/Морская эмаль/Счётчик").GetComponent<Text>().text);
+                Assert.IsTrue(card.Complete);Assert.AreEqual("ГОТОВО",parent.transform.Find("Панель испытания/Морская эмаль/Счётчик").GetComponent<Text>().text);
                 for(int i=0;i<10;i++)card.Present(value);
                 Assert.AreEqual(childCount,parent.GetComponentsInChildren<Transform>(true).Length);
                 card.Present(default);Assert.IsFalse(parent.activeSelf);

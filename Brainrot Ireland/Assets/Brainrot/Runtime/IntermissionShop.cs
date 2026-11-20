@@ -51,7 +51,7 @@ namespace Brainrot
             if(!TryFindPlacement(GameBalance.Current.Intermission.Position,game.Player.transform.position,Blocked,out position))return;
             var facing=game.Player.transform.position-position;facing.y=0;
             model.transform.SetPositionAndRotation(position,facing.sqrMagnitude>.01f?Quaternion.LookRotation(facing):Quaternion.identity);
-            model.SetVisible(true);GameAudio.Play(720,.06f,.09f);
+            model.SetVisible(true);GameAudio.PlayMarketAppear();
         }
         bool Blocked(Vector3 point){
             int count=Physics.OverlapBoxNonAlloc(point+Vector3.up*1.5f,new Vector3(2.4f,1.4f,2.4f),blockers,Quaternion.identity,~0,QueryTriggerInteraction.Ignore);

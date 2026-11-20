@@ -31,8 +31,9 @@ namespace Brainrot
         static bool Matches(string runId)=>Current!=null&&Current.Active&&Current.RunId==runId;
         public static int RunEarned(string runId)=>Current!=null&&Current.RunId==runId?Current.Earned:0;
         public static bool IsClaimed(string runId,int dropId)=>Matches(runId)&&Current.IsClaimed(dropId);
-        public static bool Award(string runId,int dropId,int amount)=>AwardBatch(runId,new[]{dropId},new[]{amount});
+        public static bool Award(string runId,int dropId,int amount)=>Matches(runId)&&Current.Award(dropId,amount);
         public static bool AwardBatch(string runId,int[] ids,int[] amounts)=>Matches(runId)&&Current.AwardBatch(ids,amounts);
+        public static bool AwardBatch(string runId,int[] ids,int[] amounts,int count)=>Matches(runId)&&Current.AwardBatch(ids,amounts,count);
         /// <summary>Old permanent-money fields are migration input only, never active progression.</summary>
         internal static void Sanitize(SaveData data){
             data.Coins=0;data.UpgradeRanks=Array.Empty<int>();data.CoinRunId="";data.CoinRunEarned=0;data.ClaimedCoinIds=Array.Empty<int>();

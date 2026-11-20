@@ -10,8 +10,9 @@ namespace Brainrot
         static bool muted;
         static bool focused=true,applicationPaused;
         public static bool IsMuted=>muted;
-        AudioSource menuSource,gameplaySource,buttonSource;
-        AudioClip menuClip,buttonClip;
+        AudioSource menuSource,gameplaySource,buttonSource,feedbackSource;
+        AudioClip menuClip,buttonClip,purchaseClip,rejectClip;
+        bool ownsButtonClip;float nextButtonAt,nextFeedbackAt;
         AudioClip[] tracks=Array.Empty<AudioClip>();
         MusicShuffleBag order;
         bool gameplayPaused,waitingForStart;
@@ -32,8 +33,10 @@ namespace Brainrot
         {
             if(instance!=null&&instance!=this){Destroy(gameObject);return;}
             instance=this;DontDestroyOnLoad(gameObject);
-            menuSource=Source("Меню",.75f,true);gameplaySource=Source("Игра",.62f,false);buttonSource=Source("Кнопки",.85f,false);
+            menuSource=Source("Меню",.75f,true);gameplaySource=Source("Игра",.62f,false);buttonSource=Source("Кнопки",.85f,false);feedbackSource=Source("Покупки",.42f,false);
             menuClip=Resources.Load<AudioClip>("Audio/Menu");buttonClip=Resources.Load<AudioClip>("Audio/Button");
+            if(buttonClip==null){buttonClip=CreateFeedback("Нажатие",0);ownsButtonClip=true;}
+            purchaseClip=CreateFeedback("Покупка улучшения",1);rejectClip=CreateFeedback("Недоступная покупка",2);
             tracks=Resources.LoadAll<AudioClip>("Audio/Gameplay");
             Array.Sort(tracks,(a,b)=>StringComparer.Ordinal.Compare(a.name,b.name));order=new MusicShuffleBag(tracks.Length);
             menuSource.clip=menuClip;menuSource.volume=gameplaySource.volume=0;
@@ -53,7 +56,27 @@ namespace Brainrot
             var music=Ensure();if(music==null)return;music.gameplaySource.Stop();music.gameplaySource.clip=null;music.gameplayPaused=false;music.waitingForStart=false;
             music.Mode=PlaybackMode.Paused;music.EnterGameplay();
         }
-        public static void PlayButtonClick(){var music=Ensure();if(music!=null&&music.buttonClip!=null)music.buttonSource.PlayOneShot(music.buttonClip);}
+        public static void PlayButtonClick(){
+            var music=Ensure();if(music==null||AudioListener.pause||Time.unscaledTime<music.nextButtonAt)return;
+            // One persistent voice: rapid presses must not accumulate overlapping PlayOneShot voices.
+            music.nextButtonAt=Time.unscaledTime+.04f;music.buttonSource.clip=music.buttonClip;music.buttonSource.Play();
+        }
+        public static void PlayPurchase(bool success){
+            var music=Ensure();if(music==null||AudioListener.pause||Time.unscaledTime<music.nextFeedbackAt)return;
+            music.nextFeedbackAt=Time.unscaledTime+.08f;music.feedbackSource.clip=success?music.purchaseClip:music.rejectClip;music.feedbackSource.Play();
+        }
+        static AudioClip CreateFeedback(string name,int style){
+            const int rate=22050;float length=style==1?.24f:style==2?.13f:.045f;int size=Mathf.CeilToInt(length*rate);var data=new float[size];
+            for(int i=0;i<size;i++){
+                float p=i/(float)(size-1),t=i/(float)rate,envelope=Mathf.Sin(Mathf.PI*p)*Mathf.Exp(-p*3);
+                float frequency=style==1?660:style==2?180:820;
+                float signal=Mathf.Sin(2*Mathf.PI*frequency*t)*.32f;
+                if(style==1)signal+=Mathf.Sin(2*Mathf.PI*990*t)*Mathf.Sin(Mathf.PI*p)*.20f;
+                else if(style==2)signal+=Mathf.Sin(2*Mathf.PI*147*t)*.10f;
+                data[i]=signal*envelope;
+            }
+            var clip=AudioClip.Create(name,size,1,rate,false);clip.SetData(data,0);return clip;
+        }
         void EnterMenu()
         {
             ApplyVolume();
@@ -90,13 +113,17 @@ namespace Brainrot
             menuSource.volume=Mathf.Lerp(menuSource.volume,Mode==PlaybackMode.Menu?.75f:0,blend);
             gameplaySource.volume=Mathf.Lerp(gameplaySource.volume,Mode==PlaybackMode.Gameplay?.62f:0,blend);
             if(Mode!=PlaybackMode.Menu&&menuSource.isPlaying&&menuSource.volume<.003f)menuSource.Pause();
-            if(Mode!=PlaybackMode.Gameplay||tracks.Length==0)return;
+            if(Mode!=PlaybackMode.Gameplay||tracks.Length==0||AudioListener.pause)return;
             if(gameplaySource.isPlaying){waitingForStart=false;return;}
             // A streaming clip may need several frames before it can start; do not skip every frame while loading.
             if(waitingForStart&&Time.unscaledTime<startDeadline)return;
             waitingForStart=false;StartNextTrack();
         }
-        void OnDestroy(){if(instance==this)instance=null;}
+        void OnDestroy(){
+            if(instance!=this)return;instance=null;
+            if(ownsButtonClip&&buttonClip!=null)Destroy(buttonClip);
+            if(purchaseClip!=null)Destroy(purchaseClip);if(rejectClip!=null)Destroy(rejectClip);
+        }
         void OnApplicationFocus(bool value){focused=value;AudioListener.pause=!focused||applicationPaused;}
         void OnApplicationPause(bool value){applicationPaused=value;AudioListener.pause=!focused||applicationPaused;}
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]static void ResetStatic(){instance=null;muted=false;focused=true;applicationPaused=false;AudioListener.pause=false;}

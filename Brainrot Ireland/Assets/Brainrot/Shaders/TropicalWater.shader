@@ -55,9 +55,14 @@ Shader "Brainrot/TropicalWater"
     float2 crossDirection=float2(warped.x*.83+warped.y*.55,-warped.x*.55+warped.y*.83);
     float3 small=NoiseSlope(crossDirection*1.73+float2(-t*.22,t*.17)+19.3);
     float broad=Noise(p*.26+float2(t*.035,-t*.028));
-    float wave=(large.x*.64+small.x*.36-.5)*2;
+    // Average sub-pixel ripples towards their mean before lighting. Specular-only
+    // filtering cannot stop unresolved normal slopes flickering at grazing angles.
+    float footprint=max(length(ddx(warped)),length(ddy(warped)));
+    float largeWeight=.64*(1-smoothstep(.8,3.6,footprint));
+    float smallWeight=.36*(1-smoothstep(.4,1.8,footprint));
+    float wave=((large.x-.5)*largeWeight+(small.x-.5)*smallWeight)*2;
     float2 smallSlope=float2(small.y*.83-small.z*.55,small.y*.55+small.z*.83)*1.73;
-    float2 warpedSlope=large.yz*(.76*.64)+smallSlope*.36;
+    float2 warpedSlope=large.yz*(.76*largeWeight)+smallSlope*smallWeight;
     // Chain rule keeps light moving with the warped height instead of sliding across it.
     float2 slope=float2(warpedSlope.x+warpedSlope.y*cos(warpPhase.y)*(.29*1.15),
                         warpedSlope.y+warpedSlope.x*cos(warpPhase.x)*(.36*1.15));
@@ -87,7 +92,6 @@ Shader "Brainrot/TropicalWater"
     color*=.91+broad*.16;
     // Soft broad sunlight rather than a clipped white spotlight; distance fades small details.
     // Fade sub-pixel caustics and sparkles before they flicker at the horizon or on a small Android viewport.
-    float footprint=max(length(ddx(warped)),length(ddy(warped)));
     float detail=saturate(view.y*4)*(1-smoothstep(.18,.9,footprint));
     float sunFacing=saturate(dot(normal,halfVector));
     half spec=pow(saturate(sunFacing-fwidth(sunFacing)*.65),110)*.22;

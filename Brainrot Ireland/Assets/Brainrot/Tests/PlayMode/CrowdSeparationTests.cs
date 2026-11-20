@@ -27,6 +27,17 @@ namespace Brainrot.Tests
             foreach(var enemy in enemies){var position=enemy.transform.position;Assert.IsFalse(float.IsNaN(position.x)||float.IsNaN(position.z));Assert.LessOrEqual(position.magnitude,4.5f/60+.0001f);moved|=position.sqrMagnitude>.000001f;}
             Assert.IsTrue(moved,"Even coincident centres must begin separating.");
         }
+        [Test]public void HashAliasesCannotUseUpTheActualNeighbourBudget(){
+            var first=Enemy(Vector3.zero);var near=Enemy(Vector3.right*.2f);
+            var enemies=new List<EnemyController>{first,near};var tuning=new CrowdTuning{Iterations=1,MaxNeighbours=4};
+            float cell=first.CrowdRadius*2+tuning.Padding;
+            // Coordinates differing by 256 hash into the same bucket, but are nowhere near this pair.
+            for(int i=1;i<=12;i++)enemies.Add(Enemy(new Vector3(0,0,cell*256*i+.1f)));
+            var solver=new CrowdSeparation();solver.Resolve(enemies,new Vector3(80,0,80),.48f,1/60f,tuning);
+            Assert.Less(first.transform.position.x,-.01f,"A real overlap must still be resolved behind unrelated hash entries.");
+            Assert.Greater(near.transform.position.x,.21f);
+            Assert.LessOrEqual(solver.LastNeighbourChecks,enemies.Count*tuning.MaxNeighbours);
+        }
         [Test]public void CommittedChargeAndHeadAttachedOctopusAreNotMoved(){
             var charge=Enemy(Vector3.zero);typeof(EnemyController).GetProperty("Action").SetValue(charge,EnemyAction.Charging);
             var attached=Enemy(Vector3.up*1.6f);var attack=attached.gameObject.AddComponent<OctopusAttack>();

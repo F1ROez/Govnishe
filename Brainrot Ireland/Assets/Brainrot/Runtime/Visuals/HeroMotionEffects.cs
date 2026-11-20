@@ -8,7 +8,10 @@ namespace Brainrot
         PlayerController player;ParticleSystem dust;TrailRenderer ribbon;Material dustMaterial,trailMaterial;Texture2D soft;
         Vector3 previous;float stepClock;bool left,wasVisible,wasDashing;float dashDustClock;
         public void Initialize(PlayerController value){
+            if(value==null)return;
             player=value;
+            // Reinitializing the same component must not leave extra particles, trails or materials behind.
+            if(dust!=null&&ribbon!=null){ribbon.transform.SetParent(player.transform,false);ribbon.transform.localPosition=Vector3.up*.75f;ResetEffects();return;}
             var go=new GameObject("Мягкий песок под ногами",typeof(ParticleSystem));go.transform.SetParent(transform,false);dust=go.GetComponent<ParticleSystem>();dust.Stop(true,ParticleSystemStopBehavior.StopEmittingAndClear);
             var main=dust.main;main.playOnAwake=false;main.loop=false;main.duration=.5f;main.startLifetime=.28f;main.startSize=.12f;main.startSpeed=0;main.maxParticles=64;main.simulationSpace=ParticleSystemSimulationSpace.World;main.gravityModifier=-.025f;
             var emission=dust.emission;emission.enabled=false;var shape=dust.shape;shape.enabled=false;
@@ -62,6 +65,7 @@ namespace Brainrot
                 dust.Emit(emit,1);
             }
         }
-        void OnDestroy(){if(ribbon!=null)Destroy(ribbon.gameObject);if(dustMaterial!=null)Destroy(dustMaterial);if(trailMaterial!=null)Destroy(trailMaterial);if(soft!=null)Destroy(soft);}
+        void OnDisable(){ResetEffects();}
+        void OnDestroy(){if(dust!=null)Destroy(dust.gameObject);if(ribbon!=null)Destroy(ribbon.gameObject);if(dustMaterial!=null)Destroy(dustMaterial);if(trailMaterial!=null)Destroy(trailMaterial);if(soft!=null)Destroy(soft);}
     }
 }

@@ -39,7 +39,7 @@ namespace Brainrot
             flower=WorldMaterial(new Color(1,.065f,.09f),"Red hibiscus petals");flowerGold=WorldMaterial(new Color(1,.71f,.03f),"Golden flower stamens");
             shellMaterial=WorldMaterial(Color.white,"Cream seashells with peach growth bands");shellMaterial.SetTexture("_BaseMap",ShellPalette());
             coconut=WorldMaterial(new Color(.64f,.32f,.09f),"Golden coconut husks");
-            leafLight=WorldMaterial(new Color(.87f,.98f,.66f),"Young lime leaves");leafLight.SetTexture("_BaseMap",LeafPalette());leafLight.SetFloat("_Smoothness",.28f);
+            leafLight=WorldMaterial(new Color(.87f,.98f,.66f),"Young lime leaves");leafLight.SetTexture("_BaseMap",leaf.GetTexture("_BaseMap"));leafLight.SetFloat("_Smoothness",.28f);
             beachRock=BeachRockMesh();beachPlant=PalmCrown(0,.9f,6);shellMesh=ShellMesh();
             leaf.SetFloat("_Cull",0);leafLight.SetFloat("_Cull",0);grass.SetFloat("_Cull",0);
             var rng = new System.Random(731);

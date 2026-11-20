@@ -424,6 +424,13 @@ namespace Brainrot
                 Weapon.localRotation=Quaternion.Euler(0,yaw,-5+Mathf.Sin(progress*Mathf.PI)*8);
                 if(rightArm!=null)rightArm.localRotation=Quaternion.Euler(-70,yaw*.65f,-15);
             }
+            // Recover the fallback model continuously instead of snapping the bat/arms back
+            // on the final frame. The imported rig has its own weighted recovery.
+            float recovery=Mathf.SmoothStep(0,1,attackRemaining/Mathf.Min(.09f,attackDuration*.28f));
+            Weapon.localPosition=Vector3.Lerp(weaponRestPosition,Weapon.localPosition,recovery);
+            Weapon.localRotation=Quaternion.Slerp(weaponRestRotation,Weapon.localRotation,recovery);
+            if(rightArm!=null)rightArm.localRotation=Quaternion.Slerp(Quaternion.Euler(0,0,-10),rightArm.localRotation,recovery);
+            if(leftArm!=null&&heavySwing)leftArm.localRotation=Quaternion.Slerp(Quaternion.Euler(0,0,-10),leftArm.localRotation,recovery);
             if(batTrail!=null)batTrail.emitting=impactPause<=0&&progress>.03f&&progress<.86f;
             if(attackRemaining<=0){Weapon.localPosition=weaponRestPosition;Weapon.localRotation=weaponRestRotation;if(batTrail!=null)batTrail.emitting=false;}
         }
@@ -463,7 +470,7 @@ namespace Brainrot
             if(leftArm!=null)leftArm.localRotation=Quaternion.Euler(0,0,-10);
             if(batTrail!=null){batTrail.emitting=false;batTrail.Clear();}
         }
-        void OnDisable(){ResetFeedback();ResetAttack();ResetBite();}
+        void OnDisable(){SetWeaponThrown(false);ResetFeedback();ResetAttack();ResetBite();}
         float biteRemaining,biteDuration;
         public void PlayBite(float duration=.32f){if(importedEnemy!=null){importedEnemy.PlayBite(duration);return;}if(!isShark)return;biteDuration=Mathf.Max(.15f,duration);biteRemaining=biteDuration;}
         public float BiteProgress=>biteRemaining>0?1-biteRemaining/biteDuration:1;

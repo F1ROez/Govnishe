@@ -29,7 +29,7 @@ namespace Brainrot
         SahurCombatPose procedural;
         Vector3 localVelocity,shownVelocity;
         bool dashing;
-        float locomotionSpeed,dashLean,locomotionWeight=1;
+        float locomotionSpeed,dashLean,locomotionWeight=1,animatorSpeed=float.NaN;
         Transform body;
         Quaternion bodyBaseline;
         bool bodyPosed;
@@ -81,7 +81,7 @@ namespace Brainrot
             if(Normalization==null)return false;
             var skins=ModelRoot.GetComponentsInChildren<SkinnedMeshRenderer>(true);
             foreach(var skin in skins){skin.enabled=true;skin.forceRenderingOff=false;skin.updateWhenOffscreen=true;}
-            if(Animator!=null&&Animator.runtimeAnimatorController!=null){Animator.cullingMode=AnimatorCullingMode.AlwaysAnimate;Animator.Rebind();Animator.Update(0);}
+            if(Animator!=null&&Animator.runtimeAnimatorController!=null){Animator.cullingMode=AnimatorCullingMode.AlwaysAnimate;Animator.Rebind();Animator.Update(0);animatorSpeed=float.NaN;}
             // The live Unity report exposed inconsistent BakeMesh scale with the FBX's 100x transforms.
             // Use the live WORLD bounds that Unity actually culls/renders. Skin bounds may follow rootBone,
             // so transforming localBounds through the mesh transform is not reliable for every imported rig.
@@ -115,7 +115,11 @@ namespace Brainrot
         public void Animate(float movement,bool attacking){
             locomotionSpeed=Mathf.Lerp(locomotionSpeed,Mathf.Max(0,movement),1-Mathf.Exp(-18*Mathf.Max(0,Time.deltaTime)));
             if(locomotionSpeed<.005f)locomotionSpeed=0;
-            if(Animator!=null&&Animator.runtimeAnimatorController!=null)Animator.SetFloat(Speed,locomotionSpeed);
+            SetAnimatorSpeed(locomotionSpeed);
+        }
+        void SetAnimatorSpeed(float value){
+            if(Animator==null||!Animator.isActiveAndEnabled||Animator.runtimeAnimatorController==null)return;
+            if(float.IsNaN(animatorSpeed)||Mathf.Abs(animatorSpeed-value)>.001f){Animator.SetFloat(Speed,value);animatorSpeed=value;}
         }
         public void SetAttackReach(float range){ /* Gameplay reach belongs to the sector, not to mesh stretching. */ }
         public void SetChargePose(float progress,bool active){charging=active&&remaining<=0;chargeProgress=Mathf.Clamp01(progress);if(!charging)procedural?.Restore();}
@@ -225,8 +229,8 @@ namespace Brainrot
         }
         void RestoreArms(){if(RightUpperArm!=null)RightUpperArm.localRotation=upperRest;if(RightForearm!=null)RightForearm.localRotation=foreRest;}
         public void ResetAttack(){ResetAttackState(true);}
-        void ResetAttackState(bool resetMovement){if(resetMovement){shownVelocity=localVelocity=Vector3.zero;locomotionSpeed=dashLean=0;locomotionWeight=1;dashing=false;if(Animator!=null&&Animator.runtimeAnimatorController!=null)Animator.SetFloat(Speed,0);}
+        void ResetAttackState(bool resetMovement){if(resetMovement){shownVelocity=localVelocity=Vector3.zero;locomotionSpeed=dashLean=0;locomotionWeight=1;dashing=false;SetAnimatorSpeed(0);}
             bool retargeted=UsesRetargetedAttack;RestoreSampledPose();procedural?.Restore();RestoreLocomotion();remaining=impactPause=pausedAttackTime=0;charging=heavyAttack=fromCharge=throwing=false;chargeProgress=0;if(!retargeted&&!UsesProceduralAttack)RestoreArms();if(Weapon!=null)Weapon.localScale=Vector3.one;if(Trail!=null){Trail.emitting=false;Trail.Clear();}}
-        void OnDisable(){ResetAttack();shownVelocity=localVelocity=Vector3.zero;locomotionSpeed=dashLean=0;locomotionWeight=1;dashing=false;}
+        void OnDisable(){ResetAttack();animatorSpeed=float.NaN;shownVelocity=localVelocity=Vector3.zero;locomotionSpeed=dashLean=0;locomotionWeight=1;dashing=false;}
     }
 }

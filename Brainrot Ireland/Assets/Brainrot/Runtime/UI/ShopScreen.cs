@@ -8,6 +8,7 @@ namespace Brainrot
     public sealed class ShopScreen:MonoBehaviour
     {
         Transform host;GameObject content;UnityAction back;bool runShop;string feedback="";float feedbackUntil;Text footer,wallet;
+        Button backButton;
         int shownBalance=int.MinValue,selectedOffer;readonly System.Collections.Generic.List<Button> purchases=new System.Collections.Generic.List<Button>(4);
         readonly System.Collections.Generic.List<int> purchaseIds=new System.Collections.Generic.List<int>(3);
         readonly System.Collections.Generic.List<Image> cardEdges=new System.Collections.Generic.List<Image>(3);
@@ -33,7 +34,7 @@ namespace Brainrot
             for(int i=0;i<purchases.Count;i++){int id=purchaseIds[i];purchases[i].interactable=RunContext&&!game.Economy.IsOfferSold(id)&&MetaProgression.Rank(id)<MetaProgression.Catalog[id].MaxRank&&balance>=MetaProgression.Cost(id);}
         }
         void Build(int focus=-1){
-            if(content!=null){content.SetActive(false);Destroy(content);}purchases.Clear();purchaseIds.Clear();cardEdges.Clear();dots.Clear();shownBalance=int.MinValue;wallet=null;
+            if(content!=null){content.SetActive(false);Destroy(content);}purchases.Clear();purchaseIds.Clear();cardEdges.Clear();dots.Clear();shownBalance=int.MinValue;wallet=null;backButton=null;
             content=new GameObject("Содержимое магазина",typeof(RectTransform));content.transform.SetParent(host,false);ReferenceScreens.Rect((RectTransform)content.transform,0,0,1,1);
             if(!runShop){BuildSkins(ReferenceScreens.Panel(content.transform,"МАГАЗИН СКИНОВ",.18f,.16f,.64f,.77f));return;}
             ReferenceScreens.Surface(content.transform,"Морское стекло",0,0,1,1,new Color(.012f,.12f,.16f,.87f));
@@ -43,7 +44,7 @@ namespace Brainrot
             if(!RunContext){
                 ReferenceScreens.Text(content.transform,"ЛАВКА ОТКРЫВАЕТСЯ МЕЖДУ ВОЛНАМИ",30,.15f,.37f,.70f,.13f);
                 ReferenceScreens.Text(content.transform,"Подойди к прилавку после зачистки и нажми E.",23,.20f,.52f,.60f,.10f);
-                ReferenceScreens.SeaButton(content.transform,"НАЗАД",.36f,.80f,.28f,.09f,back,25,true,null,false);return;
+                backButton=ReferenceScreens.SeaButton(content.transform,"НАЗАД",.36f,.80f,.28f,.09f,back,25,true,null,false);if(EventSystem.current!=null)EventSystem.current.SetSelectedGameObject(backButton.gameObject);return;
             }
             var game=GameManager.Instance;game.Economy.EnsureOffers(game.Wave);var offers=game.Economy.OfferIds;
             int count=offers.Count;
@@ -81,16 +82,19 @@ namespace Brainrot
             if(count==0)ReferenceScreens.Text(content.transform,"ВСЕ УЛУЧШЕНИЯ ЭТОГО ЗАБЕГА МАКСИМАЛЬНЫ",29,.16f,.41f,.68f,.15f);
             Arrow(.055f,false);Arrow(.89f,true);
             footer=ReferenceScreens.Text(content.transform,feedback.Length>0?feedback:RunNote,15,.16f,.93f,.68f,.035f);
-            ReferenceScreens.SeaButton(content.transform,"НАЗАД · ESC",.39f,.865f,.22f,.065f,back,14,false,null,false);
+            backButton=ReferenceScreens.SeaButton(content.transform,"НАЗАД · ESC",.39f,.865f,.22f,.065f,back,14,false,null,false);
             UpdateBalance();SelectOffer(selectedOffer);
         }
         void SelectOffer(int index,bool focus=true){
-            if(purchases.Count==0)return;selectedOffer=(index%purchases.Count+purchases.Count)%purchases.Count;
+            if(purchases.Count==0){if(focus&&EventSystem.current!=null&&backButton!=null)EventSystem.current.SetSelectedGameObject(backButton.gameObject);return;}selectedOffer=(index%purchases.Count+purchases.Count)%purchases.Count;
             for(int i=0;i<cardEdges.Count;i++){
                 cardEdges[i].color=i==selectedOffer?ReferenceScreens.Accent:new Color(.17f,.33f,.35f);
                 dots[i].color=i==selectedOffer?ReferenceScreens.Accent:new Color(.31f,.55f,.57f,.65f);
             }
-            if(focus&&EventSystem.current!=null&&purchases[selectedOffer].interactable)EventSystem.current.SetSelectedGameObject(purchases[selectedOffer].gameObject);
+            if(focus&&EventSystem.current!=null){
+                Button target=purchases[selectedOffer].interactable?purchases[selectedOffer]:backButton;
+                if(target!=null)EventSystem.current.SetSelectedGameObject(target.gameObject);
+            }
         }
         void Arrow(float x,bool next){
             var hit=ReferenceScreens.Surface(content.transform,next?"Следующее предложение":"Предыдущее предложение",x,.48f,.055f,.105f,Color.clear);hit.raycastTarget=true;
@@ -107,6 +111,6 @@ namespace Brainrot
             ReferenceScreens.SeaText(frame,"Боевые улучшения покупаются в лавке между волнами.",19,.10f,.775f,.80f,.055f);
             var button=Back(frame);if(EventSystem.current!=null)EventSystem.current.SetSelectedGameObject(button.gameObject);
         }
-        Button Back(Transform frame)=>ReferenceScreens.SeaButton(frame,runShop?"ВЕРНУТЬСЯ НА ОСТРОВ":"НАЗАД",.235f,.865f,.53f,.15f,back,runShop?28:44,true);
+        Button Back(Transform frame)=>ReferenceScreens.SeaButton(frame,runShop?"ВЕРНУТЬСЯ НА ОСТРОВ":"НАЗАД",.235f,.865f,.53f,.105f,back,runShop?26:34,true);
     }
 }

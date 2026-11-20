@@ -56,7 +56,7 @@ namespace Brainrot
             this.owner = owner; Kind = kind;
             if(PhysicsBody==null)PhysicsBody=gameObject.AddComponent<EnemyPhysicsBody>();PhysicsBody.ResetBody();
             if(capsule==null)capsule=GetComponent<CapsuleCollider>();
-            if(capsule!=null){capsule.radius=kind==EnemyKind.Orcaladon?Mathf.Max(.1f,GameBalance.Current.Orcaladon.CollisionRadius):.55f;capsule.height=kind==EnemyKind.Orcaladon?Mathf.Max(Mathf.Max(.5f,GameBalance.Current.Orcaladon.ModelHeight),capsule.radius*2):2;capsule.center=Vector3.up*capsule.height*.5f;}
+            UpdateCapsuleShape();
             tuning = GameBalance.Current.Enemy(kind);
             HomeZone = IslandMap.GetZone(position);
             HomePosition = position;
@@ -96,10 +96,15 @@ namespace Brainrot
         }
         void LateUpdate(){
             ApplyVisualScale();
-            if(Kind==EnemyKind.Orcaladon&&capsule!=null){
-                float height=Mathf.Max(Mathf.Max(.5f,GameBalance.Current.Orcaladon.ModelHeight),capsule.radius*2);
-                if(!Mathf.Approximately(capsule.height,height)){capsule.height=height;capsule.center=Vector3.up*height*.5f;}
-            }
+            if(Kind==EnemyKind.Orcaladon)UpdateCapsuleShape();
+        }
+        void UpdateCapsuleShape(){
+            if(capsule==null)return;
+            float radius=Kind==EnemyKind.Orcaladon?Mathf.Max(.1f,GameBalance.Current.Orcaladon.CollisionRadius):.55f;
+            float height=Kind==EnemyKind.Orcaladon?Mathf.Max(Mathf.Max(.5f,GameBalance.Current.Orcaladon.ModelHeight),radius*2):2;
+            if(!Mathf.Approximately(capsule.radius,radius))capsule.radius=radius;
+            if(!Mathf.Approximately(capsule.height,height))capsule.height=height;
+            var center=Vector3.up*height*.5f;if(capsule.center!=center)capsule.center=center;
         }
         void ApplyVisualScale(){
             if(visual==null||tuning==null)return;
@@ -378,10 +383,11 @@ namespace Brainrot
     {
         static Material material;
         static readonly int BaseColor=Shader.PropertyToID("_BaseColor"),ColorId=Shader.PropertyToID("_Color");
-        static readonly Vector2[] cone=BuildCone();
+        static readonly Vector2[] cone=BuildCone(),circle=BuildCircle();
         readonly LineRenderer line,border;
         readonly MaterialPropertyBlock block=new MaterialPropertyBlock();
-        readonly Vector3[] points=new Vector3[35];
+        readonly Vector3[] conePoints=new Vector3[27],chargePoints=new Vector3[6],circlePoints=new Vector3[33];
+        Vector3[] points;
         public EnemyTelegraph(Transform owner)
         {
             if(material==null){
@@ -400,6 +406,11 @@ namespace Brainrot
             for(int i=0;i<result.Length;i++){float a=Mathf.Lerp(-angle,angle,i/24f)*Mathf.Deg2Rad;result[i]=new Vector2(Mathf.Sin(a),Mathf.Cos(a));}
             return result;
         }
+        static Vector2[] BuildCircle(){
+            var result=new Vector2[33];
+            for(int i=0;i<32;i++){float angle=i*Mathf.PI*2/32;result[i]=new Vector2(Mathf.Cos(angle),Mathf.Sin(angle));}
+            result[32]=result[0];return result;
+        }
         static LineRenderer Create(Transform owner,string title,int order){
             var go=new GameObject(title);go.transform.SetParent(owner,false);var renderer=go.AddComponent<LineRenderer>();
             renderer.sharedMaterial=material;renderer.useWorldSpace=true;renderer.numCapVertices=2;renderer.numCornerVertices=2;renderer.sortingOrder=order;
@@ -413,21 +424,22 @@ namespace Brainrot
             Colorize(border,new Color(.32f,.035f,.015f,.72f));
             Colorize(line,Color.Lerp(new Color(1,.72f,.12f,.95f),new Color(1,.23f,.08f,1),Mathf.Clamp01(progress)));
             line.enabled=border.enabled=true;if(line.positionCount!=count)line.positionCount=count;if(border.positionCount!=count)border.positionCount=count;
-            for(int i=0;i<count;i++){line.SetPosition(i,points[i]);border.SetPosition(i,points[i]);}
+            // Upload a complete cached buffer in two native calls, instead of 2*count calls.
+            line.SetPositions(points);border.SetPositions(points);
         }
         static Vector3 Ground(Vector3 point){point.y=.075f;return point;}
         public void Cone(Vector3 origin,Vector3 direction,float radius,float progress=0){
-            origin=Ground(origin);direction.y=0;direction=direction.sqrMagnitude>.0001f?direction.normalized:Vector3.forward;
+            points=conePoints;origin=Ground(origin);direction.y=0;direction=direction.sqrMagnitude>.0001f?direction.normalized:Vector3.forward;
             var side=Vector3.Cross(Vector3.up,direction);points[0]=origin;
             for(int i=0;i<cone.Length;i++)points[i+1]=origin+(side*cone[i].x+direction*cone[i].y)*radius;
             points[26]=origin;Show(27,progress);
         }
         public void ChargeStraight(Vector3 origin,Vector3 direction,float length,float width,float progress=1){
-            origin=Ground(origin);Vector3 side=Vector3.Cross(Vector3.up,direction)*width,end=origin+direction*length;
+            points=chargePoints;origin=Ground(origin);Vector3 side=Vector3.Cross(Vector3.up,direction)*width,end=origin+direction*length;
             points[0]=origin-side;points[1]=end-side;points[2]=end+direction*.5f;points[3]=end+side;points[4]=origin+side;points[5]=origin-side;Show(6,progress,true);
         }
         public void Circle(Vector3 origin,float radius,float progress=1){
-            origin=Ground(origin);for(int i=0;i<=32;i++){float angle=i*Mathf.PI*2/32;points[i]=origin+new Vector3(Mathf.Cos(angle),0,Mathf.Sin(angle))*radius;}Show(33,progress,true);
+            points=circlePoints;origin=Ground(origin);for(int i=0;i<circle.Length;i++)points[i]=origin+new Vector3(circle[i].x,0,circle[i].y)*radius;Show(33,progress,true);
         }
     }
 }

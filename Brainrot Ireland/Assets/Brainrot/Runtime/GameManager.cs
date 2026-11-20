@@ -77,7 +77,7 @@ namespace Brainrot {
   }
   public bool TryBuyRunUpgrade(int id){
    if(State!=GameState.RunShop||!WaveCleared||Player==null||Stall==null||!Stall.CanInteract)return false;
-   Economy.EnsureOffers(Wave);if(!Economy.TryBuyOffer(id))return false;
+   Economy.EnsureOffers(Wave);if(!Economy.TryBuyOffer(id)){GameMusic.PlayPurchase(false);return false;}
    switch(id){
     case 0:Player.Stats.Damage+=5;break;
     case 1:Player.Stats.MaxHealth+=15;Player.Heal(15);break;
@@ -85,7 +85,7 @@ namespace Brainrot {
     case 3:Player.Stats.DashCooldown=Mathf.Max(.25f,Player.Stats.DashCooldown-.12f);break;
     case 4:break; // Projectile reads the current attempt rank when launched.
    }
-   Notify("УЛУЧШЕНИЕ КУПЛЕНО — ДО КОНЦА ЗАБЕГА",2);return true;
+   GameMusic.PlayPurchase(true);Notify("УЛУЧШЕНИЕ КУПЛЕНО — ДО КОНЦА ЗАБЕГА",2);return true;
   }
   public void MainMenu(){SceneFlow.Instance.ShowMenu();}
   void RecordAttempt(){if(!HasRun)return;HasRun=false;SaveSystem.Record(Elapsed,Kills,Upgrades!=null?Upgrades.Level:0,Wave);}
@@ -95,9 +95,9 @@ namespace Brainrot {
   public void SuspendRun(){EndRun();}
   public bool ResumeRun()=>false;
 
-  public bool TryCollectCoins(int[] ids,int[] amounts){
-   if(amounts==null)return false;foreach(int amount in amounts)if(amount!=1)return false;
-   if(!IsPlaying||!MetaProgression.AwardBatch(CoinRunId,ids,amounts))return false;GameAudio.PlayCoin();return true;
+  public bool TryCollectCoins(int[] ids,int[] amounts)=>ids!=null&&amounts!=null&&ids.Length==amounts.Length&&TryCollectCoins(ids,amounts,ids.Length);
+  public bool TryCollectCoins(int[] ids,int[] amounts,int count){
+   if(!IsPlaying||!MetaProgression.AwardBatch(CoinRunId,ids,amounts,count))return false;GameAudio.PlayCoin();return true;
   }
   public bool TryCollectCoin(int id,int amount){
    if(amount!=1)return false;

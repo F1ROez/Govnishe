@@ -21,6 +21,7 @@ namespace Brainrot
         sealed class Coin {public Transform Root,Face;public int Id,Amount;public Vector3 Start,Landing,FlightStart;public float Age,Fly,RetryAt;public bool Active,Collecting,Landed;}
         readonly List<Coin> pending=new List<Coin>(Capacity);
         readonly List<Coin> pool=new List<Coin>(Capacity);
+        readonly int[] pickupIds=new int[Capacity],pickupAmounts=new int[Capacity];
         Mesh disc;Material gold,face;
         GameManager game;
         public int ActiveCount{get{int n=0;foreach(var item in pool)if(item.Active)n++;return n;}}
@@ -92,13 +93,14 @@ namespace Brainrot
         {
             if(game==null||!game.IsPlaying||player==null||player.Health<=0||dt<=0)return;
             pending.Clear();var tuning=GameBalance.Current.Coins;float radius=Mathf.Max(tuning.PickupRadius,tuning.MagnetRadius);
+            float radiusSquared=radius*radius;var playerPosition=player.transform.position;
             foreach(var c in pool){
                 if(!c.Active)continue;
                 if(MetaProgression.IsClaimed(game.CoinRunId,c.Id)){Hide(c);continue;}
                 c.Age+=dt;
                 if(c.Collecting){
                     c.Fly=Mathf.Min(1,c.Fly+dt/.20f);float eased=c.Fly*c.Fly;
-                    var target=player.transform.position+Vector3.up*1.1f;
+                    var target=playerPosition+Vector3.up*1.1f;
                     c.Root.position=Vector3.Lerp(c.FlightStart,target,eased)+Vector3.up*(Mathf.Sin(c.Fly*Mathf.PI)*.28f);c.Root.localScale=Vector3.one*Mathf.Lerp(1,.15f,eased);
                     if(c.Fly>=1&&Time.time>=c.RetryAt)pending.Add(c);
                     continue;
@@ -108,8 +110,9 @@ namespace Brainrot
                 else{
                     if(!c.Landed){c.Root.position=c.Landing+Vector3.up*.45f;c.Landed=true;}
                     var p=c.Root.position;p.y=.45f+Mathf.Sin(c.Age*3.2f+c.Id)*.075f;c.Root.position=p;
-                    var delta=player.transform.position-p;delta.y=0;float d=delta.magnitude;
-                    if(d<=radius){
+                    var delta=playerPosition-p;delta.y=0;
+                    if(delta.sqrMagnitude<=radiusSquared){
+                        float d=delta.magnitude;
                         float speed=Mathf.Lerp(3,13,1-Mathf.Clamp01(d/radius));
                         if(d<=Mathf.Max(.2f,tuning.PickupRadius)+speed*dt){c.Collecting=true;c.FlightStart=p;c.Fly=0;}
                         else c.Root.position+=delta/d*(speed*dt);
@@ -118,10 +121,10 @@ namespace Brainrot
                 c.Face.localRotation=Quaternion.Euler(8,c.Age*115+c.Id*17,0);
                 c.Root.localScale=Vector3.one*(1+Mathf.Sin(c.Age*3+c.Id)*.035f);
             }
-            // A cluster reaching the player in one frame commits with one disk write.
+            // One atomic in-memory transaction per cluster; no arrays or disk writes on pickup.
             if(pending.Count>0){
-                var ids=new int[pending.Count];var amounts=new int[pending.Count];for(int i=0;i<pending.Count;i++){ids[i]=pending[i].Id;amounts[i]=pending[i].Amount;}
-                bool saved=game.TryCollectCoins(ids,amounts);foreach(var c in pending){if(saved)Hide(c);else c.RetryAt=Time.time+1;}
+                for(int i=0;i<pending.Count;i++){pickupIds[i]=pending[i].Id;pickupAmounts[i]=pending[i].Amount;}
+                bool saved=game.TryCollectCoins(pickupIds,pickupAmounts,pending.Count);foreach(var c in pending){if(saved)Hide(c);else c.RetryAt=Time.time+1;}
                 if(saved)HitEffects.Burst(player.transform.position+Vector3.up*.8f,new Color(1,.83f,.30f),3,0);
             }
         }

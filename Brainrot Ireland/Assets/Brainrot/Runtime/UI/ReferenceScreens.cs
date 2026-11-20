@@ -4,7 +4,7 @@ using UnityEngine.Events;
 using UnityEngine.EventSystems;
 namespace Brainrot
 {
-    /// <summary>Live controls over separate illustrated sprites. Coordinates use the reference's 16:9 artboard.</summary>
+    /// <summary>Live minimalist controls on a consistent 16:9 artboard.</summary>
     public static class ReferenceScreens
     {
         public static readonly Color Cocoa=new Color(.09f,.16f,.18f);
@@ -61,6 +61,7 @@ namespace Brainrot
         }
         public static Transform Panel(Transform viewport,string title,float x,float y,float w,float h,int titleSize=42,float headerTop=-.17f){
             var body=Group(viewport,title+" — панель",x,y,w,h);
+            body.gameObject.AddComponent<IslandPanelEntrance>();
             Surface(body,"Тень панели",0,.012f,1,1,new Color(.015f,.04f,.05f,.22f));
             Surface(body,"Панель",0,0,1,1,Paper);
             var heading=SeaText(body,title,Mathf.Min(titleSize,32),.07f,.018f,.86f,.09f);heading.fontStyle=FontStyle.Bold;heading.alignment=TextAnchor.MiddleLeft;
@@ -134,11 +135,14 @@ namespace Brainrot
                     for(int j=0;j<buttons.Length;j++)SetButtonStyle(buttons[j],j==level);
                 },23,SaveSystem.Data.Quality==i,null,false);
             }
-            SeaButton(frame,"СБРОСИТЬ ПРОГРЕСС",.035f,.915f,.20f,.058f,()=>ConfirmReset(viewport,back),11);
-            SeaButton(frame,"НАЗАД",.24f,.885f,.55f,.125f,back,36,true);
+            SeaButton(frame,"СБРОСИТЬ ПРОГРЕСС",.065f,.93f,.24f,.047f,()=>ConfirmReset(viewport,back,frame),11);
+            SeaButton(frame,"НАЗАД",.36f,.885f,.57f,.09f,back,30,true);
             if(EventSystem.current!=null)EventSystem.current.SetSelectedGameObject(camera.gameObject);
         }
-        static void ConfirmReset(Transform viewport,UnityAction back){
+        static void ConfirmReset(Transform viewport,UnityAction back,Transform settings){
+            var previousFocus=EventSystem.current!=null?EventSystem.current.currentSelectedGameObject:null;
+            var settingsGroup=settings.GetComponent<CanvasGroup>();if(settingsGroup==null)settingsGroup=settings.gameObject.AddComponent<CanvasGroup>();
+            settingsGroup.interactable=false;settingsGroup.blocksRaycasts=false;
             var shade=Surface(viewport,"Подтверждение сброса",0,0,1,1,new Color(.015f,.06f,.09f,.72f));shade.raycastTarget=true;
             var dialog=Panel(shade.transform,"СБРОС ПРОГРЕССА",.27f,.30f,.46f,.45f,29);
             var message=SeaText(dialog,"Текущий забег, рекорды и обучение будут сброшены. Настройки сохранятся.",20,.10f,.19f,.80f,.24f);
@@ -148,7 +152,7 @@ namespace Brainrot
                 shade.gameObject.SetActive(false);Object.Destroy(shade.gameObject);
                 if(game!=null)game.MainMenu();else back();
             },25,true);
-            var cancel=SeaButton(dialog,"ОТМЕНА",.20f,.72f,.60f,.15f,()=>{shade.gameObject.SetActive(false);Object.Destroy(shade.gameObject);},23);
+            var cancel=SeaButton(dialog,"ОТМЕНА",.20f,.72f,.60f,.15f,()=>{settingsGroup.interactable=true;settingsGroup.blocksRaycasts=true;shade.gameObject.SetActive(false);Object.Destroy(shade.gameObject);if(EventSystem.current!=null&&previousFocus!=null&&previousFocus.activeInHierarchy)EventSystem.current.SetSelectedGameObject(previousFocus);},23);
             if(EventSystem.current!=null)EventSystem.current.SetSelectedGameObject(cancel.gameObject);
         }
         static Button ToggleRow(Transform frame,string title,IslandSymbol icon,float top,bool initial,UnityAction<bool> change){
@@ -159,7 +163,8 @@ namespace Brainrot
             var state=Surface(face,"Переключатель",.81f,.24f,.13f,.52f,value?Accent:new Color(.60f,.67f,.65f));
             var knob=CartoonUI.Image("Ручка переключателя",state.transform,Vector2.zero,Vector2.one,Cream,CartoonUI.Disc);
             Rect(knob.rectTransform,value?.57f:.06f,.10f,.37f,.80f);
-            button.onClick.AddListener(()=>{value=!value;change(value);state.color=value?Accent:new Color(.60f,.67f,.65f);Rect(knob.rectTransform,value?.57f:.06f,.10f,.37f,.80f);});return button;
+            var motion=state.gameObject.AddComponent<IslandToggleMotion>();motion.Initialize(knob.rectTransform,state,value);
+            button.onClick.AddListener(()=>{value=!value;change(value);motion.Set(value);});return button;
         }
         static void Slider(Transform frame,string title,float top,float min,float max,float value,UnityAction<float> change){
             var label=SeaText(frame,title,24,.09f,top,.69f,.048f);label.alignment=TextAnchor.MiddleLeft;
@@ -193,8 +198,35 @@ namespace Brainrot
             Button replay=null;replay=SeaButton(frame,"ПОВТОРИТЬ ОБУЧЕНИЕ",.12f,.675f,.76f,.125f,()=>{
                 SaveSystem.Data.TutorialCompleted=false;SaveSystem.Save();if(GameManager.Instance!=null&&GameManager.Instance.Goals!=null)GameManager.Instance.Goals.ReplayTutorial();replay.GetComponentInChildren<Text>().text="ОБУЧЕНИЕ ВКЛЮЧЕНО";
             },27);
-            var backButton=SeaButton(frame,"НАЗАД",.19f,.83f,.62f,.16f,back,40,true);
+            var backButton=SeaButton(frame,"НАЗАД",.19f,.83f,.62f,.12f,back,34,true);
             if(EventSystem.current!=null)EventSystem.current.SetSelectedGameObject(backButton.gameObject);
+        }
+    }
+    /// <summary>Short unscaled panel arrival; no coroutine, layout rebuild or allocation after construction.</summary>
+    public sealed class IslandPanelEntrance:MonoBehaviour
+    {
+        CanvasGroup group;Vector3 baseline;float age;
+        void Awake(){group=GetComponent<CanvasGroup>();if(group==null)group=gameObject.AddComponent<CanvasGroup>();baseline=transform.localScale;group.alpha=0;transform.localScale=baseline*.98f;}
+        void Update(){
+            age+=Time.unscaledDeltaTime;float t=Mathf.Clamp01(age/.18f),ease=1-(1-t)*(1-t)*(1-t);
+            group.alpha=ease;transform.localScale=baseline*Mathf.Lerp(.98f,1,ease);
+            if(t>=1){group.alpha=1;transform.localScale=baseline;enabled=false;}
+        }
+    }
+    /// <summary>A switch thumb follows its state with a quick, interruption-safe eased slide.</summary>
+    public sealed class IslandToggleMotion:MonoBehaviour
+    {
+        RectTransform knob;Image track;float position,target;
+        public void Initialize(RectTransform thumb,Image background,bool value){knob=thumb;track=background;position=target=value?1:0;Apply();enabled=false;}
+        public void Set(bool value){target=value?1:0;enabled=true;}
+        public void Tick(float dt){
+            if(knob==null||track==null)return;position=Mathf.MoveTowards(position,target,Mathf.Max(0,dt)*7);Apply();
+            if(Mathf.Approximately(position,target))enabled=false;
+        }
+        void Update(){Tick(Time.unscaledDeltaTime);}
+        void Apply(){
+            float ease=position*position*(3-2*position);ReferenceScreens.Rect(knob,Mathf.Lerp(.06f,.57f,ease),.10f,.37f,.80f);
+            track.color=Color.Lerp(new Color(.60f,.67f,.65f),ReferenceScreens.Accent,ease);
         }
     }
     /// <summary>Write slider changes after a short idle interval or at drag/page end, rather than once per mouse pixel.</summary>

@@ -9,7 +9,7 @@ namespace Brainrot
         PlayerController player;CharacterVisual visual;Transform projectile;TrailRenderer trail;Mesh mesh;Material timber,ribbon;
         readonly HashSet<EnemyController> outwardHits=new HashSet<EnemyController>();
         readonly HashSet<EnemyController> returnHits=new HashSet<EnemyController>();
-        Vector3 origin,end,previous,turn,returnControlA,returnControlB;float age,outSeconds,returnSeconds,legAge,returnHeight,lifetime;bool returning,piercing;
+        Vector3 origin,end,previous,turn,returnControlA,returnControlB;float age,outSeconds,returnSeconds,legAge,returnHeight,lifetime,hitRadius;bool returning,piercing;
         public bool Flying{get;private set;}
         public float Remaining=>Flying?Mathf.Max(0,(returning?returnSeconds:outSeconds+returnSeconds)-legAge):0;
         public bool Piercing=>piercing;
@@ -23,7 +23,7 @@ namespace Brainrot
             var forward=player.AimForward;forward.y=0;if(forward.sqrMagnitude<.001f)forward=player.transform.forward;forward.Normalize();
             end=origin+forward*Mathf.Clamp(tuning.Distance,2,14);previous=origin;turn=end;age=legAge=lifetime=0;returning=false;piercing=MetaProgression.Rank(4)>0;
             outSeconds=Mathf.Clamp(tuning.OutSeconds,.15f,1);returnSeconds=Mathf.Clamp(tuning.ReturnSeconds,.2f,1.5f);
-            outwardHits.Clear();returnHits.Clear();Flying=true;projectile.position=origin;projectile.gameObject.SetActive(true);trail.Clear();trail.emitting=true;visual.SetWeaponThrown(true);return true;
+            hitRadius=Mathf.Clamp(tuning.HitRadius,.1f,.8f);outwardHits.Clear();returnHits.Clear();Flying=true;projectile.position=origin;projectile.gameObject.SetActive(true);trail.Clear();trail.emitting=true;visual.SetWeaponThrown(true);return true;
         }
         void Update(){var game=GameManager.Instance;if(Flying&&(game==null||!game.IsPlaying||player==null||player.Health<=0||player.IsCaptured)){Cancel();return;}if(Flying)Tick(Time.deltaTime);}
         public void Tick(float delta){
@@ -60,7 +60,7 @@ namespace Brainrot
                 legAge=nextAge;previous=target;projectile.position=target;projectile.rotation=Quaternion.Euler(15,age*1350,80);
                 if(legAge>=duration-.000001f){
                     if(!returning)BeginReturn(target,(origin-end).normalized);
-                    else{if(outwardHits.Count+returnHits.Count==0)GameManager.Instance?.ReportMiss();HitEffects.Burst(Hand,new Color(1,.87f,.35f),3,0);Cancel();}
+                    else{if(outwardHits.Count+returnHits.Count==0)GameManager.Instance?.ReportMiss();Catch();}
                 }
                 // Failsafe for a player standing inside a crowd: catch without a phantom damage sweep.
                 if(Flying&&age>4){HitEffects.Burst(Hand,new Color(1,.87f,.35f),3,0);Cancel();}
@@ -93,7 +93,7 @@ namespace Brainrot
             var body=enemy.BodyCollider;center=body!=null?body.bounds.center:enemy.transform.position+Vector3.up;
             float radius=body!=null?Mathf.Max(body.bounds.extents.x,body.bounds.extents.z):.55f;
             float low=body!=null?body.bounds.min.y:enemy.transform.position.y,high=body!=null?body.bounds.max.y:low+2;
-            float hitRadius=Mathf.Clamp(GameBalance.Current.Boomerang.HitRadius,.1f,.8f);entry=0;
+            entry=0;
             if(Mathf.Max(a.y,b.y)+hitRadius<low||Mathf.Min(a.y,b.y)-hitRadius>high)return false;
             if(!SegmentEntry(a,b,center,radius+hitRadius,out entry))return false;
             var flat=b-a;flat.y=0;var offset=a-center;offset.y=0;
@@ -109,10 +109,18 @@ namespace Brainrot
             float first=float.PositiveInfinity;
             foreach(var enemy in game.Spawner.Active){
                 if(enemy==null||!enemy.Alive||!Contact(enemy,a,b,out float entry,out var center)||entry>=first)continue;
+                if(returning&&entry<=.000001f&&LeavingInitialOverlap(a,b,center))continue;
                 first=entry;found=enemy;point=Vector3.Lerp(a,b,entry);normal=point-center;normal.y=0;
             }
             if(found==null)return false;
             if(normal.sqrMagnitude<.000001f){normal=a-b;normal.y=0;}normal=normal.sqrMagnitude>.000001f?normal.normalized:-player.AimForward;return true;
+        }
+        bool LeavingInitialOverlap(Vector3 a,Vector3 b,Vector3 center){
+            // The harmless return may escape an overlap at its starting point. Re-bouncing at
+            // t=0 pins the bat in a crowd and repeatedly rebuilds the path until the failsafe.
+            var flat=a-center;flat.y=0;var movement=b-a;var horizontal=movement;horizontal.y=0;
+            if(Vector3.Dot(flat,horizontal)>0)return true;
+            return (a.y>=center.y&&movement.y>0)||(a.y<center.y&&movement.y<0);
         }
         void SweepPiercing(Vector3 a,Vector3 b,HashSet<EnemyController> receipts){
             var game=GameManager.Instance;if(game==null||!game.IsPlaying)return;var enemies=game.Spawner.Active;
@@ -131,7 +139,7 @@ namespace Brainrot
             HitEffects.Burst(center,new Color(1,.85f,.30f),5,.35f);game.ReportHit(critical,1);GameAudio.Impact(false,critical,1);
             if(!game.IsPlaying)Cancel();
         }
-        void Catch(){if(Flying&&player!=null)HitEffects.Burst(Hand,new Color(1,.87f,.35f),3,0);Cancel();}
+        void Catch(){if(Flying&&player!=null){HitEffects.Burst(Hand,new Color(1,.87f,.35f),3,0);GameAudio.PlayCatch();}Cancel();}
         public void Cancel(){Flying=false;if(trail!=null){trail.emitting=false;trail.Clear();}if(projectile!=null)projectile.gameObject.SetActive(false);if(visual!=null)visual.SetWeaponThrown(false);outwardHits.Clear();returnHits.Clear();}
         void EnsureVisual(){
             if(projectile!=null)return;

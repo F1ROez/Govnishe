@@ -9,6 +9,7 @@ namespace Brainrot
         static Material material;
         LineRenderer line,afterimage;MaterialPropertyBlock block,afterimageBlock;
         float started,lifetime,reach,width,arc;bool live,heavy;
+        readonly Vector3[] crescent=new Vector3[32],echo=new Vector3[32];
         static readonly int BaseColor=Shader.PropertyToID("_BaseColor"),ColorId=Shader.PropertyToID("_Color");
         public static void Play(Vector3 origin,Vector3 forward,float range,bool heavy)
         {
@@ -29,17 +30,23 @@ namespace Brainrot
             }
             forward.y=0;if(forward.sqrMagnitude<.001f)forward=Vector3.forward;
             effect.transform.SetPositionAndRotation(origin,Quaternion.LookRotation(forward.normalized));effect.reach=Mathf.Clamp(range*.76f,.5f,10);effect.width=heavy?.16f:.055f;effect.heavy=heavy;
-            effect.arc=Mathf.Clamp(GameBalance.Current.Combat.ArcDegrees,20,180);effect.lifetime=heavy?.21f:.13f;effect.started=Time.time;effect.live=true;effect.gameObject.SetActive(true);effect.Tick();
+            effect.arc=Mathf.Clamp(GameBalance.Current.Combat.ArcDegrees,20,180);effect.lifetime=heavy?.21f:.13f;effect.started=Time.time;effect.CacheGeometry();effect.live=true;effect.gameObject.SetActive(true);effect.Tick();
+        }
+        void CacheGeometry(){
+            for(int i=0;i<crescent.Length;i++){
+                float u=i/(float)(crescent.Length-1),angle=Mathf.Lerp(-arc*.5f,arc*.5f,u)*Mathf.Deg2Rad;
+                crescent[i]=new Vector3(Mathf.Sin(angle),(u-.5f)*.12f,Mathf.Cos(angle));
+                echo[i]=crescent[i]*.92f+Vector3.down*.045f;
+            }
+            line.SetPositions(crescent);afterimage.SetPositions(echo);
         }
         void Tick()
         {
             float t=Mathf.Clamp01((Time.time-started)/lifetime),fade=(1-t)*(1-t);
             float ease=1-(1-t)*(1-t),radius=reach*Mathf.Lerp(.87f,1.03f,ease);
-            for(int i=0;i<32;i++){
-                float u=i/31f,angle=Mathf.Lerp(-arc*.5f,arc*.5f,u)*Mathf.Deg2Rad;
-                var point=new Vector3(Mathf.Sin(angle)*radius,(u-.5f)*.12f,Mathf.Cos(angle)*radius);line.SetPosition(i,point);
-                afterimage.SetPosition(i,point*.92f+Vector3.down*.045f);
-            }
+            // Geometry stays unchanged during the fade. Scaling in X/Z preserves the exact arc
+            // while avoiding 64 native SetPosition calls and per-vertex trigonometry every frame.
+            transform.localScale=new Vector3(radius,1,radius);
             line.widthMultiplier=width*(.45f+fade*.55f);var color=new Color(1,1,.97f,Mathf.Sqrt(fade)*.90f);block.SetColor(BaseColor,color);block.SetColor(ColorId,color);line.SetPropertyBlock(block);
             afterimage.enabled=heavy&&SaveSystem.Data.Quality>0;
             if(afterimage.enabled){

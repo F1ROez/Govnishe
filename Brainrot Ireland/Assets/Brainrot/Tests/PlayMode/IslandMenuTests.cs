@@ -75,15 +75,15 @@ namespace Brainrot.Tests
             Assert.IsFalse(SaveSystem.Data.CameraLocked);Assert.IsFalse(SaveSystem.Data.ShowAttackRange);Assert.AreEqual(0,SaveSystem.Data.CameraShakeStrength);
             FindButton("НАЗАД").onClick.Invoke();Assert.AreEqual(1,backs);
         }
-        [Test]public void PauseUsesCreamCeramicAndKeepsThreeIndependentActions(){
+        [Test]public void PauseUsesMinimalPaperPanelAndKeepsThreeIndependentActions(){
             int resumed=0,settings=0,ended=0;
             ReferenceScreens.Pause(viewport,()=>resumed++,()=>settings++,()=>ended++);
-            bool ceramic=false,oldSand=false;
+            bool paper=false,oldSand=false;
             foreach(var image in root.GetComponentsInChildren<Image>()){
-                ceramic|=image.sprite==IslandThemeSurface.Cream;
+                paper|=image.color==ReferenceScreens.Paper;
                 oldSand|=image.sprite==TropicalUIArt.Get("IslandSandPanel");
             }
-            Assert.IsTrue(ceramic);Assert.IsFalse(oldSand,"The new reference is a cream panel, not the previous sand board.");
+            Assert.IsTrue(paper);Assert.IsFalse(oldSand,"The active minimalist panel must not bring back the old sand board.");
             Assert.AreEqual(3,root.GetComponentsInChildren<Button>().Length);
             FindButton("ПРОДОЛЖИТЬ").onClick.Invoke();FindButton("НАСТРОЙКИ").onClick.Invoke();FindButton("ЗАВЕРШИТЬ ЗАБЕГ").onClick.Invoke();
             Assert.AreEqual(1,resumed);Assert.AreEqual(1,settings);Assert.AreEqual(1,ended);
@@ -121,6 +121,44 @@ namespace Brainrot.Tests
             Assert.AreEqual(0,SaveSystem.Data.Coins);Assert.AreEqual(0,MetaProgression.Rank(0));Assert.AreEqual(0,SaveSystem.Data.BestWave);
             Assert.AreEqual(.42f,SaveSystem.Data.Volume,.001f);Assert.AreEqual(1,backs);
             SaveSystem.Load();Assert.AreEqual(0,SaveSystem.Data.Coins);
+        }
+        [Test]public void SettingsButtonsStayInsidePanelAndToggleThumbSlidesToItsNewState(){
+            ReferenceScreens.Settings(viewport,()=>{});
+            foreach(var button in root.GetComponentsInChildren<Button>()){
+                var rect=(RectTransform)button.transform;
+                Assert.GreaterOrEqual(rect.anchorMin.y,0,button.name);Assert.LessOrEqual(rect.anchorMax.y,1,button.name);
+            }
+            var toggle=root.GetComponentInChildren<IslandToggleMotion>();
+            var thumb=toggle.transform.GetChild(0) as RectTransform;float before=thumb.anchorMin.x;
+            toggle.GetComponentInParent<Button>().onClick.Invoke();toggle.Tick(.05f);
+            Assert.AreNotEqual(before,thumb.anchorMin.x);Assert.Greater(thumb.anchorMin.x,.06f);Assert.Less(thumb.anchorMin.x,.57f);
+            toggle.Tick(1);Assert.IsFalse(toggle.enabled);Assert.AreEqual(before>.3f?.06f:.57f,thumb.anchorMin.x,.001f);
+        }
+        [Test]public void ResetConfirmationIsolatesSettingsAndRestoresKeyboardFocusOnCancel(){
+            var events=UIInputRouter.EnsureForScene(scene);ReferenceScreens.Settings(viewport,()=>{});
+            var reset=FindButton("СБРОСИТЬ ПРОГРЕСС");events.SetSelectedGameObject(reset.gameObject);
+            reset.onClick.Invoke();Assert.IsFalse(reset.IsInteractable(),"Keyboard navigation must not reach settings behind a modal.");
+            var cancel=FindButton("ОТМЕНА");Assert.IsTrue(cancel.IsInteractable());cancel.onClick.Invoke();
+            Assert.IsTrue(reset.IsInteractable());Assert.AreSame(reset.gameObject,events.currentSelectedGameObject);
+        }
+        [Test]public void VitalsHaveReadableWidthAndDoNotOverlapTheWavePanel(){
+            var uiObject=new GameObject("HUD regression");uiObject.transform.SetParent(root.transform,false);var ui=uiObject.AddComponent<UIManager>();ui.Initialize();
+            RectTransform vitals=null,wave=null;
+            foreach(var rect in uiObject.GetComponentsInChildren<RectTransform>(true)){
+                if(rect.name=="Здоровье и выносливость")vitals=rect;
+                if(rect.name=="Компактная волна")wave=rect;
+            }
+            Assert.IsNotNull(vitals);Assert.IsNotNull(wave);
+            Assert.Greater(vitals.anchorMax.x-vitals.anchorMin.x,.23f,"Health and stamina labels need more than a thin sliver of the screen.");
+            Assert.Less(vitals.anchorMax.x,wave.anchorMin.x);
+        }
+        [Test]public void MobileHoldIgnoresForeignFingerAndThrowTapKeepsOneFrameEdge(){
+            MobileInput.Clear();var go=new GameObject("Touch regression");go.transform.SetParent(root.transform,false);var held=go.AddComponent<MobileHoldButton>();
+            var first=new UnityEngine.EventSystems.PointerEventData(null){pointerId=10};var second=new UnityEngine.EventSystems.PointerEventData(null){pointerId=11};
+            held.Action=0;held.OnPointerDown(first);held.OnPointerDown(second);held.OnPointerUp(second);Assert.IsTrue(MobileInput.Attack);
+            held.OnPointerUp(first);Assert.IsFalse(MobileInput.Attack);
+            held.Action=2;held.OnPointerDown(first);held.OnPointerUp(first);Assert.IsFalse(MobileInput.Throw);Assert.IsTrue(MobileInput.ThrowPressed,"A brief tap must survive until PlayerController consumes its edge.");
+            MobileInput.Clear();Assert.IsFalse(MobileInput.ThrowPressed);Assert.IsFalse(MobileInput.Throw);
         }
         [Test]public void MainMenuOffersOnePlayActionWithoutSavedRunOrNewGameButtons(){
             new GameObject("Main menu").AddComponent<MenuBootstrap>();

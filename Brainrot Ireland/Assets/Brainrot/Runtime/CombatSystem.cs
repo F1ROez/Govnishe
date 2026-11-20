@@ -81,7 +81,7 @@ namespace Brainrot {
   }
   void Update(){
    var game=GameManager.Instance;if(game==null||!game.IsPlaying)return;
-   if(throwPending&&Time.time>=throwReleaseAt){throwPending=false;if(boomerang.Launch())GameAudio.Swing(false);}
+   if(throwPending&&Time.time>=throwReleaseAt){throwPending=false;if(boomerang.Launch())GameAudio.PlayThrow();}
    for(int i=0;i<contacts.Count&&game.IsPlaying;){if(Time.time>=contacts[i].Time){float power=contacts[i].Power;bool heavy=contacts[i].Heavy;contacts.RemoveAt(i);Strike(power,heavy);}else i++;}
   }
   void OnDisable(){CancelPendingSwings();}
@@ -111,10 +111,10 @@ namespace Brainrot {
    for(int i=enemies.Count-1;i>=0;i--){
     if(i>=enemies.Count)continue;var e=enemies[i];if(e==null||!e.Alive)continue;if(Mathf.Abs(e.transform.position.y-transform.position.y)>3)continue;
     Vector3 delta=e.transform.position-transform.position;delta.y=0;
-    var capsule=e.GetComponent<CapsuleCollider>();Vector3 target=e.transform.position;float bodyRadius=0;
+    var capsule=e.BodyCollider;Vector3 target=e.transform.position;float bodyRadius=0;
     if(capsule!=null){var scale=capsule.transform.lossyScale;bodyRadius=Mathf.Max(0,capsule.radius)*Mathf.Max(Mathf.Abs(scale.x),Mathf.Abs(scale.z));target=capsule.transform.TransformPoint(capsule.center);}
     bool melee=InMeleeSector(transform.position,transform.forward,target,stats.Range,tuning.ArcDegrees,tuning.InnerOmniRadius,bodyRadius);
-    bool radial=stats.Shockwave>0&&delta.magnitude<=stats.Range+2.5f;if(!melee&&!radial)continue;
+    float radialRange=stats.Range+2.5f;bool radial=stats.Shockwave>0&&delta.sqrMagnitude<=radialRange*radialRange;if(!melee&&!radial)continue;
     bool critical=melee&&Random.value<stats.CritChance;
     float damage=melee?(stats.Damage+stats.FireDamage)*(critical?2:1)*power:0;if(radial)damage+=stats.Shockwave*power;
     float dealt=Mathf.Min(e.Health,damage);Vector3 direction=delta.sqrMagnitude>.001f?delta.normalized:transform.forward;

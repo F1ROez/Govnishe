@@ -77,7 +77,7 @@ namespace Brainrot {
    movement.y=0;
    if(GameManager.Instance==null||!GameManager.Instance.IsPlaying||Health<=0||Time.time<nextDash||movement.sqrMagnitude<.001f)return false;
    var settings=ActiveTuning;DashDirection=movement.normalized;dashUntil=Time.time+Mathf.Max(.05f,settings.DashDuration);nextDash=Time.time+Mathf.Max(.1f,Stats.DashCooldown);dashStarted=Time.time;externalVelocity=Vector3.zero;RefreshDashCollisions();
-   GameAudio.Play(520,.06f,.055f);HitEffects.Burst(transform.position+Vector3.up,Color.cyan);return true;
+   GameAudio.PlayDash();HitEffects.Burst(transform.position+Vector3.up,Color.cyan);return true;
   }
   void RefreshDashCollisions(){
    if(motor==null||!motor.enabled)return;
@@ -100,12 +100,12 @@ namespace Brainrot {
   }
   public void EndDash(){dashUntil=Time.time;RestoreDashCollisions();}
   void Update(){
-   var gm=GameManager.Instance;if(gm==null||!gm.IsPlaying){EndDash();return;}
+   var gm=GameManager.Instance;if(gm==null||!gm.IsPlaying){MobileInput.ThrowPressed=false;EndDash();return;}
    if(IsDashing)RefreshDashCollisions();else if(dashIgnored.Count>0)RestoreDashCollisions();
    if(IsCaptured){bool held=GameInput.Attack||MobileInput.Attack;if(held&&!captureHeld)EscapeTap();captureHeld=held;EscapeProgress=Mathf.Max(0,EscapeProgress-Time.deltaTime*.025f);}
    if(GameInput.CameraToggle)ToggleCameraLock();
    Vector2 look=Application.isMobilePlatform?MobileInput.Look:GameInput.Look;MobileInput.Look=Vector2.zero;
-   yaw+=look.x*2.3f*SaveSystem.Data.Sensitivity;pitch=GameBalance.Current.Camera.ClampPitch(pitch-look.y*1.8f*SaveSystem.Data.Sensitivity);
+   yaw=Mathf.Repeat(yaw+look.x*2.3f*SaveSystem.Data.Sensitivity,360);pitch=GameBalance.Current.Camera.ClampPitch(pitch-look.y*1.8f*SaveSystem.Data.Sensitivity);
    Vector2 input=Application.isMobilePlatform?MobileInput.Move:GameInput.Move;input=Vector2.ClampMagnitude(input,1);
    Vector3 move=Quaternion.Euler(0,yaw,0)*new Vector3(input.x,0,input.y);bool sprint=GameInput.Sprint||MobileInput.Sprint;
    var settings=ActiveTuning;
@@ -123,7 +123,7 @@ namespace Brainrot {
    // Locked mode keeps aim relative to camera even when moving backwards or sideways.
    if(CameraLocked)transform.rotation=Quaternion.LookRotation(AimForward);
    else if(move.sqrMagnitude>.01f)transform.rotation=Quaternion.Slerp(transform.rotation,Quaternion.LookRotation(move),1-Mathf.Exp(-Mathf.Max(1,settings.TurnSpeed)*Time.deltaTime));
-   if(!IsCaptured){combat.UpdateAttackInput(GameInput.Attack||MobileInput.Attack,GameInput.AttackPressed,GameInput.AttackReleased);combat.UpdateBoomerangInput(GameInput.BoomerangHeld,GameInput.BoomerangPressed); }
+   if(!IsCaptured){combat.UpdateAttackInput(GameInput.Attack||MobileInput.Attack,GameInput.AttackPressed,GameInput.AttackReleased);combat.UpdateBoomerangInput(GameInput.BoomerangHeld||MobileInput.Throw,GameInput.BoomerangPressed||MobileInput.ThrowPressed); }MobileInput.ThrowPressed=false;
    Vector3 actualVelocity=(transform.position-beforeMove)/Mathf.Max(.0001f,Time.deltaTime);actualVelocity.y=0;
    visual.SetLocomotion(transform.InverseTransformDirection(actualVelocity),IsDashing);
    visual.Animate(actualVelocity.magnitude/Mathf.Max(.1f,Stats.MoveSpeed)*3,combat.IsAttacking);Heal(Stats.Regen*Time.deltaTime);foreach(var ability in abilities)ability.Tick(Time.deltaTime);
@@ -158,7 +158,7 @@ namespace Brainrot {
    if(GameManager.Instance==null||!GameManager.Instance.IsPlaying||IsDashing||Time.time<invulnerableUntil||amount<=0)return;
    DamageTakenCount++;Health=Mathf.Max(0,Health-amount);foreach(var ability in abilities)ability.OnDamageTaken(amount);
    if(knockbackSpeed>0){Vector3 away=transform.position-source;away.y=0;if(away.sqrMagnitude<.001f)away=-transform.forward;externalVelocity=away.normalized*Mathf.Clamp(knockbackSpeed,0,40);}
-   invulnerableUntil=Time.time+.5f;trauma=.18f;HitEffects.Burst(transform.position+Vector3.up,new Color(1,.2f,.1f));GameAudio.Play(130,.1f,.15f);if(Health<=0)GameManager.Instance.Die();
+   invulnerableUntil=Time.time+.5f;trauma=.18f;HitEffects.Burst(transform.position+Vector3.up,new Color(1,.2f,.1f));GameAudio.PlayHurt();if(Health<=0)GameManager.Instance.Die();
   }
   public void CancelAttacks(){EndDash();combat?.CancelPendingSwings();ResetCombatCamera();}
   public void ResetCombatCamera(){chargeCameraBlend=trauma=0;combatCamera.Reset();if(cam!=null)cam.fieldOfView=BaseFieldOfView;}

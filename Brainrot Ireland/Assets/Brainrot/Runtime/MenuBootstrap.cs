@@ -5,7 +5,7 @@ namespace Brainrot
     public sealed class MenuBootstrap:MonoBehaviour
     {
         RectTransform viewport;GameObject page;Image backdrop;
-        Text notice;
+        Text notice;bool shownReady;
         readonly System.Collections.Generic.List<Button> mainButtons=new System.Collections.Generic.List<Button>();
         void Awake(){
             SaveSystem.Load();Time.timeScale=0;Cursor.lockState=CursorLockMode.None;Cursor.visible=true;
@@ -22,6 +22,7 @@ namespace Brainrot
         void Start(){UIInputRouter.EnsureForScene(gameObject.scene);}
         void Update(){
             bool ready=!SceneFlow.Instance.Busy;
+            if(ready==shownReady)return;shownReady=ready;
             foreach(var button in mainButtons)if(button!=null)button.interactable=ready;
         }
         RectTransform Clear(){
@@ -32,7 +33,7 @@ namespace Brainrot
         void Main(){
             backdrop.sprite=TropicalUIArt.Get("IslandMenuScene");var root=Clear();
             var buttons=ReferenceScreens.MainMenu(root,Guard(()=>SceneFlow.Instance.Play(true)),Guard(Shop),Guard(Records),Guard(Settings),Guard(Exit),out _,out notice);
-            mainButtons.AddRange(buttons);
+            mainButtons.AddRange(buttons);shownReady=!SceneFlow.Instance.Busy;foreach(var button in mainButtons)button.interactable=shownReady;
         }
         UnityEngine.Events.UnityAction Guard(UnityEngine.Events.UnityAction action){return ()=>{if(!SceneFlow.Instance.Busy)action();};}
         void Shop(){var root=Clear();ShopScreen.Show(root,Main);}

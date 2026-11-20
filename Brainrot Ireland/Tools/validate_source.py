@@ -58,6 +58,15 @@ try:
  parser=tree_sitter.Parser(tree_sitter.Language(tree_sitter_c_sharp.language()))
  for f in root.glob('Assets/**/*.cs'):
   tree=parser.parse(f.read_bytes())
+  # CS0819 is grammatically valid, but C# forbids multiple declarators with var.
+  stack=[tree.root_node]
+  while stack:
+   node=stack.pop()
+   if node.type=='variable_declaration':
+    kind=node.child_by_field_name('type')
+    if kind is not None and kind.text==b'var' and sum(child.type=='variable_declarator' for child in node.named_children)>1:
+     errors.append(f'{f.relative_to(root)}:{node.start_point[0]+1}: var cannot declare multiple variables (CS0819)')
+   stack.extend(node.named_children)
   if tree.root_node.has_error:
    def walk(n):
     if n.type=='ERROR' or n.is_missing:errors.append(f'{f.relative_to(root)}:{n.start_point[0]+1}: {n.type}')

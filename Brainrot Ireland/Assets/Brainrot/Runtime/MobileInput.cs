@@ -5,8 +5,8 @@ namespace Brainrot
     public static class MobileInput
     {
         public static Vector2 Move,Look;
-        public static bool Attack,Sprint,Dash;
-        public static void Clear() {Move=Look=Vector2.zero;Attack=Sprint=Dash=false;}
+        public static bool Attack,Sprint,Dash,Throw,ThrowPressed;
+        public static void Clear() {Move=Look=Vector2.zero;Attack=Sprint=Dash=Throw=ThrowPressed=false;}
     }
     public sealed class MobileJoystick : MonoBehaviour, IPointerDownHandler, IDragHandler, IPointerUpHandler
     {
@@ -31,10 +31,10 @@ namespace Brainrot
     }
     public sealed class MobileHoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
     {
-        public int Action;
-        public void OnPointerDown(PointerEventData e) {Set(true);}
-        public void OnPointerUp(PointerEventData e) {Set(false);}
-        void OnDisable(){Set(false);}
-        void Set(bool value){if(Action==0)MobileInput.Attack=value;else MobileInput.Sprint=value;}
+        public int Action;int finger=int.MinValue;
+        public void OnPointerDown(PointerEventData e) {if(finger!=int.MinValue||e==null)return;finger=e.pointerId;Set(true);}
+        public void OnPointerUp(PointerEventData e) {if(e==null||e.pointerId!=finger)return;finger=int.MinValue;Set(false);}
+        void OnDisable(){if(finger!=int.MinValue)Set(false);finger=int.MinValue;}
+        void Set(bool value){if(Action==0)MobileInput.Attack=value;else if(Action==1)MobileInput.Sprint=value;else if(Action==2){if(value&&!MobileInput.Throw)MobileInput.ThrowPressed=true;MobileInput.Throw=value;}}
     }
 }

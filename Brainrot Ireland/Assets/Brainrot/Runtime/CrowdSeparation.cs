@@ -19,13 +19,14 @@ namespace Brainrot
     public sealed class CrowdSeparation
     {
         const int Capacity=100,Buckets=256;
+        static readonly int[] NeighbourX={0,-1,0,1,-1,1,-1,0,1},NeighbourZ={0,-1,-1,-1,0,0,1,1,1};
         readonly int[] heads=new int[Buckets],next=new int[Capacity],cellX=new int[Capacity],cellZ=new int[Capacity];
         readonly EnemyController[] enemies=new EnemyController[Capacity];
         readonly Vector2[] positions=new Vector2[Capacity],corrections=new Vector2[Capacity];
         readonly float[] radii=new float[Capacity];
         readonly int[] ids=new int[Capacity];
         readonly bool[] movable=new bool[Capacity];
-        int count;
+        int count,retainedCount;
         public int LastNeighbourChecks{get;private set;}
         static int Hash(int x,int z){unchecked{return ((x*73856093)^(z*19349663))&(Buckets-1);}}
         public static Vector2 DiskCorrection(Vector2 first,Vector2 second,float minimum,int firstId,int secondId)
@@ -53,6 +54,9 @@ namespace Brainrot
                     enemies[count]=enemy;ids[count]=enemy.GetInstanceID();var position=enemy.transform.position;positions[count]=new Vector2(position.x,position.z);
                     radii[count]=enemy.CrowdRadius;movable[count]=enemy.CrowdMovable;largest=Mathf.Max(largest,radii[count]);count++;
                 }
+                // Slots from a former larger crowd must not keep despawned actors alive.
+                for(int i=count;i<retainedCount;i++)enemies[i]=null;
+                retainedCount=count;
                 if(count==0)return;
                 float cellSize=largest*2+padding;
                 for(int i=0;i<Buckets;i++)heads[i]=-1;
@@ -63,11 +67,13 @@ namespace Brainrot
                 for(int i=0;i<count;i++){
                     corrections[i]=Vector2.zero;if(!movable[i])continue;
                     Vector2 sum=Vector2.zero;int checkedCount=0,overlaps=0;
-                    for(int dz=-1;dz<=1&&checkedCount<limit;dz++)for(int dx=-1;dx<=1&&checkedCount<limit;dx++){
-                        int x=cellX[i]+dx,z=cellZ[i]+dz;
+                    // Visit our own cell first. Hash aliases and the actor itself are not
+                    // neighbours and must not spend the limited contact budget.
+                    for(int cell=0;cell<9&&checkedCount<limit;cell++){
+                        int x=cellX[i]+NeighbourX[cell],z=cellZ[i]+NeighbourZ[cell];
                         for(int j=heads[Hash(x,z)];j>=0&&checkedCount<limit;j=next[j]){
-                            checkedCount++;LastNeighbourChecks++;
                             if(j==i||cellX[j]!=x||cellZ[j]!=z)continue;
+                            checkedCount++;LastNeighbourChecks++;
                             var away=DiskCorrection(positions[i],positions[j],radii[i]+radii[j]+padding,ids[i],ids[j]);
                             if(away.sqrMagnitude<=.0000001f)continue;
                             sum+=away*(movable[j]?.5f:1);overlaps++;

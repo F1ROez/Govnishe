@@ -12,6 +12,8 @@ namespace Brainrot
         DepthOfField pauseFocus;
         bool blurred,originalDepth;
         UniversalAdditionalCameraData cameraData;int quality=-1;
+        bool ownsCamera,originalPost,originalDithering;
+        AntialiasingMode originalAA;AntialiasingQuality originalAAQuality;
         public const string PresetName="Сочный остров — цвет, объём и мягкое солнце — v6";
         static T Component<T>(VolumeProfile profile) where T:VolumeComponent {if(profile.TryGet<T>(out var value))return value;return profile.Add<T>(true);}
         public static void ApplyDaylight(VolumeProfile profile,bool bloomAllowed=true)
@@ -52,7 +54,7 @@ namespace Brainrot
             for(int attempt=0;attempt<30;attempt++){
                 foreach(var camera in Camera.allCameras){
                     if(camera.name!="Arena Camera")continue;
-                    cameraData=camera.GetUniversalAdditionalCameraData();originalDepth=cameraData.requiresDepthTexture;cameraData.renderPostProcessing=true;ApplyQuality();
+                    cameraData=camera.GetUniversalAdditionalCameraData();ConfigureCamera();
                     yield break;
                 }
                 yield return null;
@@ -64,6 +66,22 @@ namespace Brainrot
             if(paused==blurred||pauseFocus==null)return;
             blurred=paused;pauseFocus.active=paused;
             if(cameraData!=null)cameraData.requiresDepthTexture=originalDepth||paused;
+        }
+        void ConfigureCamera(){
+            if(cameraData==null||ownsCamera)return;
+            originalDepth=cameraData.requiresDepthTexture;originalPost=cameraData.renderPostProcessing;
+            originalDithering=cameraData.dithering;originalAA=cameraData.antialiasing;originalAAQuality=cameraData.antialiasingQuality;
+            ownsCamera=true;cameraData.renderPostProcessing=true;ApplyQuality();
+        }
+        void RestoreCamera(){
+            if(!ownsCamera)return;ownsCamera=false;
+            if(cameraData==null)return;
+            cameraData.requiresDepthTexture=originalDepth;cameraData.renderPostProcessing=originalPost;
+            cameraData.dithering=originalDithering;cameraData.antialiasing=originalAA;cameraData.antialiasingQuality=originalAAQuality;
+        }
+        void OnEnable(){if(profile!=null)ConfigureCamera();}
+        void OnDisable(){
+            blurred=false;if(pauseFocus!=null)pauseFocus.active=false;RestoreCamera();
         }
         void ApplyQuality(){
             quality=SaveSystem.Data.Quality;
@@ -77,6 +95,6 @@ namespace Brainrot
                 cameraData.dithering=quality>0;
             }
         }
-        void OnDestroy(){if(profile!=null){foreach(var component in profile.components)if(component!=null)Destroy(component);Destroy(profile);}}
+        void OnDestroy(){RestoreCamera();if(profile!=null){foreach(var component in profile.components)if(component!=null)Destroy(component);Destroy(profile);}}
     }
 }

@@ -51,13 +51,21 @@ namespace Brainrot
             Balance-=price;ranks[id]++;return true;
         }
         public bool IsClaimed(int id)=>claimed.Contains(id);
-        public bool AwardBatch(int[] ids,int[] amounts){
-            if(!Active||ids==null||amounts==null||ids.Length==0||ids.Length!=amounts.Length)return false;
+        public bool Award(int id,int amount){
+            if(!Active||id<=0||amount!=1||claimed.Contains(id))return false;
+            claimed.Add(id);Credit(1);return true;
+        }
+        public bool AwardBatch(int[] ids,int[] amounts)=>ids!=null&&amounts!=null&&ids.Length==amounts.Length&&AwardBatch(ids,amounts,ids.Length);
+        /// <summary>Only the populated prefix belongs to the transaction; buffers can be reused.</summary>
+        public bool AwardBatch(int[] ids,int[] amounts,int count){
+            if(!Active||ids==null||amounts==null||count<=0||count>ids.Length||count>amounts.Length)return false;
             batch.Clear();
-            for(int i=0;i<ids.Length;i++)if(ids[i]<=0||amounts[i]!=1||claimed.Contains(ids[i])||!batch.Add(ids[i])){batch.Clear();return false;}
-            int credited=(int)Math.Min(MetaProgression.MaximumCoins-(long)Balance,batch.Count);
-            foreach(int id in batch)claimed.Add(id);batch.Clear();
-            Balance+=credited;Earned=(int)Math.Min(MetaProgression.MaximumCoins,(long)Earned+credited);return true;
+            for(int i=0;i<count;i++)if(ids[i]<=0||amounts[i]!=1||claimed.Contains(ids[i])||!batch.Add(ids[i])){batch.Clear();return false;}
+            foreach(int id in batch)claimed.Add(id);batch.Clear();Credit(count);return true;
+        }
+        void Credit(int count){
+            int credited=(int)Math.Min(MetaProgression.MaximumCoins-(long)Balance,count);
+            Balance+=credited;Earned=(int)Math.Min(MetaProgression.MaximumCoins,(long)Earned+credited);
         }
         public bool SetBalanceForTesting(int amount){if(!Active)return false;Balance=Mathf.Clamp(amount,0,MetaProgression.MaximumCoins);return true;}
     }

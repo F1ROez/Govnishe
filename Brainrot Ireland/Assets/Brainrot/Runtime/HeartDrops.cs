@@ -79,7 +79,8 @@ namespace Brainrot
                     Vector3 delta=playerPosition-p;delta.y=0;
                     // An earlier heart in this same tick may already have filled the player's health.
                     if(player.Health<player.Stats.MaxHealth-.001f&&delta.sqrMagnitude<=magnetSquare){
-                        if(delta.magnitude>settings.PickupRadius)item.Root.position+=delta.normalized*Mathf.Min(delta.magnitude,dt*5);
+                        float distance=delta.magnitude;
+                        if(distance>settings.PickupRadius)item.Root.position+=delta/distance*Mathf.Min(distance,dt*5);
                         else{
                             float before=player.Health;player.Heal(Mathf.Max(1,settings.Healing));float healed=player.Health-before;
                             if(healed<=0)continue;

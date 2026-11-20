@@ -106,6 +106,30 @@ namespace Brainrot.Tests
             enemy.Tick(profile.Orcaladon.SlamWindup+.01f);Assert.AreEqual(70,game.Player.Health);
             yield return null;
         }
+        [UnityTest]public IEnumerator LiveCollisionSettingsMatchTheActualOrcaCapsule(){
+            var enemy=Orca(Vector3.back*10);var body=enemy.BodyCollider;
+            profile.Orcaladon.CollisionRadius=1.6f;profile.Orcaladon.ModelHeight=2.8f;
+            yield return null;
+            Assert.AreEqual(1.6f,body.radius,.001f);
+            Assert.AreEqual(3.2f,body.height,.001f,"Capsule height cannot be smaller than its diameter.");
+            Assert.AreEqual(0,body.center.y-body.height*.5f,.001f,"The capsule must remain grounded after a live edit.");
+            profile.Orcaladon.CollisionRadius=.6f;profile.Orcaladon.ModelHeight=2.6f;
+            yield return null;
+            Assert.AreEqual(.6f,body.radius,.001f);Assert.AreEqual(2.6f,body.height,.001f);
+        }
+        [UnityTest]public IEnumerator TelegraphBuffersPreserveClosedSlamAndChargeOutlines(){
+            var enemy=Orca(Vector3.back*10);var attack=enemy.GetComponent<OrcaladonAttack>();enemy.Tick(.01f);
+            int enabled=0;
+            foreach(var line in enemy.GetComponentsInChildren<LineRenderer>())if(line.enabled){
+                enabled++;Assert.AreEqual(6,line.positionCount);Assert.That(Vector3.Distance(line.GetPosition(0),line.GetPosition(5)),Is.LessThan(.001f));
+            }
+            Assert.AreEqual(2,enabled);attack.ResetAttack();enemy.transform.position=Vector3.right*2;enemy.Tick(.01f);
+            Assert.AreEqual(OrcaladonPhase.SlamWindup,attack.Phase);enabled=0;
+            foreach(var line in enemy.GetComponentsInChildren<LineRenderer>())if(line.enabled){
+                enabled++;Assert.AreEqual(33,line.positionCount);Assert.That(Vector3.Distance(line.GetPosition(0),line.GetPosition(32)),Is.LessThan(.001f));
+            }
+            Assert.AreEqual(2,enabled);yield return null;
+        }
         [UnityTest]public IEnumerator NewcomersOpenTheirUnlockWaveEvenWithZeroRandomSpawnChance(){
             profile.Octopus.SpawnChance=profile.Orcaladon.SpawnChance=0;
             game.Spawner.Tick(.01f);Assert.AreEqual(0,game.Spawner.Active.Count);FinishWave();Assert.AreEqual(2,game.Spawner.Waves.Number);
